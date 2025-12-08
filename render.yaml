@@ -9,12 +9,11 @@ services:
     envVars:
       - key: DATABASE_URL
         sync: false
-      - key: CORS_ORIGIN
-        value: "*"
       - key: JWT_SECRET
         sync: false
       - key: OPENAI_API_KEY
         sync: false
+      - key: CORS_ORIGIN
+        value: "*"
       - key: RENDER_EXTERNAL_URL
         sync: false
-
