@@ -7,9 +7,7 @@ import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import OpenAI from 'openai';
 
-import { initDatabase } from './database/db-adapter.js';
-import runMigrations from './migrations.js';
-import runMigrationsPostgres from './migrations-postgres.js';
+import { initDatabase, initMigrations } from './database/db-adapter.js';
 
 import authRouter from './routes/auth.js';
 import proprietariosRouter from './routes/proprietarios.js';
@@ -318,18 +316,8 @@ async function startServer() {
     // Inicializar adaptador de banco
     await initDatabase();
     
-    // Executar migrações apropriadas
-    if (process.env.DATABASE_URL) {
-      // PostgreSQL
-      await runMigrationsPostgres();
-    } else {
-      // SQLite
-      const databaseDir = path.join(__dirname, 'database');
-      if (!fs.existsSync(databaseDir)) {
-        fs.mkdirSync(databaseDir, { recursive: true });
-      }
-      await runMigrations();
-    }
+    // Executar migrações apropriadas usando o adaptador
+    await initMigrations();
     
     // Iniciar servidor
     const PORT = process.env.PORT || 10000;
