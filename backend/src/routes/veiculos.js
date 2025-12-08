@@ -1,6 +1,6 @@
 import express from 'express';
 import { authMiddleware } from '../middleware/authMiddleware.js';
-import { dbGet, dbAll, dbRun } from '../database/db-helper.js';
+import { query, queryOne, queryAll } from '../database/db-adapter.js';
 
 const router = express.Router();
 
@@ -10,13 +10,13 @@ router.post('/cadastrar', authMiddleware, async (req, res) => {
     const { placa, renavam, proprietario_id, marca, modelo, ano } = req.body;
     const userId = req.userId; // Do middleware JWT
 
-    const result = await dbRun(
-      'INSERT INTO veiculos (placa, renavam, proprietario_id, marca, modelo, ano, usuario_id) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id',
+    const result = await query(
+      'INSERT INTO veiculos (placa, renavam, proprietario_id, marca, modelo, ano, usuario_id) VALUES (?, ?, ?, ?, ?, ?, ?)',
       [placa, renavam || null, proprietario_id || null, marca || null, modelo || null, ano || null, userId]
     );
 
     res.json({
-      id: result.lastID,
+      id: result.insertId,
       placa,
       renavam: renavam || null,
       proprietario_id: proprietario_id || null,
@@ -37,7 +37,7 @@ router.get('/proprietario/:id', authMiddleware, async (req, res) => {
     const id = req.params.id;
     const userId = req.userId; // Do middleware JWT
 
-    const rows = await dbAll(
+    const rows = await queryAll(
       'SELECT * FROM veiculos WHERE proprietario_id = ? AND usuario_id = ?',
       [id, userId]
     );
@@ -69,7 +69,7 @@ router.get('/buscar-placa/:placa', authMiddleware, async (req, res) => {
     }
 
     // Query com filtro obrigatório por usuario_id (prevenção de acesso não autorizado)
-    const row = await dbGet(
+    const row = await queryOne(
       `SELECT v.*, p.nome as proprietarioNome 
        FROM veiculos v 
        LEFT JOIN proprietarios p ON v.proprietario_id = p.id 
@@ -95,7 +95,7 @@ router.get('/totais', authMiddleware, async (req, res) => {
   try {
     const userId = req.userId; // Do middleware JWT
 
-    const rows = await dbAll(
+    const rows = await queryAll(
       `SELECT 
         v.id,
         v.placa,
@@ -125,7 +125,7 @@ router.get('/:id/historico', authMiddleware, async (req, res) => {
     const id = req.params.id;
     const userId = req.userId; // Do middleware JWT
 
-    const rows = await dbAll(
+    const rows = await queryAll(
       `SELECT m.*, v.placa, v.renavam, p.nome as proprietarioNome
        FROM manutencoes m
        LEFT JOIN veiculos v ON m.veiculo_id = v.id
@@ -163,7 +163,7 @@ router.get('/:id', authMiddleware, async (req, res) => {
 
     // Query com filtro obrigatório por usuario_id (prevenção de acesso não autorizado)
     // IMPORTANTE: O filtro AND usuario_id = ? garante que apenas o dono pode acessar
-    const row = await dbGet(
+    const row = await queryOne(
       'SELECT * FROM veiculos WHERE id = ? AND usuario_id = ?', 
       [idNum, userIdNum]
     );

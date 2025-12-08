@@ -15,6 +15,7 @@ import authRouter from './routes/auth.js';
 import proprietariosRouter from './routes/proprietarios.js';
 import veiculosRouter from './routes/veiculos.js';
 import manutencoesRouter from './routes/manutencoes.js';
+import healthRouter from './routes/health.js';
 
 // Carregar variáveis de ambiente
 dotenv.config();
@@ -25,23 +26,33 @@ const __dirname = path.dirname(__filename);
 const app = express();
 
 // Configurar CORS
+const defaultOrigins = [
+  'http://localhost:8081',   // Expo local
+  'http://127.0.0.1:8081',   // Expo local (alternativo)
+  'exp://127.0.0.1:19000',
+  'exp://192.168.*',
+  'exp://10.*',
+  'exp://localhost',
+  'exp://*',
+  'https://*.onrender.com',
+];
+
 const corsOptions = {
   origin: function (origin, callback) {
     // Permitir requisições sem origin (mobile apps, Postman, etc)
     if (!origin) return callback(null, true);
     
-    const allowedOrigins = process.env.CORS_ORIGIN === '*' 
-      ? true 
-      : (process.env.CORS_ORIGIN || '').split(',').map(o => o.trim());
+    const envOrigins = (process.env.CORS_ORIGIN || '').split(',').map(o => o.trim()).filter(Boolean);
+    const allowedOrigins = process.env.CORS_ORIGIN === '*'
+      ? true
+      : [...defaultOrigins, ...envOrigins];
     
     // Se CORS_ORIGIN é '*', permitir tudo
     if (allowedOrigins === true) {
       return callback(null, true);
     }
     
-    // Verificar origens permitidas
     const isAllowed = allowedOrigins.some(allowed => {
-      // Suportar wildcards
       if (allowed.includes('*')) {
         const pattern = allowed.replace(/\*/g, '.*');
         return new RegExp(`^${pattern}$`).test(origin);
@@ -49,7 +60,7 @@ const corsOptions = {
       return origin === allowed;
     });
     
-    if (isAllowed || allowedOrigins.includes(origin)) {
+    if (isAllowed) {
       callback(null, true);
     } else {
       callback(new Error('Não permitido pelo CORS'));
@@ -90,6 +101,7 @@ app.use('/auth', authRouter);
 app.use('/proprietarios', proprietariosRouter);
 app.use('/veiculos', veiculosRouter);
 app.use('/manutencoes', manutencoesRouter);
+app.use('/healthz', healthRouter);
 
 // Inicializar cliente OpenAI
 const openaiClient = process.env.OPENAI_API_KEY 
@@ -235,8 +247,15 @@ const construirUrlImagem = (filename, req) => {
   if (!filename) return null;
   
   // Em produção, usar URL completa do Render
-  if (process.env.NODE_ENV === 'production' && process.env.RENDER_SERVICE_NAME) {
-    return `https://${process.env.RENDER_SERVICE_NAME}.onrender.com/uploads/${filename}`;
+  if (process.env.NODE_ENV === 'production') {
+    const serviceName = process.env.RENDER_SERVICE_NAME;
+    const renderExternal = process.env.RENDER_EXTERNAL_URL;
+    if (renderExternal) {
+      return `${renderExternal.replace(/\/$/, '')}/uploads/${filename}`;
+    }
+    if (serviceName) {
+      return `https://${serviceName}.onrender.com/uploads/${filename}`;
+    }
   }
   
   // Em desenvolvimento, usar host da requisição
@@ -268,7 +287,7 @@ async function startServer() {
     }
     
     // Iniciar servidor
-    const PORT = process.env.PORT || 3000;
+    const PORT = process.env.PORT || 10000;
     app.listen(PORT, '0.0.0.0', () => {
       console.log(`✅ Servidor rodando na porta ${PORT}`);
       console.log(`✅ Ambiente: ${process.env.NODE_ENV || 'development'}`);

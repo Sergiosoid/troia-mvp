@@ -1,6 +1,6 @@
 import express from 'express';
 import { authMiddleware } from '../middleware/authMiddleware.js';
-import { dbGet, dbAll, dbRun } from '../database/db-helper.js';
+import { query, queryOne, queryAll } from '../database/db-adapter.js';
 
 const router = express.Router();
 
@@ -10,13 +10,13 @@ router.post('/cadastrar', authMiddleware, async (req, res) => {
     const { nome, cpf, rg, cnh, telefone } = req.body;
     const userId = req.userId; // Do middleware JWT
 
-    const result = await dbRun(
-      'INSERT INTO proprietarios (nome, cpf, rg, cnh, telefone, usuario_id) VALUES (?, ?, ?, ?, ?, ?) RETURNING id',
+    const result = await query(
+      'INSERT INTO proprietarios (nome, cpf, rg, cnh, telefone, usuario_id) VALUES (?, ?, ?, ?, ?, ?)',
       [nome, cpf || null, rg || null, cnh || null, telefone || null, userId]
     );
 
     res.json({
-      id: result.lastID,
+      id: result.insertId,
       nome,
       cpf: cpf || null,
       rg: rg || null,
@@ -35,7 +35,7 @@ router.get('/', authMiddleware, async (req, res) => {
   try {
     const userId = req.userId; // Do middleware JWT
 
-    const rows = await dbAll('SELECT * FROM proprietarios WHERE usuario_id = ?', [userId]);
+    const rows = await queryAll('SELECT * FROM proprietarios WHERE usuario_id = ?', [userId]);
     res.json(rows);
   } catch (error) {
     console.error('[ERRO] Erro ao listar proprietários:', error);

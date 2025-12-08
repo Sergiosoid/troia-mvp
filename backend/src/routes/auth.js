@@ -1,7 +1,7 @@
 import express from 'express';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
-import { dbGet, dbRun } from '../database/db-helper.js';
+import { query, queryOne } from '../database/db-adapter.js';
 
 const router = express.Router();
 
@@ -36,7 +36,7 @@ router.post('/register', async (req, res) => {
     }
 
     // Verificar se email já existe
-    const existingUser = await dbGet('SELECT id FROM usuarios WHERE email = ?', [email]);
+    const existingUser = await queryOne('SELECT id FROM usuarios WHERE email = ?', [email]);
     
     if (existingUser) {
       return res.status(400).json({ error: 'Email já cadastrado' });
@@ -44,15 +44,15 @@ router.post('/register', async (req, res) => {
 
     // Criar novo usuário
     const senhaHash = hashSenha(senha);
-    const result = await dbRun(
+    const result = await query(
       'INSERT INTO usuarios (nome, email, senha) VALUES (?, ?, ?)',
       [nome, email, senhaHash]
     );
 
-    const token = gerarToken(result.lastID);
+    const token = gerarToken(result.insertId);
     
     res.json({
-      userId: result.lastID,
+      userId: result.insertId,
       nome,
       email,
       token
@@ -74,7 +74,7 @@ router.post('/login', async (req, res) => {
     }
 
     // Buscar usuário por email primeiro (bcrypt não permite comparação direta)
-    const row = await dbGet(
+    const row = await queryOne(
       'SELECT id, nome, email, senha FROM usuarios WHERE email = ?',
       [email]
     );

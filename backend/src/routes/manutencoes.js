@@ -4,7 +4,7 @@ import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { authMiddleware } from '../middleware/authMiddleware.js';
-import { dbGet, dbAll, dbRun } from '../database/db-helper.js';
+import { query, queryOne, queryAll } from '../database/db-adapter.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -28,14 +28,21 @@ const AREAS_MANUTENCAO_VALIDAS = [
 const construirUrlImagem = (filename, req) => {
   if (!filename) return null;
   
-  // Em produção no Render, usar URL completa
-  if (process.env.NODE_ENV === 'production' && process.env.RENDER_SERVICE_NAME) {
-    return `https://${process.env.RENDER_SERVICE_NAME}.onrender.com/uploads/${filename}`;
+  // Em produção, usar URL completa do Render
+  if (process.env.NODE_ENV === 'production') {
+    const renderExternal = process.env.RENDER_EXTERNAL_URL;
+    if (renderExternal) {
+      return `${renderExternal.replace(/\/$/, '')}/uploads/${filename}`;
+    }
+    const serviceName = process.env.RENDER_SERVICE_NAME;
+    if (serviceName) {
+      return `https://${serviceName}.onrender.com/uploads/${filename}`;
+    }
   }
   
   // Em desenvolvimento, usar host da requisição
   const protocol = req.protocol || 'http';
-  const host = req.get('host') || 'localhost:3000';
+  const host = req.get('host') || 'localhost:10000';
   return `${protocol}://${host}/uploads/${filename}`;
 };
 
@@ -141,10 +148,10 @@ router.post('/cadastrar', authMiddleware, upload.single('documento'), async (req
     const tipoFinal = tipo || tipo_manutencao || null;
 
     // Inserir no banco
-    const result = await dbRun(
+    const result = await query(
       `INSERT INTO manutencoes 
       (veiculo_id, descricao, data, valor, tipo, tipo_manutencao, area_manutencao, imagem, usuario_id) 
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         veiculo_id,
         descricaoFinal || null,
@@ -160,7 +167,7 @@ router.post('/cadastrar', authMiddleware, upload.single('documento'), async (req
 
     // Construir resposta consistente
     const resposta = {
-      id: result.lastID,
+      id: result.insertId,
       veiculo_id: parseInt(veiculo_id),
       descricao: descricaoFinal,
       data: data,
@@ -200,7 +207,7 @@ router.get('/veiculo/:id', authMiddleware, async (req, res) => {
     }
 
     // Buscar manutenções com JOIN para garantir que o veículo pertence ao usuário
-    const rows = await dbAll(
+    const rows = await queryAll(
       `SELECT 
         m.*,
         v.placa,
@@ -255,7 +262,7 @@ router.get('/buscar', authMiddleware, async (req, res) => {
 
     const like = `%${termo}%`;
 
-    const rows = await dbAll(
+    const rows = await queryAll(
       `SELECT 
         m.*, 
         v.placa, 
@@ -315,7 +322,7 @@ router.delete('/:id', authMiddleware, async (req, res) => {
     }
 
     // Buscar manutenção para verificar se pertence ao usuário e obter nome da imagem
-    const manutencao = await dbGet(
+    const manutencao = await queryOne(
       'SELECT imagem, usuario_id FROM manutencoes WHERE id = ?',
       [manutencaoId]
     );
@@ -353,13 +360,13 @@ router.delete('/:id', authMiddleware, async (req, res) => {
     }
 
     // Excluir manutenção do banco de dados
-    const result = await dbRun(
+    const result = await query(
       'DELETE FROM manutencoes WHERE id = ? AND usuario_id = ?',
       [manutencaoId, userId]
     );
 
     // Verificar se alguma linha foi afetada
-    if (result.changes === 0) {
+    if (result.rowCount === 0) {
       return res.status(404).json({ 
         error: 'Manutenção não encontrada ou já foi excluída',
         code: 'MANUTENCAO_NOT_FOUND'

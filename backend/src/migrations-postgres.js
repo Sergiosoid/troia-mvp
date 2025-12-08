@@ -265,7 +265,7 @@ const addMissingColumns = async () => {
 };
 
 // Função principal de migração
-const runMigrations = async () => {
+export const initMigrations = async () => {
   console.log('🚀 Iniciando migrações do banco de dados PostgreSQL...');
 
   try {
@@ -278,5 +278,5 @@ const runMigrations = async () => {
   }
 };
 
-export default runMigrations;
+export default initMigrations;
 
