@@ -6,9 +6,12 @@ import {
   StyleSheet,
   TouchableOpacity,
   Alert,
+  Platform,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { clearLoggedUser, getLoggedUser } from '../utils/authStorage';
+import { commonStyles } from '../constants/styles';
 
 export default function ConfiguracoesScreen({ navigation }) {
   const [userInfo, setUserInfo] = React.useState({ nome: 'Usuário', email: 'usuario@exemplo.com' });
@@ -157,7 +160,7 @@ export default function ConfiguracoesScreen({ navigation }) {
         {/* Versão */}
         <Text style={styles.versionText}>Versão 1.0.0</Text>
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }
 

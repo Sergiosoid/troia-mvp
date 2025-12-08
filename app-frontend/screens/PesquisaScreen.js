@@ -9,8 +9,8 @@ import {
   Alert, 
   ActivityIndicator,
   Platform,
-  SafeAreaView
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { buscarManutencoes, buscarVeiculoPorPlaca, API_URL } from '../services/api';

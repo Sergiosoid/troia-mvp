@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Alert, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, Alert, TouchableOpacity, ActivityIndicator, Platform } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -73,10 +74,10 @@ export default function CameraCaptureScreen({ navigation, route }) {
 
   if (!permission) {
     return (
-      <View style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
         <ActivityIndicator size="large" />
         <Text>Verificando permissões...</Text>
-      </View>
+      </SafeAreaView>
     );
   }
 
@@ -134,7 +135,7 @@ export default function CameraCaptureScreen({ navigation, route }) {
           </TouchableOpacity>
         </View>
       </CameraView>
-    </View>
+    </SafeAreaView>
   );
 }
 

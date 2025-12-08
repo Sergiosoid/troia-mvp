@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, Image, StyleSheet, ScrollView, Alert, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { View, Text, Image, StyleSheet, ScrollView, Alert, ActivityIndicator, TouchableOpacity, Platform } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { uploadNotaParaAnalise } from '../services/api';
 import { commonStyles } from '../constants/styles';
@@ -118,8 +119,8 @@ export default function PreviewParsedScreen({ route, navigation }) {
   // Tela de loading durante processamento
   if (processando && loading) {
     return (
-      <View style={commonStyles.container}>
-        <View style={commonStyles.header}>
+      <SafeAreaView style={commonStyles.container} edges={['top']}>
+        <View style={[commonStyles.header, { paddingTop: Platform.OS === 'ios' ? 0 : 16 }]}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={commonStyles.backButton}>
             <Ionicons name="arrow-back" size={24} color="#333" />
           </TouchableOpacity>
@@ -132,14 +133,14 @@ export default function PreviewParsedScreen({ route, navigation }) {
           <Text style={styles.loadingSubtext}>Aguarde enquanto extraímos os dados da imagem</Text>
           <Text style={styles.loadingSubtextSmall}>Isso pode levar alguns segundos</Text>
         </View>
-      </View>
+      </SafeAreaView>
     );
   }
 
   return (
-    <View style={commonStyles.container}>
+    <SafeAreaView style={commonStyles.container} edges={['top']}>
       {/* Header */}
-      <View style={commonStyles.header}>
+      <View style={[commonStyles.header, { paddingTop: Platform.OS === 'ios' ? 0 : 16 }]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={commonStyles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#333" />
         </TouchableOpacity>
