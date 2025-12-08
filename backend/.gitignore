@@ -1,4 +1,57 @@
+<<<<<<< HEAD
+# Node modules
+node_modules/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Runtime data
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# Env files
+.env
+.env.local
+.env.development
+.env.production
+.env.test
+
+# Cache
+.cache/
+.tmp/
+.temp/
+dist/
+
+# Uploads
+uploads/
+documents/
+public/uploads/
+
+# Cursor editor
+.cursor/
+*.cursor-cache
+
+# Build outputs
+coverage/
+build/
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# SQLite temp files (in case you use sqlite locally)
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+=======
 por.traineddata
 uploads/
 node_modules/
 database/
+>>>>>>> 28ce06e56da9b8adac7db14ebb03df4faf8e8662

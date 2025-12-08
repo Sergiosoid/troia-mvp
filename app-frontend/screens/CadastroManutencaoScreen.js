@@ -18,6 +18,7 @@ import * as ImagePicker from 'expo-image-picker';
 // DateTimePicker será usado via Modal nativo se disponível
 import { cadastrarManutencao, listarProprietarios, listarVeiculosPorProprietario } from '../services/api';
 import { commonStyles } from '../constants/styles';
+import HeaderBar from '../components/HeaderBar';
 
 export default function CadastroManutencaoScreen({ route, navigation }) {
   const { veiculoId: veiculoIdParam, dadosPreenchidos, imageUri } = route?.params || {};
@@ -233,32 +234,19 @@ export default function CadastroManutencaoScreen({ route, navigation }) {
 
   if (loading) {
     return (
-      <View style={commonStyles.container}>
-        <View style={commonStyles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={commonStyles.backButton}>
-            <Ionicons name="arrow-back" size={24} color="#333" />
-          </TouchableOpacity>
-          <Text style={commonStyles.headerTitle}>Cadastrar Manutenção</Text>
-          <View style={{ width: 40 }} />
-        </View>
+      <SafeAreaView edges={['top']} style={commonStyles.container}>
+        <HeaderBar title="Cadastrar Manutenção" navigation={navigation} />
         <View style={commonStyles.loadingContainer}>
           <ActivityIndicator size="large" color="#4CAF50" />
           <Text style={commonStyles.loadingText}>Salvando manutenção...</Text>
         </View>
-      </View>
+      </SafeAreaView>
     );
   }
 
   return (
-    <View style={commonStyles.container}>
-      {/* Header */}
-      <View style={commonStyles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={commonStyles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#333" />
-        </TouchableOpacity>
-        <Text style={commonStyles.headerTitle}>Cadastrar Manutenção</Text>
-        <View style={{ width: 40 }} />
-      </View>
+    <SafeAreaView edges={['top']} style={commonStyles.container}>
+      <HeaderBar title="Cadastrar Manutenção" navigation={navigation} />
 
       <ScrollView 
         style={commonStyles.scrollContainer}

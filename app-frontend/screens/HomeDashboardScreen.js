@@ -10,12 +10,13 @@ import {
   RefreshControl,
   Platform,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { listarVeiculosComTotais, calcularTotalGeral } from '../services/api';
 import { commonStyles } from '../constants/styles';
 import FABMenu from '../components/FABMenu';
+import VehicleCard from '../components/VehicleCard';
 
 const SPACING = 16; // Espaçamento padrão de 16
 
@@ -24,6 +25,7 @@ export default function HomeDashboardScreen({ navigation, route }) {
   const [totalGeral, setTotalGeral] = useState(0);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const insets = useSafeAreaInsets();
 
   const carregarDados = async (isRefresh = false) => {
     try {
@@ -98,11 +100,11 @@ export default function HomeDashboardScreen({ navigation, route }) {
   if (loading && !refreshing) {
     return (
       <SafeAreaView style={commonStyles.container} edges={['top']}>
-        <View style={commonStyles.header}>
-          <Text style={commonStyles.headerTitle}>Manutenções</Text>
+        <View style={[styles.topBar, { paddingTop: insets.top + 10 }]}>
+          <View style={styles.topBarPlaceholder} />
           <TouchableOpacity
             onPress={() => navigation.navigate('Configuracoes')}
-            style={commonStyles.backButton}
+            style={styles.topBarButton}
           >
             <Ionicons name="settings-outline" size={24} color="#333" />
           </TouchableOpacity>
@@ -117,12 +119,12 @@ export default function HomeDashboardScreen({ navigation, route }) {
 
   return (
     <SafeAreaView style={commonStyles.container} edges={['top']}>
-      {/* Header com Configurações */}
-      <View style={commonStyles.header}>
-        <Text style={commonStyles.headerTitle}>Manutenções</Text>
+      {/* Top Bar sem título - apenas ícones */}
+      <View style={[styles.topBar, { paddingTop: insets.top + 10 }]}>
+        <View style={styles.topBarPlaceholder} />
         <TouchableOpacity
           onPress={() => navigation.navigate('Configuracoes')}
-          style={commonStyles.backButton}
+          style={styles.topBarButton}
         >
           <Ionicons name="settings-outline" size={24} color="#333" />
         </TouchableOpacity>
@@ -190,90 +192,22 @@ export default function HomeDashboardScreen({ navigation, route }) {
         ) : (
           <>
             {veiculos.map((veiculo) => (
-              <TouchableOpacity
+              <VehicleCard
                 key={veiculo.id}
-                style={styles.veiculoCard}
+                veiculo={veiculo}
                 onPress={() => navigation.navigate('VeiculoHistorico', { veiculoId: veiculo.id })}
-              >
-                {/* Header do Card */}
-                <View style={styles.veiculoCardHeader}>
-                  <View style={styles.veiculoCardHeaderLeft}>
-                    <View style={styles.veiculoNomeRow}>
-                      <Ionicons name="car-outline" size={24} color="#4CAF50" />
-                      <View>
-                        <Text style={styles.veiculoNome}>
-                          {veiculo.modelo || veiculo.marca || 'Veículo'} {veiculo.ano ? `(${veiculo.ano})` : ''}
-                        </Text>
-                        {veiculo.placa && (
-                          <Text style={styles.veiculoPlaca}>{veiculo.placa}</Text>
-                        )}
-                      </View>
-                    </View>
-                  </View>
-                  <Ionicons name="chevron-forward" size={24} color="#666" />
-                </View>
-                
-                {/* Body do Card */}
-                <View style={styles.veiculoCardBody}>
-                  {/* KM Atual */}
-                  {veiculo.km_atual && (
-                    <View style={styles.veiculoInfoRow}>
-                      <View style={styles.veiculoInfoLabelRow}>
-                        <Ionicons name="speedometer-outline" size={18} color="#2196F3" />
-                        <Text style={styles.veiculoLabel}>KM Atual:</Text>
-                      </View>
-                      <Text style={styles.veiculoValue}>
-                        {veiculo.km_atual.toLocaleString('pt-BR')} km
-                      </Text>
-                    </View>
-                  )}
-                  
-                  {/* Total Gasto */}
-                  <View style={styles.veiculoInfoRow}>
-                    <View style={styles.veiculoInfoLabelRow}>
-                      <Ionicons name="cash-outline" size={18} color="#4CAF50" />
-                      <Text style={styles.veiculoLabel}>Total Gasto:</Text>
-                    </View>
-                    <Text style={styles.veiculoValue}>
-                      {formatarMoeda(parseFloat(veiculo.totalGasto) || 0)}
-                    </Text>
-                  </View>
-                  
-                  {/* Última Manutenção */}
-                  <View style={styles.veiculoInfoRow}>
-                    <View style={styles.veiculoInfoLabelRow}>
-                      <Ionicons name="calendar-outline" size={18} color="#666" />
-                      <Text style={styles.veiculoLabel}>Última Manutenção:</Text>
-                    </View>
-                    <Text style={styles.veiculoValue}>
-                      {formatarData(veiculo.ultimaData)}
-                    </Text>
-                  </View>
-                </View>
-                
-                {/* Botão Ver Histórico */}
-                <TouchableOpacity
-                  style={styles.verHistoricoButton}
-                  onPress={(e) => {
-                    e.stopPropagation();
-                    navigation.navigate('VeiculoHistorico', { veiculoId: veiculo.id });
-                  }}
-                >
-                  <Text style={styles.verHistoricoText}>Ver Histórico</Text>
-                  <Ionicons name="arrow-forward" size={16} color="#4CAF50" />
-                </TouchableOpacity>
-              </TouchableOpacity>
+                formatarMoeda={formatarMoeda}
+                formatarData={formatarData}
+              />
             ))}
             
             {/* Botão para adicionar novo veículo */}
             <TouchableOpacity
-              style={[commonStyles.button, styles.addVeiculoButton]}
+              style={styles.addVeiculoButton}
               onPress={() => navigation.navigate('CadastroVeiculo')}
             >
-              <Ionicons name="add-circle-outline" size={20} color="#fff" />
-              <Text style={[commonStyles.buttonText, { marginLeft: SPACING / 2 }]}>
-                Adicionar Novo Veículo
-              </Text>
+              <Ionicons name="add-circle-outline" size={22} color="#fff" />
+              <Text style={styles.addVeiculoText}>Adicionar Novo Veículo</Text>
             </TouchableOpacity>
           </>
         )}
@@ -355,100 +289,45 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginLeft: SPACING / 2,
   },
-  veiculoCard: {
+  topBar: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingBottom: 10,
     backgroundColor: '#fff',
-    marginHorizontal: SPACING,
-    marginVertical: 10,
-    padding: SPACING,
-    borderRadius: 12,
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
   },
-  veiculoCardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: SPACING,
-  },
-  veiculoCardHeaderLeft: {
+  topBarPlaceholder: {
     flex: 1,
   },
-  veiculoNomeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: SPACING / 2,
+  topBarButton: {
+    padding: 8,
   },
-  veiculoNome: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: commonStyles.textPrimary,
-    marginLeft: SPACING / 2,
-  },
-  veiculoPlaca: {
-    fontSize: 14,
-    color: commonStyles.textSecondary,
-    marginLeft: SPACING / 2,
-    marginTop: 2,
-  },
-  veiculoProprietarioRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  veiculoProprietario: {
-    fontSize: 14,
-    color: commonStyles.textSecondary,
-    marginLeft: SPACING / 2,
-  },
-  veiculoCardBody: {
-    borderTopWidth: 1,
-    borderTopColor: '#f0f0f0',
-    paddingTop: SPACING,
-    marginTop: SPACING / 2,
-  },
-  veiculoInfoRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: SPACING,
-  },
-  veiculoInfoLabelRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  veiculoLabel: {
-    fontSize: 14,
-    color: commonStyles.textSecondary,
-    marginLeft: SPACING / 2,
-  },
-  veiculoValue: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: commonStyles.textPrimary,
-  },
-  verHistoricoButton: {
+  addVeiculoButton: {
+    backgroundColor: commonStyles.primaryColor,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: SPACING,
-    paddingVertical: SPACING / 2,
-    borderTopWidth: 1,
-    borderTopColor: '#f0f0f0',
-  },
-  verHistoricoText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#4CAF50',
-    marginRight: SPACING / 2,
-  },
-  addVeiculoButton: {
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    borderRadius: 10,
     margin: SPACING,
     marginTop: SPACING / 2,
     width: '90%',
     alignSelf: 'center',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+  },
+  addVeiculoText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '600',
+    marginLeft: SPACING / 2,
   },
   emptySubtext: {
     fontSize: 14,

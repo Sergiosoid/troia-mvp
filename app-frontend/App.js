@@ -92,9 +92,21 @@ function App() {
           component={EscolherVeiculoParaAbastecimentoScreen}
           options={{ headerShown: false }}
         />
-        <Stack.Screen name="CadastroProprietario" component={CadastroProprietarioScreen} />
-        <Stack.Screen name="CadastroVeiculo" component={CadastroVeiculoScreen} />
-        <Stack.Screen name="CadastroManutencao" component={CadastroManutencaoScreen} />
+        <Stack.Screen 
+          name="CadastroProprietario" 
+          component={CadastroProprietarioScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen 
+          name="CadastroVeiculo" 
+          component={CadastroVeiculoScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen 
+          name="CadastroManutencao" 
+          component={CadastroManutencaoScreen}
+          options={{ headerShown: false }}
+        />
         <Stack.Screen name="ListaManutencoes" component={ListaManutencoesScreen} />
         <Stack.Screen name="Pesquisa" component={PesquisaScreen} />
         <Stack.Screen 

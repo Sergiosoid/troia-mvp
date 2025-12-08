@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { cadastrarProprietario } from '../services/api';
 import { commonStyles } from '../constants/styles';
+import HeaderBar from '../components/HeaderBar';
 
 export default function CadastroProprietarioScreen({ navigation, route }) {
   const [nome, setNome] = useState('');
@@ -61,13 +62,7 @@ export default function CadastroProprietarioScreen({ navigation, route }) {
   if (loading) {
     return (
       <SafeAreaView style={commonStyles.container} edges={['top']}>
-        <View style={commonStyles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={commonStyles.backButton}>
-            <Ionicons name="arrow-back" size={24} color="#333" />
-          </TouchableOpacity>
-          <Text style={commonStyles.headerTitle}>Cadastrar Proprietário</Text>
-          <View style={{ width: 40 }} />
-        </View>
+        <HeaderBar title="Cadastrar Proprietário" navigation={navigation} />
         <View style={commonStyles.loadingContainer}>
           <ActivityIndicator size="large" color="#4CAF50" />
           <Text style={commonStyles.loadingText}>Salvando proprietário...</Text>
@@ -77,15 +72,8 @@ export default function CadastroProprietarioScreen({ navigation, route }) {
   }
 
   return (
-        <SafeAreaView edges={['top']} style={commonStyles.container}>
-      {/* Header */}
-      <View style={[commonStyles.header, { paddingTop: Platform.OS === 'ios' ? 0 : 16 }]}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={commonStyles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#333" />
-        </TouchableOpacity>
-        <Text style={commonStyles.headerTitle}>Cadastrar Proprietário</Text>
-        <View style={{ width: 40 }} />
-      </View>
+    <SafeAreaView edges={['top']} style={commonStyles.container}>
+      <HeaderBar title="Cadastrar Proprietário" navigation={navigation} />
 
       <ScrollView style={commonStyles.scrollContainer} contentContainerStyle={{ paddingBottom: Platform.OS === 'android' ? 40 : 20 }}>
         <View style={commonStyles.card}>

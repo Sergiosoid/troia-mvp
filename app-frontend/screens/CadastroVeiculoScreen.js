@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { cadastrarVeiculo } from '../services/api';
 import { commonStyles } from '../constants/styles';
+import HeaderBar from '../components/HeaderBar';
 
 export default function CadastroVeiculoScreen({ route, navigation }) {
   const { proprietarioId } = route?.params || {};
@@ -72,13 +73,7 @@ export default function CadastroVeiculoScreen({ route, navigation }) {
   if (loading) {
     return (
       <SafeAreaView edges={['top']} style={commonStyles.container}>
-        <View style={commonStyles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={commonStyles.backButton}>
-            <Ionicons name="arrow-back" size={24} color="#333" />
-          </TouchableOpacity>
-          <Text style={commonStyles.headerTitle}>Cadastrar Veículo</Text>
-          <View style={{ width: 40 }} />
-        </View>
+        <HeaderBar title="Cadastrar Veículo" navigation={navigation} />
         <View style={commonStyles.loadingContainer}>
           <ActivityIndicator size="large" color="#4CAF50" />
           <Text style={commonStyles.loadingText}>Salvando veículo...</Text>
@@ -89,14 +84,7 @@ export default function CadastroVeiculoScreen({ route, navigation }) {
 
   return (
     <SafeAreaView edges={['top']} style={commonStyles.container}>
-      {/* Header */}
-      <View style={[commonStyles.header, { paddingTop: Platform.OS === 'ios' ? 0 : 16 }]}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={commonStyles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#333" />
-        </TouchableOpacity>
-        <Text style={commonStyles.headerTitle}>Cadastrar Veículo</Text>
-        <View style={{ width: 40 }} />
-      </View>
+      <HeaderBar title="Cadastrar Veículo" navigation={navigation} />
 
       <ScrollView style={commonStyles.scrollContainer}>
         <View style={commonStyles.card}>

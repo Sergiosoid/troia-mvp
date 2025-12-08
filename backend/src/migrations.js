@@ -70,12 +70,28 @@ const createTablesIfNotExist = async (db) => {
           nome TEXT NOT NULL,
           email TEXT UNIQUE NOT NULL,
           senha TEXT NOT NULL,
+          role TEXT DEFAULT 'cliente',
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )
       `);
       console.log('  ✓ Tabela usuarios criada');
     } else {
       console.log('  ✓ Tabela usuarios já existe');
+      // Verificar e adicionar coluna role se não existir
+      const roleExists = await columnExists(db, 'usuarios', 'role');
+      if (!roleExists) {
+        console.log('  ✓ Adicionando coluna role à tabela usuarios...');
+        try {
+          await runSQL(db, 'ALTER TABLE usuarios ADD COLUMN role TEXT DEFAULT \'cliente\'');
+          console.log('  ✓ Coluna role adicionada');
+        } catch (err) {
+          if (err.message.includes('duplicate column')) {
+            console.log('  ➡️  Coluna role já existe');
+          } else {
+            throw err;
+          }
+        }
+      }
     }
 
     // Tabela proprietarios
@@ -145,6 +161,36 @@ const createTablesIfNotExist = async (db) => {
       console.log('  ✓ Tabela manutencoes já existe');
     }
 
+    // Tabela abastecimentos
+    const abastecimentosExists = await tableExists(db, 'abastecimentos');
+    if (!abastecimentosExists) {
+      console.log('  ✓ Criando tabela abastecimentos...');
+      await runSQL(db, `
+        CREATE TABLE abastecimentos (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          veiculo_id INTEGER NOT NULL,
+          usuario_id INTEGER NOT NULL,
+          litros REAL,
+          valor_total REAL,
+          preco_por_litro REAL,
+          tipo_combustivel TEXT,
+          posto TEXT,
+          km_antes INTEGER,
+          km_depois INTEGER,
+          consumo REAL,
+          custo_por_km REAL,
+          data TEXT,
+          imagem TEXT,
+          criado_em DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (veiculo_id) REFERENCES veiculos(id) ON DELETE CASCADE,
+          FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
+        )
+      `);
+      console.log('  ✓ Tabela abastecimentos criada');
+    } else {
+      console.log('  ✓ Tabela abastecimentos já existe');
+    }
+
   } catch (error) {
     console.error('  ✗ Erro ao criar tabelas:', error.message);
     throw error;
@@ -205,11 +251,41 @@ const addMissingColumns = async (db) => {
         console.log('  ✓ Coluna ano adicionada em veiculos');
       }
 
+      // SQLite: adicionar coluna km_atual a veiculos
+      const kmAtualExists = await columnExists(db, 'veiculos', 'km_atual');
+      if (!kmAtualExists) {
+        console.log('  ✓ Adicionando coluna km_atual em veiculos...');
+        await runSQL(db, `
+          ALTER TABLE veiculos
+          ADD COLUMN km_atual INTEGER
+        `).catch(() => {});
+        console.log('  ✓ Coluna km_atual adicionada em veiculos');
+      }
+
       // Verificar se placa tem UNIQUE (não pode adicionar via ALTER, mas verificamos)
       const placaExists = await columnExists(db, 'veiculos', 'placa');
       if (!placaExists) {
         console.log('  ⚠ Coluna placa não existe em veiculos (deve ser criada com a tabela)');
       }
+    }
+
+    // SQLite: criar tabela km_historico
+    const kmHistoricoExists = await tableExists(db, 'km_historico');
+    if (!kmHistoricoExists) {
+      console.log('  ✓ Criando tabela km_historico...');
+      await runSQL(db, `
+        CREATE TABLE IF NOT EXISTS km_historico (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          veiculo_id INTEGER NOT NULL,
+          km INTEGER NOT NULL,
+          fonte TEXT NOT NULL,
+          criado_em TEXT DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (veiculo_id) REFERENCES veiculos(id) ON DELETE CASCADE
+        )
+      `);
+      console.log('  ✓ Tabela km_historico criada');
+    } else {
+      console.log('  ✓ Tabela km_historico já existe');
     }
 
     // Verificar e adicionar colunas em manutencoes (SEM ACENTO)

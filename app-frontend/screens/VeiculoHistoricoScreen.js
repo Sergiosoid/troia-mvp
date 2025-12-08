@@ -16,6 +16,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { listarHistoricoVeiculo, buscarVeiculoPorId, excluirManutencao, API_URL } from '../services/api';
 import { commonStyles } from '../constants/styles';
+import HeaderBar from '../components/HeaderBar';
 
 export default function VeiculoHistoricoScreen({ navigation, route }) {
   const { veiculoId } = route?.params || {};

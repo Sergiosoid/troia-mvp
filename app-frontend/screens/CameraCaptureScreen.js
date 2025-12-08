@@ -135,7 +135,7 @@ export default function CameraCaptureScreen({ navigation, route }) {
           </TouchableOpacity>
         </View>
       </CameraView>
-    </SafeAreaView>
+    </View>
   );
 }
 

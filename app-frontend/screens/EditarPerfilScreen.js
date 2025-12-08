@@ -18,6 +18,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { getLoggedUser } from '../utils/authStorage';
 import { commonStyles } from '../constants/styles';
+import HeaderBar from '../components/HeaderBar';
 
 export default function EditarPerfilScreen({ navigation }) {
   const [nome, setNome] = useState('');
@@ -98,16 +99,7 @@ export default function EditarPerfilScreen({ navigation }) {
 
   return (
     <SafeAreaView style={commonStyles.container} edges={['top']}>
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={commonStyles.backButton}
-          onPress={() => navigation.goBack()}
-        >
-          <Ionicons name="arrow-back" size={24} color={commonStyles.textPrimary} />
-        </TouchableOpacity>
-        <Text style={commonStyles.headerTitle}>Editar Perfil</Text>
-        <View style={{ width: 24 }} />
-      </View>
+      <HeaderBar title="Editar Perfil" navigation={navigation} />
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         <Text style={commonStyles.label}>Nome *</Text>
@@ -216,10 +208,7 @@ export default function EditarPerfilScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  header: {
-    ...commonStyles.header,
-    paddingTop: 16,
-  },
+  // Header removido - usando HeaderBar component
   scrollView: {
     flex: 1,
   },

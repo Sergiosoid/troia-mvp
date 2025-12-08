@@ -23,6 +23,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useAbastecimentoApi } from '../services/useAbastecimentoApi';
 import { listarVeiculosComTotais, buscarVeiculoPorId } from '../services/api';
 import { commonStyles } from '../constants/styles';
+import HeaderBar from '../components/HeaderBar';
 
 export default function RegistrarAbastecimentoScreen({ route, navigation }) {
   const { veiculoId: veiculoIdParam, imagemUri } = route?.params || {};
@@ -261,16 +262,7 @@ export default function RegistrarAbastecimentoScreen({ route, navigation }) {
 
   return (
     <SafeAreaView style={commonStyles.container} edges={['top']}>
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={commonStyles.backButton}
-          onPress={() => navigation.goBack()}
-        >
-          <Ionicons name="arrow-back" size={24} color={commonStyles.textPrimary} />
-        </TouchableOpacity>
-        <Text style={commonStyles.headerTitle}>Registrar Abastecimento</Text>
-        <View style={{ width: 24 }} />
-      </View>
+      <HeaderBar title="Registrar Abastecimento" navigation={navigation} />
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         {/* Seleção de Veículo */}
@@ -494,10 +486,7 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingBottom: 40,
   },
-  header: {
-    ...commonStyles.header,
-    paddingTop: 16,
-  },
+  // Header removido - usando HeaderBar component
   imageContainer: {
     position: 'relative',
     marginBottom: 15,

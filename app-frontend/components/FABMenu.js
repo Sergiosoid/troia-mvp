@@ -8,17 +8,23 @@ import {
   Modal,
   Platform,
   Alert,
+  useWindowDimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const FAB_SIZE = 56;
 const MENU_ITEM_SIZE = 50;
-const MENU_RADIUS = 80;
 
 export default function FABMenu({ navigation, veiculos = [] }) {
   const [isOpen, setIsOpen] = useState(false);
   const insets = useSafeAreaInsets();
+  const { width, height } = useWindowDimensions();
+  
+  // Calcular raio dinamicamente baseado no tamanho da tela
+  const MENU_RADIUS = Math.min(width, height) * 0.15; // 15% da menor dimensão, máximo 70px
+  const maxRadius = 70;
+  const finalRadius = Math.min(MENU_RADIUS, maxRadius);
   
   const scaleAnim = useState(new Animated.Value(0))[0];
   const rotateAnim = useState(new Animated.Value(0))[0];
@@ -136,12 +142,13 @@ export default function FABMenu({ navigation, veiculos = [] }) {
             right: 20,
           },
         ]}
+        pointerEvents="box-none"
       >
         {/* Menu Items */}
         {menuItems.map((item, index) => {
           const angle = (index * 90 - 45) * (Math.PI / 180);
-          const x = Math.cos(angle) * MENU_RADIUS;
-          const y = Math.sin(angle) * MENU_RADIUS;
+          const x = Math.cos(angle) * finalRadius;
+          const y = Math.sin(angle) * finalRadius;
 
           const translateX = scaleAnim.interpolate({
             inputRange: [0, 1],
@@ -208,7 +215,9 @@ const styles = StyleSheet.create({
   },
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    width: '100%',
+    height: '100%',
   },
   fab: {
     width: FAB_SIZE,
