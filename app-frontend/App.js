@@ -10,6 +10,7 @@ import RegisterScreen from './screens/RegisterScreen';
 import HomeDashboardScreen from './screens/HomeDashboardScreen';
 import VeiculoHistoricoScreen from './screens/VeiculoHistoricoScreen';
 import EscolherVeiculoParaManutencaoScreen from './screens/EscolherVeiculoParaManutencaoScreen';
+import EscolherVeiculoParaAbastecimentoScreen from './screens/EscolherVeiculoParaAbastecimentoScreen';
 import CadastroProprietarioScreen from './screens/CadastroProprietarioScreen';
 import CadastroVeiculoScreen from './screens/CadastroVeiculoScreen';
 import CadastroManutencaoScreen from './screens/CadastroManutencaoScreen';
@@ -18,6 +19,12 @@ import PesquisaScreen from './screens/PesquisaScreen';
 import CameraCaptureScreen from './screens/CameraCaptureScreen';
 import PreviewParsedScreen from './screens/PreviewParsedScreen';
 import ConfiguracoesScreen from './screens/ConfiguracoesScreen';
+import EditarPerfilScreen from './screens/EditarPerfilScreen';
+import SobreScreen from './screens/SobreScreen';
+import GerenciarProprietariosScreen from './screens/GerenciarProprietariosScreen';
+import GerenciarVeiculosScreen from './screens/GerenciarVeiculosScreen';
+import RegistrarAbastecimentoScreen from './screens/RegistrarAbastecimentoScreen';
+import CameraAbastecimento from './components/CameraAbastecimento';
 
 const Stack = createNativeStackNavigator();
 
@@ -78,6 +85,11 @@ function App() {
           component={EscolherVeiculoParaManutencaoScreen}
           options={{ headerShown: false }}
         />
+        <Stack.Screen 
+          name="EscolherVeiculoParaAbastecimento" 
+          component={EscolherVeiculoParaAbastecimentoScreen}
+          options={{ headerShown: false }}
+        />
         <Stack.Screen name="CadastroProprietario" component={CadastroProprietarioScreen} />
         <Stack.Screen name="CadastroVeiculo" component={CadastroVeiculoScreen} />
         <Stack.Screen name="CadastroManutencao" component={CadastroManutencaoScreen} />
@@ -96,6 +108,36 @@ function App() {
         <Stack.Screen 
           name="Configuracoes" 
           component={ConfiguracoesScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen 
+          name="EditarPerfil" 
+          component={EditarPerfilScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen 
+          name="Sobre" 
+          component={SobreScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen 
+          name="GerenciarProprietarios" 
+          component={GerenciarProprietariosScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen 
+          name="GerenciarVeiculos" 
+          component={GerenciarVeiculosScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen 
+          name="RegistrarAbastecimento" 
+          component={RegistrarAbastecimentoScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen 
+          name="CameraAbastecimento" 
+          component={CameraAbastecimento}
           options={{ headerShown: false }}
         />
       </Stack.Navigator>

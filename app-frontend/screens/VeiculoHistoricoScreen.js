@@ -9,7 +9,9 @@ import {
   Image,
   Alert,
   Modal,
+  Platform,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { listarHistoricoVeiculo, buscarVeiculoPorId, excluirManutencao, API_URL } from '../services/api';
@@ -143,7 +145,7 @@ export default function VeiculoHistoricoScreen({ navigation, route }) {
   }
 
   return (
-    <View style={commonStyles.container}>
+    <SafeAreaView style={commonStyles.container} edges={['top']}>
       {/* Header */}
       <View style={commonStyles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={commonStyles.backButton}>
@@ -238,6 +240,25 @@ export default function VeiculoHistoricoScreen({ navigation, route }) {
         )}
       </ScrollView>
 
+      {/* Botões de Ação */}
+      <View style={styles.actionButtons}>
+        <TouchableOpacity
+          style={[styles.actionButton, styles.actionButtonPrimary]}
+          onPress={() => navigation.navigate('CadastroManutencao', { veiculoId })}
+        >
+          <Ionicons name="construct-outline" size={20} color="#fff" />
+          <Text style={styles.actionButtonText}>Nova Manutenção</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity
+          style={[styles.actionButton, styles.actionButtonSecondary]}
+          onPress={() => navigation.navigate('RegistrarAbastecimento', { veiculoId })}
+        >
+          <Ionicons name="water-outline" size={20} color="#fff" />
+          <Text style={styles.actionButtonText}>Abastecer</Text>
+        </TouchableOpacity>
+      </View>
+
       {/* Modal de Confirmação de Exclusão */}
       <Modal
         visible={modalExcluir.visivel}
@@ -291,7 +312,7 @@ export default function VeiculoHistoricoScreen({ navigation, route }) {
           </View>
         </View>
       </Modal>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -473,6 +494,40 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#fff',
+  },
+  actionButtons: {
+    flexDirection: 'row',
+    padding: 16,
+    paddingBottom: Platform.OS === 'android' ? 32 : 16,
+    gap: 12,
+    backgroundColor: commonStyles.background,
+    borderTopWidth: 1,
+    borderTopColor: commonStyles.borderColor,
+  },
+  actionButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 12,
+    borderRadius: 12,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+  },
+  actionButtonPrimary: {
+    backgroundColor: commonStyles.primaryColor,
+  },
+  actionButtonSecondary: {
+    backgroundColor: commonStyles.secondaryColor,
+  },
+  actionButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+    marginLeft: 8,
   },
 });
 

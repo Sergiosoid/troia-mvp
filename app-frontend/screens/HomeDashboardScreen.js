@@ -231,13 +231,35 @@ export default function HomeDashboardScreen({ navigation, route }) {
         )}
       </ScrollView>
 
-      {/* Botão Flutuante de Nova Manutenção */}
-      <TouchableOpacity
-        style={styles.fab}
-        onPress={() => navigation.navigate('EscolherVeiculoParaManutencao')}
-      >
-        <Ionicons name="add" size={32} color="#fff" />
-      </TouchableOpacity>
+      {/* Botões de Ação Rápida */}
+      <View style={styles.actionButtons}>
+        <TouchableOpacity
+          style={[styles.actionButton, styles.actionButtonPrimary]}
+          onPress={() => navigation.navigate('EscolherVeiculoParaManutencao')}
+        >
+          <Ionicons name="construct-outline" size={24} color="#fff" />
+          <Text style={styles.actionButtonText}>Nova Manutenção</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity
+          style={[styles.actionButton, styles.actionButtonSecondary]}
+          onPress={() => {
+            if (veiculos.length === 0) {
+              Alert.alert('Atenção', 'Cadastre um veículo primeiro');
+              return;
+            }
+            if (veiculos.length === 1) {
+              navigation.navigate('RegistrarAbastecimento', { veiculoId: veiculos[0].id });
+            } else {
+              // Se tiver múltiplos veículos, navegar para escolher
+              navigation.navigate('EscolherVeiculoParaAbastecimento');
+            }
+          }}
+        >
+          <Ionicons name="water-outline" size={24} color="#fff" />
+          <Text style={styles.actionButtonText}>Abastecer</Text>
+        </TouchableOpacity>
+      </View>
     </SafeAreaView>
   );
 }

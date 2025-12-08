@@ -48,6 +48,7 @@ export default function RegisterScreen({ navigation }) {
         senha,
       });
 
+      // Se registro retornou sucesso com login automático
       if (response && response.userId && response.token) {
         // Salvar dados do usuário automaticamente após registro
         await setLoggedUser({
@@ -62,6 +63,14 @@ export default function RegisterScreen({ navigation }) {
           {
             text: 'OK',
             onPress: () => navigation.replace('HomeDashboard'),
+          },
+        ]);
+      } else if (response && response.success) {
+        // Se apenas sucesso (sem login automático), redirecionar para login
+        Alert.alert('Sucesso', response.message || 'Conta criada com sucesso! Faça login para continuar.', [
+          {
+            text: 'OK',
+            onPress: () => navigation.replace('Login'),
           },
         ]);
       } else {

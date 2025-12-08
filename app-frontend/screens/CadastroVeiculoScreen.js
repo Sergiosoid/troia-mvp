@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, Alert, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, Alert, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Platform } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { cadastrarVeiculo } from '../services/api';
 import { commonStyles } from '../constants/styles';
@@ -30,13 +31,19 @@ export default function CadastroVeiculoScreen({ route, navigation }) {
         proprietario_id: proprietarioId || null
       });
       if (response && response.id) {
+        const returnTo = route?.params?.returnTo;
         Alert.alert('Sucesso', 'Veículo cadastrado com sucesso!', [
           {
             text: 'OK',
             onPress: () => {
               setPlaca(''); setRenavam(''); setMarca(''); setModelo(''); setAno('');
-              // Navegar para HomeDashboard com refresh
-              navigation.navigate('HomeDashboard', { refresh: true });
+              // Navegar conforme contexto
+              if (returnTo === 'GerenciarVeiculos') {
+                navigation.navigate('GerenciarVeiculos', { refresh: true });
+              } else {
+                // Navegar para HomeDashboard com refresh
+                navigation.navigate('HomeDashboard', { refresh: true });
+              }
             }
           }
         ]);
@@ -58,7 +65,7 @@ export default function CadastroVeiculoScreen({ route, navigation }) {
 
   if (loading) {
     return (
-      <View style={commonStyles.container}>
+      <SafeAreaView style={commonStyles.container} edges={['top']}>
         <View style={commonStyles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={commonStyles.backButton}>
             <Ionicons name="arrow-back" size={24} color="#333" />
@@ -70,14 +77,14 @@ export default function CadastroVeiculoScreen({ route, navigation }) {
           <ActivityIndicator size="large" color="#4CAF50" />
           <Text style={commonStyles.loadingText}>Salvando veículo...</Text>
         </View>
-      </View>
+      </SafeAreaView>
     );
   }
 
   return (
-    <View style={commonStyles.container}>
+    <SafeAreaView style={commonStyles.container} edges={['top']}>
       {/* Header */}
-      <View style={commonStyles.header}>
+      <View style={[commonStyles.header, { paddingTop: Platform.OS === 'ios' ? 0 : 16 }]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={commonStyles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#333" />
         </TouchableOpacity>

@@ -2,21 +2,16 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 import { getToken, getUserId } from '../utils/authStorage';
 
-// URL de produção do backend no Render.com
-// ATUALIZE ESTA URL COM A URL DO SEU BACKEND NO RENDER
-const PRODUCTION_URL = 'https://troia-backend.onrender.com';
+/**
+ * 🔥 FIX ABSOLUTO DO API_URL
+ * Remove qualquer tentativa de usar variáveis do Expo, local ou auto-detecção.
+ * Sempre utilizar apenas a URL pública do backend em produção.
+ */
 
-// URL local para desenvolvimento (ajuste o IP conforme necessário)
-const LOCAL_URL = 'http://192.168.1.100:3000'; // Altere para o IP da sua máquina
+export const API_URL = 'https://troia-mvp.onrender.com';
 
-// Detectar se está em desenvolvimento ou produção
-const isDevelopment = __DEV__ || process.env.NODE_ENV === 'development';
-
-export const API_URL = 
-  process.env.EXPO_PUBLIC_API_URL ||
-  Constants.expoConfig?.extra?.apiUrl ||
-  Constants.expoConfig?.extra?.expoPublicApiUrl ||
-  (isDevelopment ? LOCAL_URL : PRODUCTION_URL);
+// Logs úteis para debug (apenas desenvolvimento)
+console.log("[TROIA] API_URL carregada:", API_URL);
 
 // Wrapper global para fetch com timeout
 const fetchWithTimeout = async (url, options = {}, timeout = 15000) => {
@@ -93,9 +88,15 @@ export const login = async (data) => {
       }),
     });
     
-    // Validar resposta
-    if (res && res.userId) {
-      return res;
+    // Backend retorna: { usuario: { id, nome, email, role }, token }
+    if (res && res.usuario && res.token) {
+      return {
+        userId: res.usuario.id,
+        token: res.token,
+        nome: res.usuario.nome || '',
+        email: res.usuario.email || '',
+        role: res.usuario.role || 'cliente',
+      };
     }
     
     throw new Error('Resposta inválida do servidor');
@@ -103,6 +104,9 @@ export const login = async (data) => {
     // Tratar erros HTTP 502, 500, etc
     if (error.message.includes('502') || error.message.includes('500')) {
       throw new Error('Servidor temporariamente indisponível. Tente novamente em alguns instantes.');
+    }
+    if (error.message.includes('401') || error.message.includes('Credenciais inválidas')) {
+      throw new Error('Email ou senha incorretos');
     }
     throw error;
   }
@@ -120,9 +124,24 @@ export const register = async (data) => {
       }),
     });
     
-    // Validar resposta
-    if (res && res.userId) {
-      return res;
+    // Backend retorna apenas { success: true } no registro
+    // Após registro bem-sucedido, fazer login automático
+    if (res && res.success) {
+      // Fazer login automático após registro
+      try {
+        const loginRes = await login({
+          email: data.email?.trim(),
+          senha: data.senha,
+        });
+        return loginRes;
+      } catch (loginError) {
+        // Se login automático falhar, retornar sucesso mas sem token
+        // Usuário precisará fazer login manual
+        return {
+          success: true,
+          message: 'Conta criada com sucesso. Faça login para continuar.',
+        };
+      }
     }
     
     throw new Error('Resposta inválida do servidor');
@@ -131,7 +150,7 @@ export const register = async (data) => {
     if (error.message.includes('502') || error.message.includes('500')) {
       throw new Error('Servidor temporariamente indisponível. Tente novamente em alguns instantes.');
     }
-    if (error.message.includes('já cadastrado') || error.message.includes('Email já')) {
+    if (error.message.includes('já cadastrado') || error.message.includes('Email já') || error.message.includes('409')) {
       throw new Error('Este email já está cadastrado');
     }
     throw error;
@@ -146,18 +165,20 @@ export const cadastrarProprietario = async (data) => {
     }
     
     const headers = await getHeaders();
-    const res = await fetchWithTimeout(`${API_URL}/proprietarios/cadastrar`, {
+    // Usar POST /proprietarios (não requer role específica, apenas authRequired)
+    const res = await fetchWithTimeout(`${API_URL}/proprietarios`, {
       method: 'POST',
       headers,
       body: JSON.stringify({ 
         nome: data.nome?.trim(),
-        cpf: data.cpf?.trim(),
-        rg: data.rg?.trim(),
-        cnh: data.cnh?.trim()
+        cpf: data.cpf?.trim() || null,
+        rg: data.rg?.trim() || null,
+        cnh: data.cnh?.trim() || null,
+        telefone: data.telefone?.trim() || null
       }),
     });
     
-    // Backend retorna { id, nome, cpf, rg, cnh, usuario_id }
+    // Backend retorna { id, nome, cpf, rg, cnh, telefone, usuario_id }
     if (res && res.id) {
       return res;
     }
@@ -166,6 +187,9 @@ export const cadastrarProprietario = async (data) => {
   } catch (error) {
     if (error.message.includes('502') || error.message.includes('500')) {
       throw new Error('Servidor temporariamente indisponível. Tente novamente em alguns instantes.');
+    }
+    if (error.message.includes('403') || error.message.includes('Acesso negado')) {
+      throw new Error('Você não tem permissão para cadastrar proprietários');
     }
     throw error;
   }
@@ -212,21 +236,22 @@ export const cadastrarVeiculo = async (data) => {
     }
     
     const headers = await getHeaders();
-    const res = await fetchWithTimeout(`${API_URL}/veiculos/cadastrar`, {
+    // Usar POST /veiculos (não requer role específica, apenas authRequired)
+    const res = await fetchWithTimeout(`${API_URL}/veiculos`, {
       method: 'POST',
       headers,
       body: JSON.stringify({ 
         placa: data.placa?.trim().toUpperCase(),
-        renavam: data.renavam?.trim(),
-        marca: data.marca?.trim(),
-        modelo: data.modelo?.trim(),
-        ano: data.ano?.trim(),
+        renavam: data.renavam?.trim() || null,
+        marca: data.marca?.trim() || null,
+        modelo: data.modelo?.trim() || null,
+        ano: data.ano?.trim() || null,
         proprietario_id: data.proprietario_id || null
       }),
     });
     
-    // Backend retorna { id, placa, renavam, ... }
-    if (res && res.id) {
+    // Backend retorna { success: true, id, mensagem } ou { id, ... }
+    if (res && (res.id || (res.success && res.id))) {
       return res;
     }
     

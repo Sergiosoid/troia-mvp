@@ -89,10 +89,33 @@ export default function ConfiguracoesScreen({ navigation }) {
 
           <TouchableOpacity
             style={styles.menuItem}
-            onPress={handleEditarPerfil}
+            onPress={() => navigation.navigate('EditarPerfil')}
           >
             <Ionicons name="create-outline" size={24} color="#333" />
             <Text style={styles.menuItemText}>Editar Perfil</Text>
+            <Ionicons name="chevron-forward" size={20} color="#999" />
+          </TouchableOpacity>
+        </View>
+
+        {/* Seção de Gerenciamento */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Gerenciar</Text>
+          
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={() => navigation.navigate('GerenciarProprietarios')}
+          >
+            <Ionicons name="people-outline" size={24} color="#333" />
+            <Text style={styles.menuItemText}>Proprietários</Text>
+            <Ionicons name="chevron-forward" size={20} color="#999" />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={() => navigation.navigate('GerenciarVeiculos')}
+          >
+            <Ionicons name="car-outline" size={24} color="#333" />
+            <Text style={styles.menuItemText}>Veículos</Text>
             <Ionicons name="chevron-forward" size={20} color="#999" />
           </TouchableOpacity>
         </View>
@@ -103,7 +126,7 @@ export default function ConfiguracoesScreen({ navigation }) {
           
           <TouchableOpacity
             style={styles.menuItem}
-            onPress={() => Alert.alert('Em breve', 'Sobre será implementado')}
+            onPress={() => navigation.navigate('Sobre')}
           >
             <Ionicons name="information-circle-outline" size={24} color="#333" />
             <Text style={styles.menuItemText}>Sobre o App</Text>

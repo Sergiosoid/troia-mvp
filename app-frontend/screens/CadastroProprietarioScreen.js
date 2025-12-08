@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, Alert, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, Alert, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Platform } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { cadastrarProprietario } from '../services/api';
 import { commonStyles } from '../constants/styles';
@@ -21,13 +22,20 @@ export default function CadastroProprietarioScreen({ navigation, route }) {
     try {
       const response = await cadastrarProprietario({ nome: nome.trim(), cpf, rg, cnh });
       if (response && response.id) {
+        const returnTo = route?.params?.returnTo;
         Alert.alert('Sucesso', 'Proprietário cadastrado com sucesso!', [
           {
             text: 'OK',
             onPress: () => {
               setNome(''); setCpf(''); setRg(''); setCnh('');
-              // Navegar para cadastro de veículo
-              navigation.navigate('CadastroVeiculo', { proprietarioId: response.id });
+              // Navegar conforme contexto
+              if (returnTo === 'GerenciarProprietarios') {
+                navigation.navigate('GerenciarProprietarios', { refresh: true });
+              } else if (returnTo === 'CadastroVeiculo') {
+                navigation.navigate('CadastroVeiculo', { proprietarioId: response.id });
+              } else {
+                navigation.navigate('CadastroVeiculo', { proprietarioId: response.id });
+              }
             }
           }
         ]);
@@ -49,7 +57,7 @@ export default function CadastroProprietarioScreen({ navigation, route }) {
 
   if (loading) {
     return (
-      <View style={commonStyles.container}>
+      <SafeAreaView style={commonStyles.container} edges={['top']}>
         <View style={commonStyles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={commonStyles.backButton}>
             <Ionicons name="arrow-back" size={24} color="#333" />
@@ -61,14 +69,14 @@ export default function CadastroProprietarioScreen({ navigation, route }) {
           <ActivityIndicator size="large" color="#4CAF50" />
           <Text style={commonStyles.loadingText}>Salvando proprietário...</Text>
         </View>
-      </View>
+      </SafeAreaView>
     );
   }
 
   return (
-    <View style={commonStyles.container}>
+    <SafeAreaView style={commonStyles.container} edges={['top']}>
       {/* Header */}
-      <View style={commonStyles.header}>
+      <View style={[commonStyles.header, { paddingTop: Platform.OS === 'ios' ? 0 : 16 }]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={commonStyles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#333" />
         </TouchableOpacity>
@@ -76,7 +84,7 @@ export default function CadastroProprietarioScreen({ navigation, route }) {
         <View style={{ width: 40 }} />
       </View>
 
-      <ScrollView style={commonStyles.scrollContainer}>
+      <ScrollView style={commonStyles.scrollContainer} contentContainerStyle={{ paddingBottom: Platform.OS === 'android' ? 40 : 20 }}>
         <View style={commonStyles.card}>
           <View style={commonStyles.inputContainer}>
             <Ionicons name="person-outline" size={20} color="#666" style={commonStyles.inputIcon} />
@@ -124,6 +132,21 @@ export default function CadastroProprietarioScreen({ navigation, route }) {
             />
           </View>
 
+          {/* Botão para importar CNH via foto (melhoria futura) */}
+          <TouchableOpacity
+            style={[commonStyles.button, commonStyles.buttonSecondary, { marginBottom: 10 }]}
+            onPress={() => {
+              Alert.alert(
+                'Em breve',
+                'A importação de CNH via foto será implementada em breve. Por enquanto, preencha manualmente.',
+                [{ text: 'OK' }]
+              );
+            }}
+          >
+            <Ionicons name="camera-outline" size={20} color={commonStyles.primaryColor} style={{ marginRight: 8 }} />
+            <Text style={commonStyles.buttonSecondaryText}>Importar CNH via Foto</Text>
+          </TouchableOpacity>
+
           <TouchableOpacity
             style={[commonStyles.button, loading && commonStyles.buttonDisabled]}
             onPress={enviarProprietario}
@@ -137,7 +160,7 @@ export default function CadastroProprietarioScreen({ navigation, route }) {
           </TouchableOpacity>
         </View>
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }
 
