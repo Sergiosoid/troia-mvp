@@ -183,6 +183,10 @@ router.get('/totais', authRequired, async (req, res) => {
         v.id,
         v.placa,
         v.renavam,
+        v.marca,
+        v.modelo,
+        v.ano,
+        v.km_atual,
         v.proprietario_id,
         p.nome as proprietarioNome,
         COALESCE(SUM(m.valor), 0) as totalGasto,
@@ -191,7 +195,7 @@ router.get('/totais', authRequired, async (req, res) => {
       LEFT JOIN proprietarios p ON v.proprietario_id = p.id
       LEFT JOIN manutencoes m ON v.id = m.veiculo_id AND m.usuario_id = ?
       WHERE v.usuario_id = ?
-      GROUP BY v.id, v.placa, v.renavam, v.proprietario_id, p.nome
+      GROUP BY v.id, v.placa, v.renavam, v.marca, v.modelo, v.ano, v.km_atual, v.proprietario_id, p.nome
       ORDER BY v.placa`,
       [userId, userId]
     );

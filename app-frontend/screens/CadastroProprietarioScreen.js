@@ -28,13 +28,16 @@ export default function CadastroProprietarioScreen({ navigation, route }) {
             text: 'OK',
             onPress: () => {
               setNome(''); setCpf(''); setRg(''); setCnh('');
-              // Navegar conforme contexto
+              // Navegar conforme contexto (sem redirects automáticos)
               if (returnTo === 'GerenciarProprietarios') {
                 navigation.navigate('GerenciarProprietarios', { refresh: true });
-              } else if (returnTo === 'CadastroVeiculo') {
-                navigation.navigate('CadastroVeiculo', { proprietarioId: response.id });
+              } else if (returnTo === 'Configuracoes') {
+                navigation.navigate('Configuracoes');
+              } else if (returnTo === 'HomeDashboard') {
+                navigation.navigate('HomeDashboard', { refresh: true });
               } else {
-                navigation.navigate('CadastroVeiculo', { proprietarioId: response.id });
+                // Por padrão, voltar para tela anterior
+                navigation.goBack();
               }
             }
           }
@@ -74,7 +77,7 @@ export default function CadastroProprietarioScreen({ navigation, route }) {
   }
 
   return (
-    <SafeAreaView style={commonStyles.container} edges={['top']}>
+        <SafeAreaView edges={['top']} style={commonStyles.container}>
       {/* Header */}
       <View style={[commonStyles.header, { paddingTop: Platform.OS === 'ios' ? 0 : 16 }]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={commonStyles.backButton}>

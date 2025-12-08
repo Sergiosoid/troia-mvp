@@ -88,10 +88,11 @@ export const commonStyles = StyleSheet.create({
   button: {
     backgroundColor: '#4CAF50',
     height: 50,
-    borderRadius: 12,
+    borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 10,
+    marginTop: 12,
+    paddingVertical: 14,
     elevation: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },

@@ -9,12 +9,13 @@ import {
   Alert,
   RefreshControl,
   Platform,
-  SafeAreaView
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { listarVeiculosComTotais, calcularTotalGeral } from '../services/api';
 import { commonStyles } from '../constants/styles';
+import FABMenu from '../components/FABMenu';
 
 const SPACING = 16; // Espaçamento padrão de 16
 
@@ -140,6 +141,13 @@ export default function HomeDashboardScreen({ navigation, route }) {
         }
         showsVerticalScrollIndicator={false}
       >
+        {/* Espaço reservado para anúncios */}
+        <View style={styles.adsContainer}>
+          <Text style={styles.adsPlaceholder}>
+            Espaço reservado para anúncios
+          </Text>
+        </View>
+
         {/* Card de Total Geral */}
         <View style={styles.totalCard}>
           <View style={styles.totalCardHeader}>
@@ -170,130 +178,134 @@ export default function HomeDashboardScreen({ navigation, route }) {
               Comece cadastrando seu primeiro veículo para gerenciar manutenções e abastecimentos
             </Text>
             <TouchableOpacity
-              style={[commonStyles.button, { marginTop: SPACING }]}
+              style={[commonStyles.button, { marginTop: SPACING, width: '90%', alignSelf: 'center' }]}
               onPress={() => navigation.navigate('CadastroVeiculo')}
             >
               <Ionicons name="add-circle-outline" size={20} color="#fff" />
               <Text style={[commonStyles.buttonText, { marginLeft: SPACING / 2 }]}>
-                Cadastrar Primeiro Veículo
-              </Text>
-            </TouchableOpacity>
-            
-            {/* Botão opcional para completar informações do proprietário */}
-            <TouchableOpacity
-              style={[commonStyles.button, commonStyles.buttonSecondary, { marginTop: SPACING / 2 }]}
-              onPress={() => navigation.navigate('CadastroProprietario', { returnTo: 'HomeDashboard' })}
-            >
-              <Ionicons name="person-outline" size={18} color={commonStyles.primaryColor} />
-              <Text style={[commonStyles.buttonSecondaryText, { marginLeft: SPACING / 2 }]}>
-                Completar Informações do Proprietário
+                Cadastrar Veículo
               </Text>
             </TouchableOpacity>
           </View>
         ) : (
-          veiculos.map((veiculo) => (
-            <TouchableOpacity
-              key={veiculo.id}
-              style={commonStyles.card}
-              onPress={() => navigation.navigate('VeiculoHistorico', { veiculoId: veiculo.id })}
-            >
-              {/* Header do Card */}
-              <View style={styles.veiculoCardHeader}>
-                <View style={styles.veiculoCardHeaderLeft}>
-                  <View style={styles.veiculoPlacaRow}>
-                    <Ionicons name="car-outline" size={20} color="#4CAF50" />
-                    <Text style={styles.veiculoPlaca}>{veiculo.placa || 'N/A'}</Text>
+          <>
+            {veiculos.map((veiculo) => (
+              <TouchableOpacity
+                key={veiculo.id}
+                style={styles.veiculoCard}
+                onPress={() => navigation.navigate('VeiculoHistorico', { veiculoId: veiculo.id })}
+              >
+                {/* Header do Card */}
+                <View style={styles.veiculoCardHeader}>
+                  <View style={styles.veiculoCardHeaderLeft}>
+                    <View style={styles.veiculoNomeRow}>
+                      <Ionicons name="car-outline" size={24} color="#4CAF50" />
+                      <View>
+                        <Text style={styles.veiculoNome}>
+                          {veiculo.modelo || veiculo.marca || 'Veículo'} {veiculo.ano ? `(${veiculo.ano})` : ''}
+                        </Text>
+                        {veiculo.placa && (
+                          <Text style={styles.veiculoPlaca}>{veiculo.placa}</Text>
+                        )}
+                      </View>
+                    </View>
                   </View>
-                  {veiculo.proprietarioNome && (
-                    <View style={styles.veiculoProprietarioRow}>
-                      <Ionicons name="person-outline" size={16} color="#666" />
-                      <Text style={styles.veiculoProprietario}>
-                        {veiculo.proprietarioNome}
+                  <Ionicons name="chevron-forward" size={24} color="#666" />
+                </View>
+                
+                {/* Body do Card */}
+                <View style={styles.veiculoCardBody}>
+                  {/* KM Atual */}
+                  {veiculo.km_atual && (
+                    <View style={styles.veiculoInfoRow}>
+                      <View style={styles.veiculoInfoLabelRow}>
+                        <Ionicons name="speedometer-outline" size={18} color="#2196F3" />
+                        <Text style={styles.veiculoLabel}>KM Atual:</Text>
+                      </View>
+                      <Text style={styles.veiculoValue}>
+                        {veiculo.km_atual.toLocaleString('pt-BR')} km
                       </Text>
                     </View>
                   )}
-                </View>
-                <Ionicons name="chevron-forward" size={24} color="#666" />
-              </View>
-              
-              {/* Body do Card */}
-              <View style={styles.veiculoCardBody}>
-                {/* Total Gasto */}
-                <View style={styles.veiculoInfoRow}>
-                  <View style={styles.veiculoInfoLabelRow}>
-                    <Ionicons name="cash-outline" size={18} color="#4CAF50" />
-                    <Text style={styles.veiculoLabel}>Total Gasto:</Text>
+                  
+                  {/* Total Gasto */}
+                  <View style={styles.veiculoInfoRow}>
+                    <View style={styles.veiculoInfoLabelRow}>
+                      <Ionicons name="cash-outline" size={18} color="#4CAF50" />
+                      <Text style={styles.veiculoLabel}>Total Gasto:</Text>
+                    </View>
+                    <Text style={styles.veiculoValue}>
+                      {formatarMoeda(parseFloat(veiculo.totalGasto) || 0)}
+                    </Text>
                   </View>
-                  <Text style={styles.veiculoValue}>
-                    {formatarMoeda(parseFloat(veiculo.totalGasto) || 0)}
-                  </Text>
+                  
+                  {/* Última Manutenção */}
+                  <View style={styles.veiculoInfoRow}>
+                    <View style={styles.veiculoInfoLabelRow}>
+                      <Ionicons name="calendar-outline" size={18} color="#666" />
+                      <Text style={styles.veiculoLabel}>Última Manutenção:</Text>
+                    </View>
+                    <Text style={styles.veiculoValue}>
+                      {formatarData(veiculo.ultimaData)}
+                    </Text>
+                  </View>
                 </View>
                 
-                {/* Última Manutenção */}
-                <View style={styles.veiculoInfoRow}>
-                  <View style={styles.veiculoInfoLabelRow}>
-                    <Ionicons name="calendar-outline" size={18} color="#666" />
-                    <Text style={styles.veiculoLabel}>Última Manutenção:</Text>
-                  </View>
-                  <Text style={styles.veiculoValue}>
-                    {formatarData(veiculo.ultimaData)}
-                  </Text>
-                </View>
-              </View>
+                {/* Botão Ver Histórico */}
+                <TouchableOpacity
+                  style={styles.verHistoricoButton}
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    navigation.navigate('VeiculoHistorico', { veiculoId: veiculo.id });
+                  }}
+                >
+                  <Text style={styles.verHistoricoText}>Ver Histórico</Text>
+                  <Ionicons name="arrow-forward" size={16} color="#4CAF50" />
+                </TouchableOpacity>
+              </TouchableOpacity>
+            ))}
+            
+            {/* Botão para adicionar novo veículo */}
+            <TouchableOpacity
+              style={[commonStyles.button, styles.addVeiculoButton]}
+              onPress={() => navigation.navigate('CadastroVeiculo')}
+            >
+              <Ionicons name="add-circle-outline" size={20} color="#fff" />
+              <Text style={[commonStyles.buttonText, { marginLeft: SPACING / 2 }]}>
+                Adicionar Novo Veículo
+              </Text>
             </TouchableOpacity>
-          ))
-        )}
-        
-        {/* Botão opcional para completar informações do proprietário (apenas se houver veículos) */}
-        {veiculos.length > 0 && (
-          <TouchableOpacity
-            style={[commonStyles.button, commonStyles.buttonSecondary, { margin: SPACING, marginTop: SPACING / 2 }]}
-            onPress={() => navigation.navigate('CadastroProprietario', { returnTo: 'HomeDashboard' })}
-          >
-            <Ionicons name="person-outline" size={18} color={commonStyles.primaryColor} />
-            <Text style={[commonStyles.buttonSecondaryText, { marginLeft: SPACING / 2 }]}>
-              Completar Informações do Proprietário
-            </Text>
-          </TouchableOpacity>
+          </>
         )}
       </ScrollView>
 
-      {/* Botões de Ação Rápida */}
-      <View style={styles.actionButtons}>
-        <TouchableOpacity
-          style={[styles.actionButton, styles.actionButtonPrimary]}
-          onPress={() => navigation.navigate('EscolherVeiculoParaManutencao')}
-        >
-          <Ionicons name="construct-outline" size={24} color="#fff" />
-          <Text style={styles.actionButtonText}>Nova Manutenção</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity
-          style={[styles.actionButton, styles.actionButtonSecondary]}
-          onPress={() => {
-            if (veiculos.length === 0) {
-              Alert.alert('Atenção', 'Cadastre um veículo primeiro');
-              return;
-            }
-            if (veiculos.length === 1) {
-              navigation.navigate('RegistrarAbastecimento', { veiculoId: veiculos[0].id });
-            } else {
-              // Se tiver múltiplos veículos, navegar para escolher
-              navigation.navigate('EscolherVeiculoParaAbastecimento');
-            }
-          }}
-        >
-          <Ionicons name="water-outline" size={24} color="#fff" />
-          <Text style={styles.actionButtonText}>Abastecer</Text>
-        </TouchableOpacity>
-      </View>
+      {/* FAB Menu */}
+      <FABMenu navigation={navigation} veiculos={veiculos} />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   scrollContent: {
-    paddingBottom: Platform.OS === 'android' ? SPACING * 3 : SPACING * 2, // Espaço para FAB
+    paddingBottom: Platform.OS === 'android' ? SPACING * 8 : SPACING * 6, // Espaço para FAB
+  },
+  adsContainer: {
+    backgroundColor: '#f0f0f0',
+    margin: SPACING,
+    marginBottom: SPACING / 2,
+    padding: SPACING * 1.5,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    borderStyle: 'dashed',
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 80,
+  },
+  adsPlaceholder: {
+    fontSize: 14,
+    color: '#999',
+    fontStyle: 'italic',
   },
   totalCard: {
     backgroundColor: '#4CAF50',
@@ -343,6 +355,18 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginLeft: SPACING / 2,
   },
+  veiculoCard: {
+    backgroundColor: '#fff',
+    marginHorizontal: SPACING,
+    marginVertical: 10,
+    padding: SPACING,
+    borderRadius: 12,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
   veiculoCardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -352,16 +376,22 @@ const styles = StyleSheet.create({
   veiculoCardHeaderLeft: {
     flex: 1,
   },
-  veiculoPlacaRow: {
+  veiculoNomeRow: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: SPACING / 2,
   },
-  veiculoPlaca: {
-    fontSize: 24,
+  veiculoNome: {
+    fontSize: 18,
     fontWeight: 'bold',
     color: commonStyles.textPrimary,
     marginLeft: SPACING / 2,
+  },
+  veiculoPlaca: {
+    fontSize: 14,
+    color: commonStyles.textSecondary,
+    marginLeft: SPACING / 2,
+    marginTop: 2,
   },
   veiculoProprietarioRow: {
     flexDirection: 'row',
@@ -399,21 +429,26 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: commonStyles.textPrimary,
   },
-  fab: {
-    position: 'absolute',
-    right: SPACING,
-    bottom: SPACING,
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: '#4CAF50',
-    justifyContent: 'center',
+  verHistoricoButton: {
+    flexDirection: 'row',
     alignItems: 'center',
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
+    justifyContent: 'center',
+    marginTop: SPACING,
+    paddingVertical: SPACING / 2,
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
+  },
+  verHistoricoText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#4CAF50',
+    marginRight: SPACING / 2,
+  },
+  addVeiculoButton: {
+    margin: SPACING,
+    marginTop: SPACING / 2,
+    width: '90%',
+    alignSelf: 'center',
   },
   emptySubtext: {
     fontSize: 14,
