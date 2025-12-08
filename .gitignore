@@ -1,0 +1,171 @@
+# ============================================
+# TROIA MVP - .gitignore
+# ============================================
+
+# ============================================
+# Dependências
+# ============================================
+node_modules/
+package-lock.json
+yarn.lock
+
+# ============================================
+# Backend
+# ============================================
+backend/node_modules/
+backend/uploads/
+backend/src/uploads/
+backend/src/database/*.db
+backend/src/database/*.db-journal
+backend/.env
+backend/.env.local
+backend/.env.production
+backend/dist/
+backend/build/
+backend/por.traineddata
+
+# ============================================
+# Frontend (Expo/React Native)
+# ============================================
+app-frontend/node_modules/
+app-frontend/.expo/
+app-frontend/.expo-shared/
+app-frontend/dist/
+app-frontend/web-build/
+app-frontend/.env
+app-frontend/.env.local
+app-frontend/.env.production
+app-frontend/expo-env.d.ts
+
+# ============================================
+# Build e Compilação
+# ============================================
+dist/
+build/
+*.tsbuildinfo
+
+# ============================================
+# Logs
+# ============================================
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+
+# ============================================
+# Ambiente e Configuração
+# ============================================
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env*.local
+
+# ============================================
+# IDEs e Editores
+# ============================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ============================================
+# Arquivos Temporários
+# ============================================
+*.tmp
+*.temp
+*.bak
+*.backup
+~$*
+*.docx~
+*.xlsx~
+
+# ============================================
+# Sistema Operacional
+# ============================================
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Linux
+*~
+.directory
+.Trash-*
+
+# ============================================
+# Expo/React Native Específico
+# ============================================
+.expo/
+.expo-shared/
+.expo-shared/
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.pem
+.metro-health-check*
+
+# ============================================
+# Android
+# ============================================
+app-frontend/android/.gradle/
+app-frontend/android/app/build/
+app-frontend/android/build/
+app-frontend/android/local.properties
+app-frontend/android/.idea/
+app-frontend/android/*.iml
+app-frontend/android/.cxx/
+app-frontend/android/.externalNativeBuild/
+
+# ============================================
+# iOS
+# ============================================
+app-frontend/ios/
+*.pbxuser
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+*.xcuserstate
+project.xcworkspace/
+xcuserdata/
+*.moved-aside
+*.xccheckout
+*.xcscmblueprint
+
+# ============================================
+# Testes
+# ============================================
+coverage/
+.nyc_output/
+*.lcov
+.jest/
+
+# ============================================
+# Documentação Temporária
+# ============================================
+# Manter apenas documentação relevante
+# Remover arquivos .md temporários se necessário
+
+# ============================================
+# Outros
+# ============================================
+.cache/
+.temp/
+tmp/
+temp/
+
