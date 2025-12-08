@@ -165,14 +165,28 @@ export default function HomeDashboardScreen({ navigation, route }) {
         {veiculos.length === 0 ? (
           <View style={commonStyles.emptyContainer}>
             <Ionicons name="car-outline" size={64} color="#ccc" />
-            <Text style={commonStyles.emptyText}>Nenhum veículo cadastrado</Text>
+            <Text style={commonStyles.emptyText}>Nenhum veículo cadastrado ainda</Text>
+            <Text style={styles.emptySubtext}>
+              Comece cadastrando seu primeiro veículo para gerenciar manutenções e abastecimentos
+            </Text>
             <TouchableOpacity
               style={[commonStyles.button, { marginTop: SPACING }]}
-              onPress={() => navigation.navigate('CadastroProprietario')}
+              onPress={() => navigation.navigate('CadastroVeiculo')}
             >
               <Ionicons name="add-circle-outline" size={20} color="#fff" />
               <Text style={[commonStyles.buttonText, { marginLeft: SPACING / 2 }]}>
                 Cadastrar Primeiro Veículo
+              </Text>
+            </TouchableOpacity>
+            
+            {/* Botão opcional para completar informações do proprietário */}
+            <TouchableOpacity
+              style={[commonStyles.button, commonStyles.buttonSecondary, { marginTop: SPACING / 2 }]}
+              onPress={() => navigation.navigate('CadastroProprietario', { returnTo: 'HomeDashboard' })}
+            >
+              <Ionicons name="person-outline" size={18} color={commonStyles.primaryColor} />
+              <Text style={[commonStyles.buttonSecondaryText, { marginLeft: SPACING / 2 }]}>
+                Completar Informações do Proprietário
               </Text>
             </TouchableOpacity>
           </View>
@@ -228,6 +242,19 @@ export default function HomeDashboardScreen({ navigation, route }) {
               </View>
             </TouchableOpacity>
           ))
+        )}
+        
+        {/* Botão opcional para completar informações do proprietário (apenas se houver veículos) */}
+        {veiculos.length > 0 && (
+          <TouchableOpacity
+            style={[commonStyles.button, commonStyles.buttonSecondary, { margin: SPACING, marginTop: SPACING / 2 }]}
+            onPress={() => navigation.navigate('CadastroProprietario', { returnTo: 'HomeDashboard' })}
+          >
+            <Ionicons name="person-outline" size={18} color={commonStyles.primaryColor} />
+            <Text style={[commonStyles.buttonSecondaryText, { marginLeft: SPACING / 2 }]}>
+              Completar Informações do Proprietário
+            </Text>
+          </TouchableOpacity>
         )}
       </ScrollView>
 

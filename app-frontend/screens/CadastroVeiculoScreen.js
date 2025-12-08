@@ -15,17 +15,23 @@ export default function CadastroVeiculoScreen({ route, navigation }) {
   const [loading, setLoading] = useState(false);
 
   const enviarVeiculo = async () => {
-    if (!placa.trim()) {
-      Alert.alert('Atenção', 'Placa é obrigatória');
+    // Validações simplificadas: apenas modelo e ano são obrigatórios
+    if (!modelo.trim()) {
+      Alert.alert('Atenção', 'Modelo é obrigatório');
+      return;
+    }
+    
+    if (!ano.trim()) {
+      Alert.alert('Atenção', 'Ano é obrigatório');
       return;
     }
 
     setLoading(true);
     try {
       const response = await cadastrarVeiculo({ 
-        placa: placa.trim().toUpperCase(), 
-        renavam: renavam.trim(),
-        marca: marca.trim(),
+        placa: placa.trim() ? placa.trim().toUpperCase() : null, 
+        renavam: renavam.trim() || null,
+        marca: marca.trim() || null,
         modelo: modelo.trim(),
         ano: ano.trim(),
         proprietario_id: proprietarioId || null
@@ -65,7 +71,7 @@ export default function CadastroVeiculoScreen({ route, navigation }) {
 
   if (loading) {
     return (
-      <SafeAreaView style={commonStyles.container} edges={['top']}>
+      <SafeAreaView edges={['top']} style={commonStyles.container}>
         <View style={commonStyles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={commonStyles.backButton}>
             <Ionicons name="arrow-back" size={24} color="#333" />
@@ -82,7 +88,7 @@ export default function CadastroVeiculoScreen({ route, navigation }) {
   }
 
   return (
-    <SafeAreaView style={commonStyles.container} edges={['top']}>
+    <SafeAreaView edges={['top']} style={commonStyles.container}>
       {/* Header */}
       <View style={[commonStyles.header, { paddingTop: Platform.OS === 'ios' ? 0 : 16 }]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={commonStyles.backButton}>
@@ -105,7 +111,7 @@ export default function CadastroVeiculoScreen({ route, navigation }) {
             <Ionicons name="car-outline" size={20} color="#666" style={commonStyles.inputIcon} />
             <TextInput
               style={commonStyles.input}
-              placeholder="Placa *"
+              placeholder="Placa (opcional)"
               placeholderTextColor="#999"
               value={placa}
               onChangeText={(text) => setPlaca(text.toUpperCase())}
@@ -142,7 +148,7 @@ export default function CadastroVeiculoScreen({ route, navigation }) {
             <Ionicons name="car-outline" size={20} color="#666" style={commonStyles.inputIcon} />
             <TextInput
               style={commonStyles.input}
-              placeholder="Modelo"
+              placeholder="Modelo *"
               placeholderTextColor="#999"
               value={modelo}
               onChangeText={setModelo}
@@ -154,7 +160,7 @@ export default function CadastroVeiculoScreen({ route, navigation }) {
             <Ionicons name="calendar-outline" size={20} color="#666" style={commonStyles.inputIcon} />
             <TextInput
               style={commonStyles.input}
-              placeholder="Ano"
+              placeholder="Ano *"
               placeholderTextColor="#999"
               value={ano}
               onChangeText={setAno}
@@ -176,7 +182,7 @@ export default function CadastroVeiculoScreen({ route, navigation }) {
           </TouchableOpacity>
         </View>
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }
 

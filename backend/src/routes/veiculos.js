@@ -1,11 +1,94 @@
 import express from 'express';
-import { authMiddleware } from '../middleware/authMiddleware.js';
+import { authRequired, requireRole } from '../middleware/auth.js';
 import { query, queryOne, queryAll } from '../database/db-adapter.js';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
+import OpenAI from 'openai';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const router = express.Router();
 
+// Configurar upload temporário
+const uploadsDir = path.join(__dirname, '..', 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
+const upload = multer({
+  dest: uploadsDir,
+  limits: { fileSize: 10 * 1024 * 1024 } // 10MB
+});
+
+// Listar todos os veículos do usuário
+router.get('/', authRequired, async (req, res) => {
+  try {
+    const veiculos = await queryAll(
+      'SELECT * FROM veiculos WHERE usuario_id = ?',
+      [req.userId]
+    );
+    res.json(veiculos);
+  } catch (err) {
+    console.error('Erro ao listar veículos:', err);
+    res.status(500).json({ error: 'Erro ao listar veículos' });
+  }
+});
+
+// Criar novo veículo
+router.post('/', authRequired, async (req, res) => {
+  try {
+    const { placa, renavam, proprietario_id, marca, modelo, ano } = req.body;
+
+    // Validações simplificadas: apenas modelo e ano são obrigatórios
+    if (!modelo || !modelo.trim()) {
+      return res.status(400).json({ error: 'Modelo é obrigatório' });
+    }
+
+    if (!ano || !ano.trim()) {
+      return res.status(400).json({ error: 'Ano é obrigatório' });
+    }
+
+    // Inserir veículo (proprietario_id pode ser null)
+    const result = await query(
+      `INSERT INTO veiculos (placa, renavam, proprietario_id, marca, modelo, ano, usuario_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [
+        placa ? placa.trim().toUpperCase() : null,
+        renavam ? renavam.trim() : null,
+        proprietario_id || null,
+        marca ? marca.trim() : null,
+        modelo.trim(),
+        ano.trim(),
+        req.userId
+      ]
+    );
+
+    const id = result.insertId || null;
+
+    return res.json({
+      success: true,
+      id,
+      placa: placa.trim().toUpperCase(),
+      renavam: renavam || null,
+      proprietario_id: proprietario_id || null,
+      marca: marca || null,
+      modelo: modelo || null,
+      ano: ano || null,
+      usuario_id: req.userId,
+      mensagem: 'Veículo cadastrado com sucesso'
+    });
+
+  } catch (err) {
+    console.error('Erro ao criar veículo:', err);
+    res.status(500).json({ error: 'Erro ao criar veículo' });
+  }
+});
+
 // Cadastrar
-router.post('/cadastrar', authMiddleware, async (req, res) => {
+router.post('/cadastrar', authRequired, requireRole('admin', 'operador'), async (req, res) => {
   try {
     const { placa, renavam, proprietario_id, marca, modelo, ano } = req.body;
     const userId = req.userId; // Do middleware JWT
@@ -32,7 +115,7 @@ router.post('/cadastrar', authMiddleware, async (req, res) => {
 });
 
 // Listar veículos por proprietário
-router.get('/proprietario/:id', authMiddleware, async (req, res) => {
+router.get('/proprietario/:id', authRequired, async (req, res) => {
   try {
     const id = req.params.id;
     const userId = req.userId; // Do middleware JWT
@@ -50,7 +133,7 @@ router.get('/proprietario/:id', authMiddleware, async (req, res) => {
 
 // Buscar veículo por placa
 // SEGURANÇA: Filtra obrigatoriamente por usuario_id para prevenir acesso não autorizado
-router.get('/buscar-placa/:placa', authMiddleware, async (req, res) => {
+router.get('/buscar-placa/:placa', authRequired, async (req, res) => {
   try {
     const placa = req.params.placa.toUpperCase();
     const userId = req.userId; // Do middleware JWT
@@ -91,7 +174,7 @@ router.get('/buscar-placa/:placa', authMiddleware, async (req, res) => {
 });
 
 // Listar veículos com totais de gastos (DEVE VIR ANTES DE /:id)
-router.get('/totais', authMiddleware, async (req, res) => {
+router.get('/totais', authRequired, async (req, res) => {
   try {
     const userId = req.userId; // Do middleware JWT
 
@@ -120,7 +203,7 @@ router.get('/totais', authMiddleware, async (req, res) => {
 });
 
 // Histórico de manutenções de um veículo (DEVE VIR ANTES DE /:id)
-router.get('/:id/historico', authMiddleware, async (req, res) => {
+router.get('/:id/historico', authRequired, async (req, res) => {
   try {
     const id = req.params.id;
     const userId = req.userId; // Do middleware JWT
@@ -143,7 +226,7 @@ router.get('/:id/historico', authMiddleware, async (req, res) => {
 
 // Buscar veículo por ID (DEVE VIR POR ÚLTIMO)
 // SEGURANÇA: Filtra obrigatoriamente por usuario_id para prevenir acesso não autorizado
-router.get('/:id', authMiddleware, async (req, res) => {
+router.get('/:id', authRequired, async (req, res) => {
   try {
     const id = req.params.id;
     const userId = req.userId; // Do middleware JWT
@@ -178,6 +261,158 @@ router.get('/:id', authMiddleware, async (req, res) => {
   } catch (error) {
     console.error('[ERRO] Erro ao buscar veículo por ID:', error);
     return res.status(500).json({ error: error.message || 'Erro ao buscar veículo' });
+  }
+});
+
+// Endpoint: Atualizar KM por foto do painel
+router.post('/:id/atualizar-km', authRequired, upload.single('painel'), async (req, res) => {
+  try {
+    const veiculoId = req.params.id;
+    const userId = req.userId;
+
+    if (!req.file) {
+      return res.status(400).json({ error: "Nenhuma imagem enviada" });
+    }
+
+    // Validar se OpenAI API Key está configurada
+    if (!process.env.OPENAI_API_KEY) {
+      return res.status(500).json({ error: "OpenAI API Key não configurada" });
+    }
+
+    // Ler imagem base64
+    const buffer = fs.readFileSync(req.file.path);
+    const base64 = buffer.toString('base64');
+    const mime = req.file.mimetype || 'image/jpeg';
+
+    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+    // IA lê o KM do painel
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        {
+          role: "user",
+          content: [
+            { type: "text", text: "Extraia APENAS o número do odômetro desta imagem. Responda somente o número, sem formatação." },
+            {
+              type: "image_url",
+              image_url: { url: `data:${mime};base64,${base64}` }
+            }
+          ]
+        }
+      ],
+      max_tokens: 50
+    });
+
+    const texto = response.choices[0]?.message?.content?.trim();
+    const kmExtraido = parseInt(texto.replace(/\D/g, ""), 10);
+
+    if (isNaN(kmExtraido)) {
+      return res.status(400).json({ error: "Não foi possível identificar o KM na imagem." });
+    }
+
+    // Buscar veículo e km atual
+    const veiculo = await queryOne(
+      "SELECT km_atual FROM veiculos WHERE id = ? AND usuario_id = ?",
+      [veiculoId, userId]
+    );
+
+    if (!veiculo) {
+      return res.status(404).json({ error: "Veículo não encontrado" });
+    }
+
+    // Verificar se o KM não é menor que o anterior
+    if (veiculo.km_atual && kmExtraido < veiculo.km_atual) {
+      return res.status(400).json({ error: "KM detectado é menor que o atual. Confirme manualmente." });
+    }
+
+    // Salvar histórico de KM (se a tabela existir)
+    try {
+      await query(
+        "INSERT INTO km_historico (veiculo_id, km, fonte, criado_em) VALUES (?, ?, ?, datetime('now'))",
+        [veiculoId, kmExtraido, "foto"]
+      );
+    } catch (histError) {
+      // Se a tabela não existir, apenas logar (não é crítico)
+      console.warn('[AVISO] Tabela km_historico não existe ou erro ao inserir:', histError.message);
+    }
+
+    // Atualizar veículo
+    await query(
+      "UPDATE veiculos SET km_atual = ? WHERE id = ? AND usuario_id = ?",
+      [kmExtraido, veiculoId, userId]
+    );
+
+    res.json({
+      sucesso: true,
+      km_detectado: kmExtraido
+    });
+
+  } catch (err) {
+    console.error("Erro ao atualizar KM:", err);
+    res.status(500).json({ error: "Erro ao atualizar KM" });
+  } finally {
+    // Limpar arquivo temporário
+    if (req.file?.path) {
+      try {
+        fs.unlinkSync(req.file.path);
+      } catch (unlinkError) {
+        console.warn('[AVISO] Erro ao excluir arquivo temporário:', unlinkError.message);
+      }
+    }
+  }
+});
+
+/**
+ * Solicitar relatório completo do veículo (futura funcionalidade de venda)
+ * Por enquanto, apenas verifica se proprietário está completo
+ */
+router.post('/:id/solicitar-relatorio', authRequired, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Verificar se veículo pertence ao usuário
+    const veiculo = await queryOne(
+      'SELECT * FROM veiculos WHERE id = ? AND usuario_id = ?',
+      [id, req.userId]
+    );
+
+    if (!veiculo) {
+      return res.status(404).json({ error: 'Veículo não encontrado' });
+    }
+
+    // Verificar se tem proprietário vinculado
+    if (!veiculo.proprietario_id) {
+      return res.json({
+        success: false,
+        motivo: 'proprietario_incompleto',
+        mensagem: 'Para gerar o relatório completo do veículo e aumentar o valor de venda, complete as informações do proprietário.'
+      });
+    }
+
+    // Verificar se proprietário tem dados completos
+    const proprietario = await queryOne(
+      'SELECT * FROM proprietarios WHERE id = ? AND usuario_id = ?',
+      [veiculo.proprietario_id, req.userId]
+    );
+
+    if (!proprietario || !proprietario.nome) {
+      return res.json({
+        success: false,
+        motivo: 'proprietario_incompleto',
+        mensagem: 'Para gerar o relatório completo do veículo e aumentar o valor de venda, complete as informações do proprietário.'
+      });
+    }
+
+    // Por enquanto, retornar que funcionalidade será implementada
+    return res.json({
+      success: false,
+      motivo: 'em_desenvolvimento',
+      mensagem: 'Funcionalidade de relatório completo será implementada em breve.'
+    });
+  } catch (err) {
+    console.error('Erro ao solicitar relatório:', err);
+    res.status(500).json({ error: 'Erro ao solicitar relatório' });
   }
 });
 
