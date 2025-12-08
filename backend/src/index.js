@@ -267,9 +267,54 @@ const construirUrlImagem = (filename, req) => {
 // Exportar função para uso nas rotas
 app.locals.construirUrlImagem = construirUrlImagem;
 
+// Validar variáveis de ambiente críticas
+function validateEnvironment() {
+  const errors = [];
+  const warnings = [];
+
+  // PORT - opcional (default: 10000)
+  if (!process.env.PORT) {
+    warnings.push('PORT não definida, usando padrão: 10000');
+  }
+
+  // DATABASE_URL - opcional (usa SQLite se não definida)
+  if (!process.env.DATABASE_URL) {
+    warnings.push('DATABASE_URL não definida, usando SQLite (desenvolvimento)');
+  } else {
+    // Validar formato básico
+    if (!process.env.DATABASE_URL.startsWith('postgresql://')) {
+      errors.push('DATABASE_URL deve começar com postgresql://');
+    }
+  }
+
+  // RENDER_EXTERNAL_URL - opcional (apenas em produção)
+  if (process.env.NODE_ENV === 'production' && !process.env.RENDER_EXTERNAL_URL) {
+    warnings.push('RENDER_EXTERNAL_URL não definida (pode afetar URLs de uploads)');
+  }
+
+  // JWT_SECRET - opcional (usa default se não definida)
+  if (!process.env.JWT_SECRET) {
+    warnings.push('JWT_SECRET não definida, usando chave padrão (NÃO SEGURO PARA PRODUÇÃO)');
+  }
+
+  if (errors.length > 0) {
+    console.error('❌ Erros de configuração:');
+    errors.forEach(err => console.error(`  - ${err}`));
+    throw new Error('Variáveis de ambiente inválidas');
+  }
+
+  if (warnings.length > 0) {
+    console.warn('⚠️  Avisos de configuração:');
+    warnings.forEach(warn => console.warn(`  - ${warn}`));
+  }
+}
+
 // Inicializar banco de dados e executar migrações
 async function startServer() {
   try {
+    // Validar ambiente
+    validateEnvironment();
+
     // Inicializar adaptador de banco
     await initDatabase();
     
@@ -292,6 +337,7 @@ async function startServer() {
       console.log(`✅ Servidor rodando na porta ${PORT}`);
       console.log(`✅ Ambiente: ${process.env.NODE_ENV || 'development'}`);
       console.log(`✅ Banco: ${process.env.DATABASE_URL ? 'PostgreSQL' : 'SQLite'}`);
+      console.log(`✅ Health check: http://localhost:${PORT}/healthz`);
     });
   } catch (error) {
     console.error('❌ Erro ao iniciar servidor:', error);
