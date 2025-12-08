@@ -360,7 +360,7 @@ export default function PreviewParsedScreen({ route, navigation }) {
           </View>
         )}
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }
 
