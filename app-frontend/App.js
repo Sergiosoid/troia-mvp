@@ -38,11 +38,13 @@ function App() {
 
   const checkLoginStatus = async () => {
     try {
-      // Verificar se usuário está logado (userId E token JWT)
+      // Verificar se usuário está logado e token é válido no backend
+      // isUserLoggedIn() agora valida o token no servidor
       const loggedIn = await isUserLoggedIn();
       setIsLoggedIn(loggedIn);
     } catch (error) {
       console.error('Erro ao verificar login:', error);
+      // Em caso de erro, forçar login
       setIsLoggedIn(false);
     } finally {
       setIsLoading(false);

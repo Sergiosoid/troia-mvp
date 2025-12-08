@@ -1,5 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+// Importar API_URL diretamente (evitar dependência circular)
+const API_URL = 'https://troia-mvp.onrender.com';
+
 /**
  * Chaves usadas no AsyncStorage para dados do usuário
  */
@@ -84,14 +87,49 @@ export const getLoggedUser = async () => {
 
 /**
  * Verifica se o usuário está autenticado
- * Verifica se existe userId E token (ambos obrigatórios)
+ * Valida o token no backend antes de retornar true
  * 
- * @returns {Promise<boolean>} true se estiver autenticado, false caso contrário
+ * @returns {Promise<boolean>} true se estiver autenticado e token válido, false caso contrário
  */
 export const isUserLoggedIn = async () => {
   try {
     const user = await getLoggedUser();
-    return user !== null && !!user.userId && !!user.token;
+    
+    // Se não tem usuário ou token, retorna false
+    if (!user || !user.userId || !user.token) {
+      return false;
+    }
+
+    // Validar token no backend
+    try {
+      const response = await fetch(`${API_URL}/auth/validate-token`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${user.token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      // Se status 200, token é válido
+      if (response.status === 200) {
+        const data = await response.json();
+        if (data.valid === true) {
+          return true;
+        }
+      }
+
+      // Se 401 ou qualquer outro erro, token é inválido
+      // Limpar dados do usuário automaticamente
+      await clearLoggedUser();
+      return false;
+    } catch (fetchError) {
+      // Erro de rede ou timeout
+      console.error('[AUTH] Erro ao validar token no backend:', fetchError);
+      
+      // Em caso de erro de rede, não limpar o token (pode ser problema temporário)
+      // Retornar false para forçar login, mas manter dados salvos
+      return false;
+    }
   } catch (error) {
     console.error('[AUTH] Erro ao verificar login:', error);
     return false;
