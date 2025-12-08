@@ -415,4 +415,12 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 4,
   },
+  emptySubtext: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+    marginTop: SPACING / 2,
+    paddingHorizontal: SPACING,
+    lineHeight: 20,
+  },
 });
