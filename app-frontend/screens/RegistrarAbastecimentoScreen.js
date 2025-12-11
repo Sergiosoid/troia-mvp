@@ -17,7 +17,7 @@ import {
   Image,
   Platform,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useAbastecimentoApi } from '../services/useAbastecimentoApi';
@@ -25,9 +25,11 @@ import { listarVeiculosComTotais, buscarVeiculoPorId } from '../services/api';
 import { commonStyles } from '../constants/styles';
 import HeaderBar from '../components/HeaderBar';
 import CameraButton from '../components/CameraButton';
+import ActionButton from '../components/ActionButton';
 
 export default function RegistrarAbastecimentoScreen({ route, navigation }) {
   const { veiculoId: veiculoIdParam, imagemUri } = route?.params || {};
+  const insets = useSafeAreaInsets();
   
   // Estados
   const [veiculoId, setVeiculoId] = useState(veiculoIdParam || null);
@@ -48,6 +50,7 @@ export default function RegistrarAbastecimentoScreen({ route, navigation }) {
   const [imagem, setImagem] = useState(imagemUri ? { uri: imagemUri } : null);
   const [mostrarModalImagem, setMostrarModalImagem] = useState(false);
   const [processandoOcr, setProcessandoOcr] = useState(false);
+  const [dadosOcrExtraidos, setDadosOcrExtraidos] = useState(false);
   
   const { loading, error, processarOcr, registrar } = useAbastecimentoApi();
 
@@ -141,7 +144,7 @@ export default function RegistrarAbastecimentoScreen({ route, navigation }) {
         }
       }
 
-      Alert.alert('Sucesso', 'Dados extraídos da imagem com sucesso! Revise e ajuste se necessário.');
+      setDadosOcrExtraidos(true);
     } catch (error) {
       console.error('Erro ao processar OCR:', error);
       Alert.alert(
@@ -154,6 +157,7 @@ export default function RegistrarAbastecimentoScreen({ route, navigation }) {
   };
 
   const escolherImagem = () => {
+    setDadosOcrExtraidos(false);
     Alert.alert(
       'Escolher Imagem',
       'De onde você deseja obter a imagem?',
@@ -173,6 +177,14 @@ export default function RegistrarAbastecimentoScreen({ route, navigation }) {
         { text: 'Cancelar', style: 'cancel' },
       ]
     );
+  };
+
+  const formatarMoeda = (valor) => {
+    if (!valor) return 'R$ 0,00';
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
+    }).format(parseFloat(valor));
   };
 
   const escolherDaGaleria = async () => {
@@ -265,7 +277,13 @@ export default function RegistrarAbastecimentoScreen({ route, navigation }) {
     <SafeAreaView style={commonStyles.container} edges={['top']}>
       <HeaderBar title="Registrar Abastecimento" navigation={navigation} />
 
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+      <ScrollView 
+        style={styles.scrollView} 
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: insets.bottom + 20 }
+        ]}
+      >
         {/* Seleção de Veículo */}
         <Text style={commonStyles.label}>Veículo *</Text>
         <TouchableOpacity
@@ -279,34 +297,101 @@ export default function RegistrarAbastecimentoScreen({ route, navigation }) {
           <Ionicons name="chevron-down" size={20} color={commonStyles.textSecondary} />
         </TouchableOpacity>
 
-        {/* Imagem */}
-        <Text style={commonStyles.label}>Foto (Opcional)</Text>
-        {imagem ? (
-          <TouchableOpacity
-            style={styles.imageContainer}
-            onPress={() => setMostrarModalImagem(true)}
-          >
-            <Image source={imagem} style={styles.imagePreview} />
-            {processandoOcr && (
-              <View style={styles.ocrOverlay}>
-                <ActivityIndicator size="large" color="#fff" />
-                <Text style={styles.ocrText}>Processando imagem...</Text>
-              </View>
-            )}
+        {/* (A) Seção: Imagem Capturada */}
+        {imagem && (
+          <View style={styles.imageSection}>
+            <Text style={commonStyles.label}>Imagem Capturada</Text>
             <TouchableOpacity
-              style={styles.removeImageButton}
-              onPress={() => setImagem(null)}
+              style={styles.imageContainer}
+              onPress={() => setMostrarModalImagem(true)}
             >
-              <Ionicons name="close-circle" size={24} color={commonStyles.dangerColor} />
+              <Image source={imagem} style={styles.imagePreview} />
+              {processandoOcr && (
+                <View style={styles.ocrOverlay}>
+                  <ActivityIndicator size="large" color="#fff" />
+                  <Text style={styles.ocrText}>Processando imagem...</Text>
+                </View>
+              )}
+              <TouchableOpacity
+                style={styles.removeImageButton}
+                onPress={() => {
+                  setImagem(null);
+                  setDadosOcrExtraidos(false);
+                }}
+              >
+                <Ionicons name="close-circle" size={24} color={commonStyles.dangerColor} />
+              </TouchableOpacity>
             </TouchableOpacity>
-          </TouchableOpacity>
-        ) : (
-          <CameraButton
-            onPress={escolherImagem}
-            label="Tirar Foto ou Escolher da Galeria"
-            variant="secondary"
-            style={styles.imageButton}
-          />
+          </View>
+        )}
+
+        {/* (B) Seção: Dados Extraídos (OCR) */}
+        {dadosOcrExtraidos && imagem && !processandoOcr && (
+          <View style={styles.ocrDataCard}>
+            <View style={styles.ocrDataHeader}>
+              <Ionicons name="checkmark-circle" size={24} color="#4CAF50" />
+              <Text style={styles.ocrDataTitle}>Dados Extraídos</Text>
+            </View>
+            
+            <View style={styles.ocrDataContent}>
+              {posto && (
+                <View style={styles.ocrDataItem}>
+                  <Text style={styles.ocrDataLabel}>Posto</Text>
+                  <Text style={styles.ocrDataValue}>{posto}</Text>
+                </View>
+              )}
+              
+              {litros && (
+                <View style={styles.ocrDataItem}>
+                  <Text style={styles.ocrDataLabel}>Litros</Text>
+                  <Text style={styles.ocrDataValue}>{litros} L</Text>
+                </View>
+              )}
+              
+              {valorTotal && (
+                <View style={styles.ocrDataItem}>
+                  <Text style={styles.ocrDataLabel}>Valor Total</Text>
+                  <Text style={styles.ocrDataValue}>{formatarMoeda(valorTotal)}</Text>
+                </View>
+              )}
+              
+              {precoPorLitro && (
+                <View style={styles.ocrDataItem}>
+                  <Text style={styles.ocrDataLabel}>Preço por Litro</Text>
+                  <Text style={styles.ocrDataValue}>{formatarMoeda(precoPorLitro)}</Text>
+                </View>
+              )}
+              
+              {tipoCombustivel && (
+                <View style={styles.ocrDataItem}>
+                  <Text style={styles.ocrDataLabel}>Tipo de Combustível</Text>
+                  <Text style={styles.ocrDataValue}>
+                    {tiposCombustivel.find(t => t.value === tipoCombustivel)?.label || tipoCombustivel}
+                  </Text>
+                </View>
+              )}
+              
+              {data && (
+                <View style={styles.ocrDataItem}>
+                  <Text style={styles.ocrDataLabel}>Data</Text>
+                  <Text style={styles.ocrDataValue}>{formatarData(data)}</Text>
+                </View>
+              )}
+            </View>
+          </View>
+        )}
+
+        {/* Botão para adicionar/trocar imagem */}
+        {!imagem && (
+          <View style={styles.imageSection}>
+            <Text style={commonStyles.label}>Foto (Opcional)</Text>
+            <CameraButton
+              onPress={escolherImagem}
+              label="Tirar Foto ou Escolher da Galeria"
+              variant="secondary"
+              style={styles.imageButton}
+            />
+          </View>
         )}
 
         {/* Dados do Abastecimento */}
@@ -409,18 +494,29 @@ export default function RegistrarAbastecimentoScreen({ route, navigation }) {
           <Text style={commonStyles.input}>{formatarData(data)}</Text>
         </TouchableOpacity>
 
-        {/* Botão Salvar */}
-        <TouchableOpacity
-          style={[commonStyles.button, loading && commonStyles.buttonDisabled]}
-          onPress={handleSalvar}
-          disabled={loading}
-        >
-          {loading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={commonStyles.buttonText}>Registrar Abastecimento</Text>
+        {/* (C) Seção: Botões de Ação */}
+        <View style={styles.actionButtonsSection}>
+          <ActionButton
+            onPress={handleSalvar}
+            label="Confirmar Abastecimento"
+            icon="checkmark-circle"
+            color="#4CAF50"
+            loading={loading}
+            disabled={loading}
+            style={styles.actionButton}
+          />
+          
+          {imagem && (
+            <ActionButton
+              onPress={escolherImagem}
+              label="Tentar Novamente"
+              icon="camera-outline"
+              color="#2196F3"
+              disabled={loading || processandoOcr}
+              style={styles.actionButton}
+            />
           )}
-        </TouchableOpacity>
+        </View>
       </ScrollView>
 
       {/* Modal de Seleção de Veículos */}
@@ -484,17 +580,20 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 16,
-    paddingBottom: 40,
+  },
+  imageSection: {
+    marginBottom: 16,
   },
   // Header removido - usando HeaderBar component
   imageContainer: {
     position: 'relative',
-    marginBottom: 15,
+    marginBottom: 0,
+    borderRadius: 10,
+    overflow: 'hidden',
   },
   imagePreview: {
     width: '100%',
     height: 200,
-    borderRadius: 12,
     backgroundColor: commonStyles.borderColor,
   },
   ocrOverlay: {
@@ -588,6 +687,52 @@ const styles = StyleSheet.create({
   imageModal: {
     width: '100%',
     height: '100%',
+  },
+  ocrDataCard: {
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    padding: 16,
+    marginBottom: 16,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  ocrDataHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  ocrDataTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: commonStyles.textPrimary,
+    marginLeft: 8,
+  },
+  ocrDataContent: {
+    gap: 16,
+  },
+  ocrDataItem: {
+    marginBottom: 0,
+  },
+  ocrDataLabel: {
+    fontSize: 12,
+    color: commonStyles.textSecondary,
+    marginBottom: 4,
+    fontWeight: '500',
+  },
+  ocrDataValue: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: commonStyles.textPrimary,
+  },
+  actionButtonsSection: {
+    marginTop: 8,
+    gap: 12,
+  },
+  actionButton: {
+    minHeight: 50,
   },
 });
 
