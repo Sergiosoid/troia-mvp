@@ -330,6 +330,14 @@ export default function VeiculoHistoricoScreen({ navigation, route }) {
 }
 
 const styles = StyleSheet.create({
+  headerButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  headerButton: {
+    padding: 5,
+  },
   exportButton: {
     padding: 5,
   },
