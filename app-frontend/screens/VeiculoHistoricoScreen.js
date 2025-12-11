@@ -11,7 +11,7 @@ import {
   Modal,
   Platform,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { listarHistoricoVeiculo, buscarVeiculoPorId, excluirManutencao, API_URL } from '../services/api';
@@ -25,6 +25,7 @@ export default function VeiculoHistoricoScreen({ navigation, route }) {
   const [loading, setLoading] = useState(true);
   const [excluindoId, setExcluindoId] = useState(null);
   const [modalExcluir, setModalExcluir] = useState({ visivel: false, manutencao: null });
+  const insets = useSafeAreaInsets();
 
   const carregarDados = async () => {
     if (!veiculoId) {
@@ -138,30 +139,33 @@ export default function VeiculoHistoricoScreen({ navigation, route }) {
 
   if (loading) {
     return (
-      <View style={commonStyles.loadingContainer}>
-        <ActivityIndicator size="large" color="#4CAF50" />
-        <Text style={commonStyles.loadingText}>Carregando histórico...</Text>
-      </View>
+      <SafeAreaView style={commonStyles.container} edges={['top']}>
+        <HeaderBar title="Histórico" navigation={navigation} />
+        <View style={commonStyles.loadingContainer}>
+          <ActivityIndicator size="large" color="#4CAF50" />
+          <Text style={commonStyles.loadingText}>Carregando histórico...</Text>
+        </View>
+      </SafeAreaView>
     );
   }
 
+  const rightComponent = (
+    <TouchableOpacity
+      onPress={() => Alert.alert('Em breve', 'Exportar será implementado em breve')}
+      style={styles.exportButton}
+    >
+      <Ionicons name="download-outline" size={24} color="#333" />
+    </TouchableOpacity>
+  );
+
   return (
     <SafeAreaView style={commonStyles.container} edges={['top']}>
-      {/* Header */}
-      <View style={commonStyles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={commonStyles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#333" />
-        </TouchableOpacity>
-        <Text style={commonStyles.headerTitle}>Histórico</Text>
-        <TouchableOpacity
-          onPress={() => Alert.alert('Em breve', 'Exportar será implementado em breve')}
-          style={styles.exportButton}
-        >
-          <Ionicons name="download-outline" size={24} color="#333" />
-        </TouchableOpacity>
-      </View>
+      <HeaderBar title="Histórico" navigation={navigation} rightComponent={rightComponent} />
 
-      <ScrollView style={commonStyles.scrollContainer}>
+      <ScrollView 
+        style={commonStyles.scrollContainer}
+        contentContainerStyle={{ padding: 16 }}
+      >
         {/* Informações do Veículo */}
         {veiculo && (
           <View style={styles.veiculoInfo}>
@@ -242,12 +246,12 @@ export default function VeiculoHistoricoScreen({ navigation, route }) {
       </ScrollView>
 
       {/* Botões de Ação */}
-      <View style={styles.actionButtons}>
+      <View style={[styles.actionButtons, { paddingBottom: insets.bottom + 20 }]}>
         <TouchableOpacity
           style={[styles.actionButton, styles.actionButtonPrimary]}
           onPress={() => navigation.navigate('CadastroManutencao', { veiculoId })}
         >
-          <Ionicons name="construct-outline" size={20} color="#fff" />
+          <Ionicons name="construct-outline" size={22} color="#fff" />
           <Text style={styles.actionButtonText}>Nova Manutenção</Text>
         </TouchableOpacity>
         
@@ -255,7 +259,7 @@ export default function VeiculoHistoricoScreen({ navigation, route }) {
           style={[styles.actionButton, styles.actionButtonSecondary]}
           onPress={() => navigation.navigate('RegistrarAbastecimento', { veiculoId })}
         >
-          <Ionicons name="water-outline" size={20} color="#fff" />
+          <Ionicons name="water-outline" size={22} color="#fff" />
           <Text style={styles.actionButtonText}>Abastecer</Text>
         </TouchableOpacity>
       </View>
@@ -499,7 +503,7 @@ const styles = StyleSheet.create({
   actionButtons: {
     flexDirection: 'row',
     padding: 16,
-    paddingBottom: Platform.OS === 'android' ? 32 : 16,
+    paddingTop: 16,
     gap: 12,
     backgroundColor: commonStyles.background,
     borderTopWidth: 1,
@@ -510,7 +514,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    minHeight: 48,
     borderRadius: 12,
     elevation: 2,
     shadowColor: '#000',

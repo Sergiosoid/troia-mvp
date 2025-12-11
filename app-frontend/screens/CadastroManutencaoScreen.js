@@ -687,6 +687,8 @@ const styles = StyleSheet.create({
   },
   imageButton: {
     marginBottom: 15,
+    minHeight: 48,
+    paddingHorizontal: 12,
   },
   successBox: {
     flexDirection: 'row',
