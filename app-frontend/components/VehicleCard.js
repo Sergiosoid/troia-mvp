@@ -5,6 +5,32 @@ import { commonStyles } from '../constants/styles';
 
 const SPACING = 16;
 
+const getVeiculoIcon = (tipoVeiculo) => {
+  const iconMap = {
+    carro: 'car-outline',
+    moto: 'bicycle-outline',
+    caminhao: 'car-sport-outline',
+    van: 'bus-outline',
+    caminhonete: 'car-sport-outline',
+    onibus: 'bus-outline',
+    barco: 'boat-outline',
+  };
+  return iconMap[tipoVeiculo] || 'car-outline';
+};
+
+const formatarTipoVeiculo = (tipo) => {
+  const tipos = {
+    carro: 'Carro',
+    moto: 'Moto',
+    caminhao: 'Caminhão',
+    van: 'Van',
+    caminhonete: 'Caminhonete',
+    onibus: 'Ônibus',
+    barco: 'Barco',
+  };
+  return tipos[tipo] || tipo;
+};
+
 export default function VehicleCard({ veiculo, onPress, formatarMoeda, formatarData }) {
   return (
     <TouchableOpacity
@@ -16,14 +42,25 @@ export default function VehicleCard({ veiculo, onPress, formatarMoeda, formatarD
       <View style={styles.cardHeader}>
         <View style={styles.cardHeaderLeft}>
           <View style={styles.veiculoNomeRow}>
-            <Ionicons name="car-outline" size={24} color="#4CAF50" />
+            <Ionicons 
+              name={getVeiculoIcon(veiculo.tipo_veiculo)} 
+              size={24} 
+              color="#4CAF50" 
+            />
             <View>
               <Text style={styles.veiculoNome}>
                 {veiculo.modelo || veiculo.marca || 'Veículo'} {veiculo.ano ? `(${veiculo.ano})` : ''}
               </Text>
-              {veiculo.placa && (
-                <Text style={styles.veiculoPlaca}>{veiculo.placa}</Text>
-              )}
+              <View style={styles.veiculoInfoRow}>
+                {veiculo.tipo_veiculo && (
+                  <Text style={styles.veiculoTipo}>
+                    {formatarTipoVeiculo(veiculo.tipo_veiculo)}
+                  </Text>
+                )}
+                {veiculo.placa && (
+                  <Text style={styles.veiculoPlaca}>{veiculo.placa}</Text>
+                )}
+              </View>
             </View>
           </View>
         </View>
@@ -104,11 +141,25 @@ const styles = StyleSheet.create({
     color: commonStyles.textPrimary,
     marginLeft: SPACING / 2,
   },
+  veiculoInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 2,
+    gap: 8,
+  },
+  veiculoTipo: {
+    fontSize: 12,
+    color: '#4CAF50',
+    fontWeight: '600',
+    backgroundColor: '#e8f5e9',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
   veiculoPlaca: {
     fontSize: 14,
     color: commonStyles.textSecondary,
     marginLeft: SPACING / 2,
-    marginTop: 2,
   },
   cardBody: {
     borderTopWidth: 1,

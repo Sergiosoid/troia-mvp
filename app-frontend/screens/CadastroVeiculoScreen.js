@@ -175,6 +175,43 @@ export default function CadastroVeiculoScreen({ route, navigation }) {
 }
 
 const styles = StyleSheet.create({
+  pickerContainer: {
+    marginBottom: 15,
+  },
+  pickerButton: {
+    justifyContent: 'space-between',
+  },
+  pickerText: {
+    flex: 1,
+    fontSize: 16,
+    color: '#333',
+  },
+  optionsList: {
+    maxHeight: 200,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    borderRadius: 12,
+    marginTop: 5,
+    backgroundColor: '#fff',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+  },
+  optionItem: {
+    padding: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+    backgroundColor: '#fff',
+  },
+  optionItemSelected: {
+    backgroundColor: '#e3f2fd',
+  },
+  optionText: {
+    fontSize: 16,
+    color: '#333',
+  },
   infoBox: {
     flexDirection: 'row',
     alignItems: 'center',
