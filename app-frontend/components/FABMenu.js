@@ -125,10 +125,12 @@ export default function FABMenu({ navigation, veiculos = [] }) {
         animationType="fade"
         onRequestClose={closeMenu}
       >
+        {/* Overlay - renderizado ANTES dos botões */}
         <TouchableOpacity
           style={styles.overlay}
           activeOpacity={1}
           onPress={closeMenu}
+          pointerEvents="box-only"
         />
       </Modal>
 
@@ -143,6 +145,7 @@ export default function FABMenu({ navigation, veiculos = [] }) {
         pointerEvents="box-none"
       >
         {/* Menu Items - Empilhados verticalmente acima do FAB */}
+        {/* Renderizados APÓS o overlay no JSX */}
         {menuItems.map((item, index) => {
           const translateY = translateYAnim.interpolate({
             inputRange: [0, 1],
@@ -171,6 +174,7 @@ export default function FABMenu({ navigation, veiculos = [] }) {
                   transform: [{ translateY }],
                 },
               ]}
+              pointerEvents="auto"
             >
               <TouchableOpacity
                 style={[styles.menuItem, { backgroundColor: item.color }]}
@@ -189,6 +193,7 @@ export default function FABMenu({ navigation, veiculos = [] }) {
           style={styles.fab}
           onPress={toggleMenu}
           activeOpacity={0.8}
+          pointerEvents="auto"
         >
           <Animated.View
             style={{
@@ -208,12 +213,16 @@ const styles = StyleSheet.create({
     position: 'absolute',
     alignItems: 'flex-end',
     justifyContent: 'flex-end',
+    zIndex: 2,
   },
   overlay: {
-    flex: 1,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     backgroundColor: 'rgba(0, 0, 0, 0.35)',
-    width: '100%',
-    height: '100%',
+    zIndex: 1,
   },
   fab: {
     width: FAB_SIZE,
@@ -227,10 +236,13 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 6,
+    zIndex: 3,
   },
   menuItemContainer: {
     position: 'absolute',
     width: BUTTON_WIDTH,
+    zIndex: 2,
+    elevation: 10,
   },
   menuItem: {
     flexDirection: 'row',
