@@ -607,20 +607,20 @@ export default function CadastroManutencaoScreen({ route, navigation }) {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Selecionar Imagem</Text>
-            <TouchableOpacity
-              style={styles.modalOption}
+            <CameraButton
               onPress={tirarFoto}
-            >
-              <Ionicons name="camera" size={22} color="#4CAF50" />
-              <Text style={styles.modalOptionText}>Tirar Foto</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
+              label="Tirar Foto"
+              icon="camera"
+              variant="secondary"
               style={styles.modalOption}
+            />
+            <CameraButton
               onPress={selecionarImagemGaleria}
-            >
-              <Ionicons name="images" size={22} color="#4CAF50" />
-              <Text style={styles.modalOptionText}>Escolher da Galeria</Text>
-            </TouchableOpacity>
+              label="Escolher da Galeria"
+              icon="images"
+              variant="secondary"
+              style={styles.modalOption}
+            />
             <TouchableOpacity
               style={[styles.modalOption, styles.modalCancel]}
               onPress={() => setMostrarModalImagem(false)}
