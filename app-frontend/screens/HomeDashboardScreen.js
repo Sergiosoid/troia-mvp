@@ -389,4 +389,35 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING,
     lineHeight: 20,
   },
+  alertasCard: {
+    ...commonStyles.card,
+    margin: SPACING,
+    marginTop: SPACING / 2,
+    padding: SPACING,
+    backgroundColor: '#FFF3E0',
+    borderLeftWidth: 4,
+    borderLeftColor: '#FF9800',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  alertasCardContent: {
+    flex: 1,
+  },
+  alertasCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: SPACING / 4,
+  },
+  alertasCardTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: commonStyles.textPrimary,
+    marginLeft: SPACING / 2,
+  },
+  alertasCardSubtitle: {
+    fontSize: 14,
+    color: commonStyles.textSecondary,
+    marginLeft: SPACING * 2.5,
+  },
 });
