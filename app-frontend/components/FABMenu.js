@@ -4,6 +4,7 @@ import {
   Alert,
   Animated,
   Modal,
+  Pressable,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -117,83 +118,96 @@ export default function FABMenu({ navigation, veiculos = [] }) {
     },
   ];
 
+  // Calcular posição do FAB
+  const fabBottom = insets.bottom + 20;
+  const fabRight = 20;
+
   return (
     <>
+      {/* FAB sempre visível (fora do Modal) */}
+      <TouchableOpacity
+        style={[
+          styles.fabButton,
+          {
+            bottom: fabBottom,
+            right: fabRight,
+          },
+        ]}
+        onPress={toggleMenu}
+        activeOpacity={0.8}
+      >
+        <Animated.View
+          style={{
+            transform: [{ rotate: rotateInterpolate }],
+          }}
+        >
+          <Ionicons name="add" size={28} color="#fff" />
+        </Animated.View>
+      </TouchableOpacity>
+
+      {/* Modal apenas quando aberto */}
       <Modal
         visible={isOpen}
-        transparent
+        transparent={true}
         animationType="fade"
         onRequestClose={closeMenu}
       >
-        {/* Overlay - renderizado ANTES dos botões */}
-        <TouchableOpacity
+        {/* 1. Overlay (sempre abaixo) */}
+        <Pressable
           style={styles.overlay}
-          activeOpacity={1}
           onPress={closeMenu}
           pointerEvents="box-only"
         />
-      </Modal>
 
-      <View
-        style={[
-          styles.container,
-          {
-            bottom: insets.bottom + 20,
-            right: 20,
-          },
-        ]}
-        pointerEvents="box-none"
-      >
-        {/* Menu Items - Empilhados verticalmente acima do FAB */}
-        {/* Renderizados APÓS o overlay no JSX */}
-        {menuItems.map((item, index) => {
-          const translateY = translateYAnim.interpolate({
-            inputRange: [0, 1],
-            outputRange: [10, 0],
-          });
+        {/* 2. Menu Items */}
+        <Animated.View
+          style={[
+            styles.menuContainer,
+            {
+              bottom: fabBottom + FAB_SIZE + BUTTON_SPACING,
+              right: fabRight,
+              opacity: fadeAnim,
+              transform: [{ translateY: translateYAnim }],
+            },
+          ]}
+        >
+          {menuItems.map((item, index) => {
+            // Posição do botão: acima do FAB, empilhado
+            const buttonBottom = (BUTTON_HEIGHT + BUTTON_SPACING) * (menuItems.length - 1 - index);
 
-          const opacity = fadeAnim.interpolate({
-            inputRange: [0, 0.3, 1],
-            outputRange: [0, 0, 1],
-          });
-
-          // Posição do botão: acima do FAB, empilhado
-          // O primeiro item (index 0) fica mais longe do FAB
-          // O último item (index maior) fica mais perto do FAB
-          const buttonBottom = FAB_SIZE + BUTTON_SPACING + (BUTTON_HEIGHT + BUTTON_SPACING) * (menuItems.length - 1 - index);
-
-          return (
-            <Animated.View
-              key={item.id}
-              style={[
-                styles.menuItemContainer,
-                {
-                  bottom: buttonBottom,
-                  right: 0,
-                  opacity,
-                  transform: [{ translateY }],
-                },
-              ]}
-              pointerEvents="auto"
-            >
+            return (
               <TouchableOpacity
-                style={[styles.menuItem, { backgroundColor: item.color }]}
+                key={item.id}
+                style={[
+                  styles.menuItem,
+                  {
+                    backgroundColor: item.color,
+                    marginBottom: index < menuItems.length - 1 ? BUTTON_SPACING : 0,
+                    position: 'relative',
+                    bottom: buttonBottom,
+                  },
+                ]}
                 onPress={() => handleAction(item.id)}
                 activeOpacity={0.8}
               >
                 <Ionicons name={item.icon} size={22} color="#fff" />
                 <Text style={styles.menuItemLabel}>{item.label}</Text>
               </TouchableOpacity>
-            </Animated.View>
-          );
-        })}
+            );
+          })}
+        </Animated.View>
 
-        {/* Main FAB Button */}
+        {/* 3. FAB dentro do Modal (sempre acima de tudo quando modal aberto) */}
         <TouchableOpacity
-          style={styles.fab}
+          style={[
+            styles.fabButton,
+            {
+              bottom: fabBottom,
+              right: fabRight,
+            },
+          ]}
           onPress={toggleMenu}
           activeOpacity={0.8}
-          pointerEvents="auto"
         >
           <Animated.View
             style={{
@@ -203,54 +217,35 @@ export default function FABMenu({ navigation, veiculos = [] }) {
             <Ionicons name="add" size={28} color="#fff" />
           </Animated.View>
         </TouchableOpacity>
-      </View>
+      </Modal>
     </>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    position: 'absolute',
-    alignItems: 'flex-end',
-    justifyContent: 'flex-end',
-    zIndex: 2,
-  },
   overlay: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.35)',
-    zIndex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    zIndex: 10,
   },
-  fab: {
-    width: FAB_SIZE,
-    height: FAB_SIZE,
-    borderRadius: FAB_SIZE / 2,
-    backgroundColor: '#4CAF50',
-    justifyContent: 'center',
-    alignItems: 'center',
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    zIndex: 3,
-  },
-  menuItemContainer: {
+  menuContainer: {
     position: 'absolute',
-    width: BUTTON_WIDTH,
-    zIndex: 2,
-    elevation: 10,
+    zIndex: 20,
+    alignItems: 'flex-end',
   },
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'flex-start',
+    width: BUTTON_WIDTH,
     height: BUTTON_HEIGHT,
+    paddingVertical: 12,
     paddingHorizontal: 16,
-    borderRadius: 10,
+    borderRadius: 8,
     elevation: 4,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -262,5 +257,20 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     marginLeft: 12,
+  },
+  fabButton: {
+    position: 'absolute',
+    width: FAB_SIZE,
+    height: FAB_SIZE,
+    borderRadius: FAB_SIZE / 2,
+    backgroundColor: '#4CAF50',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 30,
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
   },
 });
