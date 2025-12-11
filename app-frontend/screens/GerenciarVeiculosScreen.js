@@ -3,22 +3,22 @@
  * Lista, edita e exclui veículos
  */
 
-import React, { useState, useEffect } from 'react';
+import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
+import React, { useState } from 'react';
 import {
-  View,
-  Text,
-  ScrollView,
-  StyleSheet,
-  TouchableOpacity,
   ActivityIndicator,
   Alert,
   RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useFocusEffect } from '@react-navigation/native';
-import { Ionicons } from '@expo/vector-icons';
-import { listarVeiculosComTotais } from '../services/api';
 import { commonStyles } from '../constants/styles';
+import { listarVeiculosComTotais } from '../services/api';
 
 export default function GerenciarVeiculosScreen({ navigation }) {
   const [veiculos, setVeiculos] = useState([]);

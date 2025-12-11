@@ -13,10 +13,11 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { listarVeiculosComTotais, calcularTotalGeral } from '../services/api';
+import { listarVeiculosComTotais, calcularTotalGeral, buscarResumoDashboard } from '../services/api';
 import { commonStyles } from '../constants/styles';
 import FABMenu from '../components/FABMenu';
 import VehicleCard from '../components/VehicleCard';
+import DashboardSummaryCard from '../components/DashboardSummaryCard';
 
 const SPACING = 16; // Espaçamento padrão de 16
 
@@ -25,19 +26,27 @@ export default function HomeDashboardScreen({ navigation, route }) {
   const [totalGeral, setTotalGeral] = useState(0);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [resumoDashboard, setResumoDashboard] = useState(null);
+  const [loadingResumo, setLoadingResumo] = useState(true);
   const insets = useSafeAreaInsets();
 
   const carregarDados = async (isRefresh = false) => {
     try {
       if (!isRefresh) {
         setLoading(true);
+        setLoadingResumo(true);
       }
       
-      const veiculosData = await listarVeiculosComTotais();
-      setVeiculos(Array.isArray(veiculosData) ? veiculosData : []);
+      // Carregar dados em paralelo
+      const [veiculosData, total, resumo] = await Promise.all([
+        listarVeiculosComTotais(),
+        calcularTotalGeral(),
+        buscarResumoDashboard(),
+      ]);
       
-      const total = await calcularTotalGeral();
+      setVeiculos(Array.isArray(veiculosData) ? veiculosData : []);
       setTotalGeral(total || 0);
+      setResumoDashboard(resumo);
     } catch (error) {
       console.error('Erro ao carregar dados:', error);
       const errorMessage = error.message?.includes('indisponível')
@@ -52,8 +61,10 @@ export default function HomeDashboardScreen({ navigation, route }) {
       
       setVeiculos([]);
       setTotalGeral(0);
+      setResumoDashboard(null);
     } finally {
       setLoading(false);
+      setLoadingResumo(false);
       setRefreshing(false);
     }
   };
@@ -143,6 +154,16 @@ export default function HomeDashboardScreen({ navigation, route }) {
         }
         showsVerticalScrollIndicator={false}
       >
+        {/* Dashboard Summary Cards */}
+        <DashboardSummaryCard
+          kmTotal={resumoDashboard?.kmTotal}
+          gasto30dias={resumoDashboard?.gasto30dias}
+          consumoMedio={resumoDashboard?.consumoMedio}
+          litrosMes={resumoDashboard?.litrosMes}
+          manutencaoProxima={resumoDashboard?.manutencaoProxima}
+          loading={loadingResumo}
+        />
+
         {/* Espaço reservado para anúncios */}
         <View style={styles.adsContainer}>
           <Text style={styles.adsPlaceholder}>

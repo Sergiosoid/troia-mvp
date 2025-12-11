@@ -1,28 +1,27 @@
-import React, { useState, useEffect } from 'react';
+import { Ionicons } from '@expo/vector-icons';
+import React, { useEffect, useState } from 'react';
 import {
-  View,
-  Text,
-  TextInput,
-  ScrollView,
-  StyleSheet,
-  Alert,
-  TouchableOpacity,
-  ActivityIndicator,
-  Modal,
-  Platform,
+    ActivityIndicator,
+    Alert,
+    Modal,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
-import {
-  buscarVeiculoPorId,
-  atualizarVeiculo,
-  listarHistoricoProprietarios,
-  adicionarHistoricoProprietario,
-  removerHistoricoProprietario,
-} from '../services/api';
-import { commonStyles } from '../constants/styles';
-import HeaderBar from '../components/HeaderBar';
 import ActionButton from '../components/ActionButton';
+import HeaderBar from '../components/HeaderBar';
+import { commonStyles } from '../constants/styles';
+import {
+    adicionarHistoricoProprietario,
+    atualizarVeiculo,
+    buscarVeiculoPorId,
+    listarHistoricoProprietarios,
+    removerHistoricoProprietario,
+} from '../services/api';
 
 const tiposVeiculo = [
   { value: 'carro', label: 'Carro' },

@@ -1,31 +1,31 @@
-import React, { useState, useEffect } from 'react';
-import { ActivityIndicator, View } from 'react-native';
-import { registerRootComponent } from 'expo';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { registerRootComponent } from 'expo';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, View } from 'react-native';
 import { isUserLoggedIn } from './utils/authStorage';
 
-import LoginScreen from './screens/LoginScreen';
-import RegisterScreen from './screens/RegisterScreen';
-import HomeDashboardScreen from './screens/HomeDashboardScreen';
-import VeiculoHistoricoScreen from './screens/VeiculoHistoricoScreen';
-import EscolherVeiculoParaManutencaoScreen from './screens/EscolherVeiculoParaManutencaoScreen';
-import EscolherVeiculoParaAbastecimentoScreen from './screens/EscolherVeiculoParaAbastecimentoScreen';
+import CameraAbastecimento from './components/CameraAbastecimento';
+import CadastroManutencaoScreen from './screens/CadastroManutencaoScreen';
 import CadastroProprietarioScreen from './screens/CadastroProprietarioScreen';
 import CadastroVeiculoScreen from './screens/CadastroVeiculoScreen';
-import CadastroManutencaoScreen from './screens/CadastroManutencaoScreen';
-import ListaManutencoesScreen from './screens/ListaManutencoesScreen';
-import PesquisaScreen from './screens/PesquisaScreen';
 import CameraCaptureScreen from './screens/CameraCaptureScreen';
-import PreviewParsedScreen from './screens/PreviewParsedScreen';
 import ConfiguracoesScreen from './screens/ConfiguracoesScreen';
 import EditarPerfilScreen from './screens/EditarPerfilScreen';
-import SobreScreen from './screens/SobreScreen';
+import EditarVeiculoScreen from './screens/EditarVeiculoScreen';
+import EscolherVeiculoParaAbastecimentoScreen from './screens/EscolherVeiculoParaAbastecimentoScreen';
+import EscolherVeiculoParaManutencaoScreen from './screens/EscolherVeiculoParaManutencaoScreen';
 import GerenciarProprietariosScreen from './screens/GerenciarProprietariosScreen';
 import GerenciarVeiculosScreen from './screens/GerenciarVeiculosScreen';
+import HomeDashboardScreen from './screens/HomeDashboardScreen';
+import ListaManutencoesScreen from './screens/ListaManutencoesScreen';
+import LoginScreen from './screens/LoginScreen';
+import PesquisaScreen from './screens/PesquisaScreen';
+import PreviewParsedScreen from './screens/PreviewParsedScreen';
+import RegisterScreen from './screens/RegisterScreen';
 import RegistrarAbastecimentoScreen from './screens/RegistrarAbastecimentoScreen';
-import CameraAbastecimento from './components/CameraAbastecimento';
-import EditarVeiculoScreen from './screens/EditarVeiculoScreen';
+import SobreScreen from './screens/SobreScreen';
+import VeiculoHistoricoScreen from './screens/VeiculoHistoricoScreen';
 
 const Stack = createNativeStackNavigator();
 

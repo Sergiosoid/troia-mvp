@@ -1,6 +1,4 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import Constants from 'expo-constants';
-import { getToken, getUserId } from '../utils/authStorage';
+import { getToken } from '../utils/authStorage';
 
 /**
  * 🔥 FIX ABSOLUTO DO API_URL
@@ -700,6 +698,29 @@ export const adicionarHistoricoProprietario = async (veiculoId, data) => {
       throw new Error('Servidor temporariamente indisponível. Tente novamente em alguns instantes.');
     }
     throw error;
+  }
+};
+
+export const buscarResumoDashboard = async () => {
+  try {
+    const token = await getToken();
+    if (!token) {
+      return null;
+    }
+    
+    const headers = await getHeaders();
+    const res = await fetchWithTimeout(`${API_URL}/dashboard/resumo`, {
+      headers,
+    });
+    
+    if (res && typeof res === 'object') {
+      return res;
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Erro ao buscar resumo do dashboard:', error);
+    return null;
   }
 };
 

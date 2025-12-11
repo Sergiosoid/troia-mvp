@@ -14,6 +14,7 @@ import proprietariosRouter from './routes/proprietarios.js';
 import veiculosRouter from './routes/veiculos.js';
 import manutencoesRouter from './routes/manutencoes.js';
 import abastecimentosRouter from './routes/abastecimentos.js';
+import dashboardRouter from './routes/dashboard.js';
 import healthRouter from './routes/health.js';
 
 // Carregar variáveis de ambiente
@@ -97,6 +98,7 @@ const upload = multer({
 
 // Rotas
 app.use('/auth', authRouter);
+app.use('/dashboard', dashboardRouter);
 app.use('/proprietarios', proprietariosRouter);
 app.use('/veiculos', veiculosRouter);
 app.use('/manutencoes', manutencoesRouter);
