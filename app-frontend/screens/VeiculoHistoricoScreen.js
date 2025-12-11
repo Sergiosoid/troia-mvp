@@ -150,12 +150,20 @@ export default function VeiculoHistoricoScreen({ navigation, route }) {
   }
 
   const rightComponent = (
-    <TouchableOpacity
-      onPress={() => Alert.alert('Em breve', 'Exportar será implementado em breve')}
-      style={styles.exportButton}
-    >
-      <Ionicons name="download-outline" size={24} color="#333" />
-    </TouchableOpacity>
+    <View style={styles.headerButtons}>
+      <TouchableOpacity
+        onPress={() => navigation.navigate('Estatisticas', { veiculoId })}
+        style={styles.headerButton}
+      >
+        <Ionicons name="stats-chart-outline" size={24} color="#4CAF50" />
+      </TouchableOpacity>
+      <TouchableOpacity
+        onPress={() => Alert.alert('Em breve', 'Exportar será implementado em breve')}
+        style={styles.headerButton}
+      >
+        <Ionicons name="download-outline" size={24} color="#333" />
+      </TouchableOpacity>
+    </View>
   );
 
   return (
