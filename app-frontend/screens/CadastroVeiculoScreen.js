@@ -13,7 +13,19 @@ export default function CadastroVeiculoScreen({ route, navigation }) {
   const [marca, setMarca] = useState('');
   const [modelo, setModelo] = useState('');
   const [ano, setAno] = useState('');
+  const [tipoVeiculo, setTipoVeiculo] = useState('');
+  const [mostrarTipoVeiculo, setMostrarTipoVeiculo] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  const tiposVeiculo = [
+    { value: 'carro', label: 'Carro' },
+    { value: 'moto', label: 'Moto' },
+    { value: 'caminhao', label: 'Caminhão' },
+    { value: 'van', label: 'Van' },
+    { value: 'caminhonete', label: 'Caminhonete' },
+    { value: 'onibus', label: 'Ônibus' },
+    { value: 'barco', label: 'Barco' },
+  ];
 
   const enviarVeiculo = async () => {
     // Validações simplificadas: apenas modelo e ano são obrigatórios
@@ -35,6 +47,7 @@ export default function CadastroVeiculoScreen({ route, navigation }) {
         marca: marca.trim() || null,
         modelo: modelo.trim(),
         ano: ano.trim(),
+        tipo_veiculo: tipoVeiculo || null,
         proprietario_id: proprietarioId || null
       });
       if (response && response.id) {
@@ -43,7 +56,7 @@ export default function CadastroVeiculoScreen({ route, navigation }) {
           {
             text: 'OK',
             onPress: () => {
-              setPlaca(''); setRenavam(''); setMarca(''); setModelo(''); setAno('');
+              setPlaca(''); setRenavam(''); setMarca(''); setModelo(''); setAno(''); setTipoVeiculo('');
               // Navegar conforme contexto
               if (returnTo === 'GerenciarVeiculos') {
                 navigation.navigate('GerenciarVeiculos', { refresh: true });
@@ -120,11 +133,12 @@ export default function CadastroVeiculoScreen({ route, navigation }) {
             />
           </View>
 
+          <Text style={commonStyles.label}>Fabricante</Text>
           <View style={commonStyles.inputContainer}>
             <Ionicons name="car-sport-outline" size={20} color="#666" style={commonStyles.inputIcon} />
             <TextInput
               style={commonStyles.input}
-              placeholder="Marca"
+              placeholder="Ex: Toyota, Honda, Fiat..."
               placeholderTextColor="#999"
               value={marca}
               onChangeText={setMarca}
@@ -132,11 +146,12 @@ export default function CadastroVeiculoScreen({ route, navigation }) {
             />
           </View>
 
+          <Text style={commonStyles.label}>Modelo / Identificação *</Text>
           <View style={commonStyles.inputContainer}>
             <Ionicons name="car-outline" size={20} color="#666" style={commonStyles.inputIcon} />
             <TextInput
               style={commonStyles.input}
-              placeholder="Modelo *"
+              placeholder="Ex: Corolla, Civic, Uno..."
               placeholderTextColor="#999"
               value={modelo}
               onChangeText={setModelo}
@@ -155,6 +170,41 @@ export default function CadastroVeiculoScreen({ route, navigation }) {
               keyboardType="numeric"
               maxLength={4}
             />
+          </View>
+
+          <Text style={commonStyles.label}>Tipo de Veículo</Text>
+          <View style={styles.pickerContainer}>
+            <TouchableOpacity 
+              style={[commonStyles.inputContainer, styles.pickerButton]}
+              onPress={() => setMostrarTipoVeiculo(!mostrarTipoVeiculo)}
+            >
+              <Ionicons name="car-sport-outline" size={20} color="#666" style={commonStyles.inputIcon} />
+              <Text style={styles.pickerText}>
+                {tipoVeiculo 
+                  ? tiposVeiculo.find(t => t.value === tipoVeiculo)?.label || tipoVeiculo
+                  : 'Selecione o tipo (opcional)'}
+              </Text>
+              <Ionicons name="chevron-down" size={20} color="#666" />
+            </TouchableOpacity>
+            {mostrarTipoVeiculo && (
+              <View style={styles.optionsList}>
+                {tiposVeiculo.map(tipo => (
+                  <TouchableOpacity
+                    key={tipo.value}
+                    style={[
+                      styles.optionItem,
+                      tipoVeiculo === tipo.value && styles.optionItemSelected
+                    ]}
+                    onPress={() => {
+                      setTipoVeiculo(tipo.value);
+                      setMostrarTipoVeiculo(false);
+                    }}
+                  >
+                    <Text style={styles.optionText}>{tipo.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
           </View>
 
           <TouchableOpacity

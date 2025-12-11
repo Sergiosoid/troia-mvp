@@ -246,6 +246,7 @@ export const cadastrarVeiculo = async (data) => {
         marca: data.marca?.trim() || null,
         modelo: data.modelo?.trim() || null,
         ano: data.ano?.trim() || null,
+        tipo_veiculo: data.tipo_veiculo || null,
         proprietario_id: data.proprietario_id || null
       }),
     });
