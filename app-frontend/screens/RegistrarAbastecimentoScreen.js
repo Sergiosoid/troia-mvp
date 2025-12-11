@@ -24,6 +24,7 @@ import { useAbastecimentoApi } from '../services/useAbastecimentoApi';
 import { listarVeiculosComTotais, buscarVeiculoPorId } from '../services/api';
 import { commonStyles } from '../constants/styles';
 import HeaderBar from '../components/HeaderBar';
+import CameraButton from '../components/CameraButton';
 
 export default function RegistrarAbastecimentoScreen({ route, navigation }) {
   const { veiculoId: veiculoIdParam, imagemUri } = route?.params || {};
@@ -300,13 +301,12 @@ export default function RegistrarAbastecimentoScreen({ route, navigation }) {
             </TouchableOpacity>
           </TouchableOpacity>
         ) : (
-          <TouchableOpacity
-            style={styles.imageButton}
+          <CameraButton
             onPress={escolherImagem}
-          >
-            <Ionicons name="camera-outline" size={32} color={commonStyles.primaryColor} />
-            <Text style={styles.imageButtonText}>Tirar Foto ou Escolher da Galeria</Text>
-          </TouchableOpacity>
+            label="Tirar Foto ou Escolher da Galeria"
+            variant="secondary"
+            style={styles.imageButton}
+          />
         )}
 
         {/* Dados do Abastecimento */}
