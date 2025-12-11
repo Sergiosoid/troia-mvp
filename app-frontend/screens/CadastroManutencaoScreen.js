@@ -620,7 +620,7 @@ export default function CadastroManutencaoScreen({ route, navigation }) {
               style={styles.modalOption}
               onPress={selecionarImagemGaleria}
             >
-              <Ionicons name="images" size={24} color="#4CAF50" />
+              <Ionicons name="images" size={22} color="#4CAF50" />
               <Text style={styles.modalOptionText}>Escolher da Galeria</Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -732,6 +732,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     padding: 15,
+    minHeight: 48,
+    paddingHorizontal: 12,
     borderRadius: 12,
     backgroundColor: '#f5f5f5',
     marginBottom: 10,
