@@ -701,6 +701,29 @@ export const adicionarHistoricoProprietario = async (veiculoId, data) => {
   }
 };
 
+export const buscarEstatisticas = async (veiculoId) => {
+  try {
+    const token = await getToken();
+    if (!token) {
+      return null;
+    }
+    
+    const headers = await getHeaders();
+    const res = await fetchWithTimeout(`${API_URL}/estatisticas/${veiculoId}`, {
+      headers,
+    });
+    
+    if (res && typeof res === 'object') {
+      return res;
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Erro ao buscar estatísticas:', error);
+    return null;
+  }
+};
+
 export const buscarAlertas = async () => {
   try {
     const token = await getToken();

@@ -16,6 +16,7 @@ import manutencoesRouter from './routes/manutencoes.js';
 import abastecimentosRouter from './routes/abastecimentos.js';
 import alertasRouter from './routes/alertas.js';
 import dashboardRouter from './routes/dashboard.js';
+import estatisticasRouter from './routes/estatisticas.js';
 import healthRouter from './routes/health.js';
 
 // Carregar variáveis de ambiente
@@ -101,6 +102,7 @@ const upload = multer({
 app.use('/auth', authRouter);
 app.use('/alertas', alertasRouter);
 app.use('/dashboard', dashboardRouter);
+app.use('/estatisticas', estatisticasRouter);
 app.use('/proprietarios', proprietariosRouter);
 app.use('/veiculos', veiculosRouter);
 app.use('/manutencoes', manutencoesRouter);

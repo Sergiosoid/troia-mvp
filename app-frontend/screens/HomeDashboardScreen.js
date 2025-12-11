@@ -17,7 +17,7 @@ import DashboardSummaryCard from '../components/DashboardSummaryCard';
 import FABMenu from '../components/FABMenu';
 import VehicleCard from '../components/VehicleCard';
 import { commonStyles } from '../constants/styles';
-import { buscarResumoDashboard, buscarAlertas, calcularTotalGeral, listarVeiculosComTotais } from '../services/api';
+import { buscarAlertas, buscarResumoDashboard, calcularTotalGeral, listarVeiculosComTotais } from '../services/api';
 
 const SPACING = 16; // Espaçamento padrão de 16
 

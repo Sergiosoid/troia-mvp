@@ -6,7 +6,9 @@ import { ActivityIndicator, View } from 'react-native';
 import { isUserLoggedIn } from './utils/authStorage';
 
 import CameraAbastecimento from './components/CameraAbastecimento';
+import AlertasScreen from './screens/AlertasScreen';
 import CadastroManutencaoScreen from './screens/CadastroManutencaoScreen';
+import EstatisticasScreen from './screens/EstatisticasScreen';
 import CadastroProprietarioScreen from './screens/CadastroProprietarioScreen';
 import CadastroVeiculoScreen from './screens/CadastroVeiculoScreen';
 import CameraCaptureScreen from './screens/CameraCaptureScreen';
@@ -14,7 +16,6 @@ import ConfiguracoesScreen from './screens/ConfiguracoesScreen';
 import EditarPerfilScreen from './screens/EditarPerfilScreen';
 import EditarVeiculoScreen from './screens/EditarVeiculoScreen';
 import EscolherVeiculoParaAbastecimentoScreen from './screens/EscolherVeiculoParaAbastecimentoScreen';
-import AlertasScreen from './screens/AlertasScreen';
 import EscolherVeiculoParaManutencaoScreen from './screens/EscolherVeiculoParaManutencaoScreen';
 import GerenciarProprietariosScreen from './screens/GerenciarProprietariosScreen';
 import GerenciarVeiculosScreen from './screens/GerenciarVeiculosScreen';
