@@ -727,14 +727,8 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   modalOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 15,
-    minHeight: 48,
-    paddingHorizontal: 12,
-    borderRadius: 12,
-    backgroundColor: '#f5f5f5',
     marginBottom: 10,
+    backgroundColor: '#f5f5f5',
   },
   modalOptionText: {
     fontSize: 16,
