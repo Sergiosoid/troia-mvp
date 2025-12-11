@@ -14,6 +14,7 @@ import ConfiguracoesScreen from './screens/ConfiguracoesScreen';
 import EditarPerfilScreen from './screens/EditarPerfilScreen';
 import EditarVeiculoScreen from './screens/EditarVeiculoScreen';
 import EscolherVeiculoParaAbastecimentoScreen from './screens/EscolherVeiculoParaAbastecimentoScreen';
+import AlertasScreen from './screens/AlertasScreen';
 import EscolherVeiculoParaManutencaoScreen from './screens/EscolherVeiculoParaManutencaoScreen';
 import GerenciarProprietariosScreen from './screens/GerenciarProprietariosScreen';
 import GerenciarVeiculosScreen from './screens/GerenciarVeiculosScreen';
@@ -158,6 +159,11 @@ function App() {
         <Stack.Screen 
           name="EditarVeiculo" 
           component={EditarVeiculoScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen 
+          name="Alertas" 
+          component={AlertasScreen}
           options={{ headerShown: false }}
         />
       </Stack.Navigator>

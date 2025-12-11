@@ -7,8 +7,7 @@ import {
   Pressable,
   StyleSheet,
   Text,
-  TouchableOpacity,
-  View,
+  TouchableOpacity
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 

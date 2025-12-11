@@ -701,6 +701,29 @@ export const adicionarHistoricoProprietario = async (veiculoId, data) => {
   }
 };
 
+export const buscarAlertas = async () => {
+  try {
+    const token = await getToken();
+    if (!token) {
+      return [];
+    }
+    
+    const headers = await getHeaders();
+    const res = await fetchWithTimeout(`${API_URL}/alertas`, {
+      headers,
+    });
+    
+    if (Array.isArray(res)) {
+      return res;
+    }
+    
+    return [];
+  } catch (error) {
+    console.error('Erro ao buscar alertas:', error);
+    return [];
+  }
+};
+
 export const buscarResumoDashboard = async () => {
   try {
     const token = await getToken();

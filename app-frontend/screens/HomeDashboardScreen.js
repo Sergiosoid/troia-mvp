@@ -1,23 +1,23 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  View, 
-  Text, 
-  ScrollView, 
-  StyleSheet, 
-  TouchableOpacity, 
-  ActivityIndicator, 
+import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
+import React, { useEffect, useState } from 'react';
+import {
+  ActivityIndicator,
   Alert,
-  RefreshControl,
   Platform,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useFocusEffect } from '@react-navigation/native';
-import { Ionicons } from '@expo/vector-icons';
-import { listarVeiculosComTotais, calcularTotalGeral, buscarResumoDashboard } from '../services/api';
-import { commonStyles } from '../constants/styles';
+import DashboardSummaryCard from '../components/DashboardSummaryCard';
 import FABMenu from '../components/FABMenu';
 import VehicleCard from '../components/VehicleCard';
-import DashboardSummaryCard from '../components/DashboardSummaryCard';
+import { commonStyles } from '../constants/styles';
+import { buscarResumoDashboard, buscarAlertas, calcularTotalGeral, listarVeiculosComTotais } from '../services/api';
 
 const SPACING = 16; // Espaçamento padrão de 16
 
@@ -28,6 +28,7 @@ export default function HomeDashboardScreen({ navigation, route }) {
   const [refreshing, setRefreshing] = useState(false);
   const [resumoDashboard, setResumoDashboard] = useState(null);
   const [loadingResumo, setLoadingResumo] = useState(true);
+  const [alertas, setAlertas] = useState([]);
   const insets = useSafeAreaInsets();
 
   const carregarDados = async (isRefresh = false) => {
@@ -38,15 +39,17 @@ export default function HomeDashboardScreen({ navigation, route }) {
       }
       
       // Carregar dados em paralelo
-      const [veiculosData, total, resumo] = await Promise.all([
+      const [veiculosData, total, resumo, alertasData] = await Promise.all([
         listarVeiculosComTotais(),
         calcularTotalGeral(),
         buscarResumoDashboard(),
+        buscarAlertas(),
       ]);
       
       setVeiculos(Array.isArray(veiculosData) ? veiculosData : []);
       setTotalGeral(total || 0);
       setResumoDashboard(resumo);
+      setAlertas(Array.isArray(alertasData) ? alertasData : []);
     } catch (error) {
       console.error('Erro ao carregar dados:', error);
       const errorMessage = error.message?.includes('indisponível')
