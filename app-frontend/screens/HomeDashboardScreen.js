@@ -167,6 +167,34 @@ export default function HomeDashboardScreen({ navigation, route }) {
           loading={loadingResumo}
         />
 
+        {/* Card de Alertas */}
+        {alertas.length > 0 && alertas.some(v => 
+          v.alertas.some(a => a.status === 'vermelho' || a.status === 'amarelo')
+        ) && (
+          <TouchableOpacity
+            style={styles.alertasCard}
+            onPress={() => navigation.navigate('Alertas')}
+            activeOpacity={0.8}
+          >
+            <View style={styles.alertasCardContent}>
+              <View style={styles.alertasCardHeader}>
+                <Ionicons name="warning" size={24} color="#F44336" />
+                <Text style={styles.alertasCardTitle}>Há alertas de manutenção</Text>
+              </View>
+              <Text style={styles.alertasCardSubtitle}>
+                {alertas.reduce((total, v) => 
+                  total + v.alertas.filter(a => a.status === 'vermelho' || a.status === 'amarelo').length, 
+                  0
+                )} alerta{alertas.reduce((total, v) => 
+                  total + v.alertas.filter(a => a.status === 'vermelho' || a.status === 'amarelo').length, 
+                  0
+                ) !== 1 ? 's' : ''} requerem atenção
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#666" />
+          </TouchableOpacity>
+        )}
+
         {/* Espaço reservado para anúncios */}
         <View style={styles.adsContainer}>
           <Text style={styles.adsPlaceholder}>
