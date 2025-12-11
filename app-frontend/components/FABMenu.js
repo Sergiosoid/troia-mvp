@@ -6,34 +6,35 @@ import {
   StyleSheet,
   Animated,
   Modal,
-  Platform,
   Alert,
-  useWindowDimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const FAB_SIZE = 56;
-const MENU_ITEM_SIZE = 50;
+const BUTTON_HEIGHT = 56;
+const BUTTON_SPACING = 10;
+const BUTTON_WIDTH = 200;
 
 export default function FABMenu({ navigation, veiculos = [] }) {
   const [isOpen, setIsOpen] = useState(false);
   const insets = useSafeAreaInsets();
-  const { width, height } = useWindowDimensions();
   
-  // Calcular raio dinamicamente baseado no tamanho da tela
-  const MENU_RADIUS = Math.min(width, height) * 0.15; // 15% da menor dimensão, máximo 70px
-  const maxRadius = 70;
-  const finalRadius = Math.min(MENU_RADIUS, maxRadius);
-  
-  const scaleAnim = useState(new Animated.Value(0))[0];
+  const fadeAnim = useState(new Animated.Value(0))[0];
+  const translateYAnim = useState(new Animated.Value(0))[0];
   const rotateAnim = useState(new Animated.Value(0))[0];
 
   const toggleMenu = () => {
     const toValue = isOpen ? 0 : 1;
     
     Animated.parallel([
-      Animated.spring(scaleAnim, {
+      Animated.spring(fadeAnim, {
+        toValue,
+        useNativeDriver: true,
+        tension: 50,
+        friction: 7,
+      }),
+      Animated.spring(translateYAnim, {
         toValue,
         useNativeDriver: true,
         tension: 50,
@@ -75,16 +76,13 @@ export default function FABMenu({ navigation, veiculos = [] }) {
         }
         break;
       case 'km':
-        // Navegar para tela de atualizar KM
         if (veiculos.length === 0) {
           Alert.alert('Atenção', 'Cadastre um veículo primeiro');
           return;
         }
         if (veiculos.length === 1) {
-          // Navegar para histórico do veículo (onde pode atualizar KM)
           navigation.navigate('VeiculoHistorico', { veiculoId: veiculos[0].id });
         } else {
-          // Navegar para escolher veículo
           navigation.navigate('EscolherVeiculoParaManutencao');
         }
         break;
@@ -102,13 +100,13 @@ export default function FABMenu({ navigation, veiculos = [] }) {
     {
       id: 'manutencao',
       icon: 'construct-outline',
-      label: 'Nova manutenção',
+      label: 'Nova Manutenção',
       color: '#4CAF50',
     },
     {
       id: 'abastecimento',
       icon: 'water-outline',
-      label: 'Registrar abastecimento',
+      label: 'Abastecimento',
       color: '#2196F3',
     },
     {
@@ -118,6 +116,10 @@ export default function FABMenu({ navigation, veiculos = [] }) {
       color: '#FF9800',
     },
   ];
+
+  // Calcular posição dos botões (empilhados acima do FAB)
+  const fabBottom = insets.bottom + 20;
+  const totalButtonsHeight = (BUTTON_HEIGHT + BUTTON_SPACING) * menuItems.length - BUTTON_SPACING;
 
   return (
     <>
@@ -138,32 +140,26 @@ export default function FABMenu({ navigation, veiculos = [] }) {
         style={[
           styles.container,
           {
-            bottom: insets.bottom + 20,
+            bottom: fabBottom,
             right: 20,
           },
         ]}
         pointerEvents="box-none"
       >
-        {/* Menu Items */}
+        {/* Menu Items - Empilhados verticalmente */}
         {menuItems.map((item, index) => {
-          const angle = (index * 90 - 45) * (Math.PI / 180);
-          const x = Math.cos(angle) * finalRadius;
-          const y = Math.sin(angle) * finalRadius;
-
-          const translateX = scaleAnim.interpolate({
+          const translateY = translateYAnim.interpolate({
             inputRange: [0, 1],
-            outputRange: [0, x],
+            outputRange: [10, 0],
           });
 
-          const translateY = scaleAnim.interpolate({
-            inputRange: [0, 1],
-            outputRange: [0, y],
-          });
-
-          const opacity = scaleAnim.interpolate({
-            inputRange: [0, 0.5, 1],
+          const opacity = fadeAnim.interpolate({
+            inputRange: [0, 0.3, 1],
             outputRange: [0, 0, 1],
           });
+
+          // Posição do botão: acima do FAB, empilhado
+          const buttonBottom = FAB_SIZE + BUTTON_SPACING + (BUTTON_HEIGHT + BUTTON_SPACING) * (menuItems.length - 1 - index);
 
           return (
             <Animated.View
@@ -171,8 +167,10 @@ export default function FABMenu({ navigation, veiculos = [] }) {
               style={[
                 styles.menuItemContainer,
                 {
-                  transform: [{ translateX }, { translateY }],
+                  bottom: buttonBottom,
+                  right: 0,
                   opacity,
+                  transform: [{ translateY }],
                 },
               ]}
             >
@@ -181,9 +179,9 @@ export default function FABMenu({ navigation, veiculos = [] }) {
                 onPress={() => handleAction(item.id)}
                 activeOpacity={0.8}
               >
-                <Ionicons name={item.icon} size={24} color="#fff" />
+                <Ionicons name={item.icon} size={22} color="#fff" />
+                <Text style={styles.menuItemLabel}>{item.label}</Text>
               </TouchableOpacity>
-              <Text style={styles.menuItemLabel}>{item.label}</Text>
             </Animated.View>
           );
         })}
@@ -210,12 +208,12 @@ export default function FABMenu({ navigation, veiculos = [] }) {
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: 'flex-end',
+    justifyContent: 'flex-end',
   },
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    backgroundColor: 'rgba(0, 0, 0, 0.35)',
     width: '100%',
     height: '100%',
   },
@@ -234,14 +232,15 @@ const styles = StyleSheet.create({
   },
   menuItemContainer: {
     position: 'absolute',
-    alignItems: 'center',
+    width: BUTTON_WIDTH,
   },
   menuItem: {
-    width: MENU_ITEM_SIZE,
-    height: MENU_ITEM_SIZE,
-    borderRadius: MENU_ITEM_SIZE / 2,
-    justifyContent: 'center',
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'flex-start',
+    height: BUTTON_HEIGHT,
+    paddingHorizontal: 16,
+    borderRadius: 10,
     elevation: 4,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -249,16 +248,9 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
   },
   menuItemLabel: {
-    position: 'absolute',
-    right: MENU_ITEM_SIZE + 10,
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
     color: '#fff',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 6,
-    fontSize: 12,
+    fontSize: 16,
     fontWeight: '600',
-    overflow: 'hidden',
+    marginLeft: 12,
   },
 });
-
