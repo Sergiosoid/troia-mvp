@@ -613,7 +613,7 @@ export default function CadastroManutencaoScreen({ route, navigation }) {
               style={styles.modalOption}
               onPress={tirarFoto}
             >
-              <Ionicons name="camera" size={24} color="#4CAF50" />
+              <Ionicons name="camera" size={22} color="#4CAF50" />
               <Text style={styles.modalOptionText}>Tirar Foto</Text>
             </TouchableOpacity>
             <TouchableOpacity
