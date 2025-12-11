@@ -3,29 +3,29 @@
  * Permite registrar abastecimento via foto (OCR), entrada manual ou ambos
  */
 
-import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  TextInput,
-  ScrollView,
-  StyleSheet,
-  Alert,
-  TouchableOpacity,
-  ActivityIndicator,
-  Modal,
-  Image,
-  Platform,
-} from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { useAbastecimentoApi } from '../services/useAbastecimentoApi';
-import { listarVeiculosComTotais, buscarVeiculoPorId } from '../services/api';
-import { commonStyles } from '../constants/styles';
-import HeaderBar from '../components/HeaderBar';
-import CameraButton from '../components/CameraButton';
+import React, { useEffect, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  Image,
+  Modal,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import ActionButton from '../components/ActionButton';
+import CameraButton from '../components/CameraButton';
+import HeaderBar from '../components/HeaderBar';
+import { commonStyles } from '../constants/styles';
+import { buscarVeiculoPorId, listarVeiculosComTotais } from '../services/api';
+import { useAbastecimentoApi } from '../services/useAbastecimentoApi';
 
 export default function RegistrarAbastecimentoScreen({ route, navigation }) {
   const { veiculoId: veiculoIdParam, imagemUri } = route?.params || {};

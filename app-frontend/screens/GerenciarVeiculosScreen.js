@@ -53,7 +53,7 @@ export default function GerenciarVeiculosScreen({ navigation }) {
   };
 
   const handleEditar = (veiculo) => {
-    Alert.alert('Em breve', 'Edição de veículo será implementada em breve');
+    navigation.navigate('EditarVeiculo', { veiculoId: veiculo.id });
   };
 
   const handleExcluir = (veiculo) => {

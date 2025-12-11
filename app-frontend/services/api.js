@@ -613,6 +613,122 @@ export const listarHistoricoVeiculo = async (veiculoId) => {
   }
 };
 
+export const atualizarVeiculo = async (veiculoId, data) => {
+  try {
+    const token = await getToken();
+    if (!token) {
+      throw new Error('Usuário não autenticado. Faça login novamente.');
+    }
+    
+    const headers = await getHeaders();
+    const res = await fetchWithTimeout(`${API_URL}/veiculos/${veiculoId}`, {
+      method: 'PUT',
+      headers,
+      body: JSON.stringify({
+        placa: data.placa?.trim().toUpperCase() || null,
+        renavam: data.renavam?.trim() || null,
+        marca: data.marca?.trim() || null,
+        modelo: data.modelo?.trim(),
+        ano: data.ano?.trim(),
+        tipo_veiculo: data.tipo_veiculo || null,
+      }),
+    });
+    
+    if (res && res.success) {
+      return res;
+    }
+    
+    throw new Error('Resposta inválida do servidor');
+  } catch (error) {
+    if (error.message.includes('502') || error.message.includes('500')) {
+      throw new Error('Servidor temporariamente indisponível. Tente novamente em alguns instantes.');
+    }
+    throw error;
+  }
+};
+
+export const listarHistoricoProprietarios = async (veiculoId) => {
+  try {
+    const token = await getToken();
+    if (!token) {
+      return [];
+    }
+    
+    const headers = await getHeaders();
+    const res = await fetchWithTimeout(`${API_URL}/veiculos/${veiculoId}/proprietarios-historico`, {
+      headers,
+    });
+    
+    if (Array.isArray(res)) {
+      return res;
+    }
+    
+    return [];
+  } catch (error) {
+    console.error('Erro ao listar histórico de proprietários:', error);
+    return [];
+  }
+};
+
+export const adicionarHistoricoProprietario = async (veiculoId, data) => {
+  try {
+    const token = await getToken();
+    if (!token) {
+      throw new Error('Usuário não autenticado. Faça login novamente.');
+    }
+    
+    const headers = await getHeaders();
+    const res = await fetchWithTimeout(`${API_URL}/veiculos/${veiculoId}/proprietarios-historico`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        nome: data.nome?.trim(),
+        data_aquisicao: data.data_aquisicao,
+        data_venda: data.data_venda || null,
+        km_aquisicao: data.km_aquisicao || null,
+        km_venda: data.km_venda || null,
+      }),
+    });
+    
+    if (res && res.success) {
+      return res;
+    }
+    
+    throw new Error('Resposta inválida do servidor');
+  } catch (error) {
+    if (error.message.includes('502') || error.message.includes('500')) {
+      throw new Error('Servidor temporariamente indisponível. Tente novamente em alguns instantes.');
+    }
+    throw error;
+  }
+};
+
+export const removerHistoricoProprietario = async (veiculoId, historicoId) => {
+  try {
+    const token = await getToken();
+    if (!token) {
+      throw new Error('Usuário não autenticado. Faça login novamente.');
+    }
+    
+    const headers = await getHeaders();
+    const res = await fetchWithTimeout(`${API_URL}/veiculos/${veiculoId}/proprietarios-historico/${historicoId}`, {
+      method: 'DELETE',
+      headers,
+    });
+    
+    if (res && res.success) {
+      return res;
+    }
+    
+    throw new Error('Resposta inválida do servidor');
+  } catch (error) {
+    if (error.message.includes('502') || error.message.includes('500')) {
+      throw new Error('Servidor temporariamente indisponível. Tente novamente em alguns instantes.');
+    }
+    throw error;
+  }
+};
+
 export const buscarVeiculoPorId = async (veiculoId) => {
   try {
     const headers = await getHeaders();

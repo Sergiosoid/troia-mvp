@@ -25,6 +25,7 @@ import GerenciarProprietariosScreen from './screens/GerenciarProprietariosScreen
 import GerenciarVeiculosScreen from './screens/GerenciarVeiculosScreen';
 import RegistrarAbastecimentoScreen from './screens/RegistrarAbastecimentoScreen';
 import CameraAbastecimento from './components/CameraAbastecimento';
+import EditarVeiculoScreen from './screens/EditarVeiculoScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -152,6 +153,11 @@ function App() {
         <Stack.Screen 
           name="CameraAbastecimento" 
           component={CameraAbastecimento}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen 
+          name="EditarVeiculo" 
+          component={EditarVeiculoScreen}
           options={{ headerShown: false }}
         />
       </Stack.Navigator>
