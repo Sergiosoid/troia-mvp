@@ -394,7 +394,10 @@ export default function RegistrarAbastecimentoScreen({ route, navigation }) {
           </View>
         )}
 
-        {/* Dados do Abastecimento */}
+        {/* Dados do Abastecimento - Edição Manual */}
+        <View style={styles.sectionDivider} />
+        <Text style={styles.sectionTitle}>Dados do Abastecimento</Text>
+        
         <Text style={commonStyles.label}>Litros *</Text>
         <View style={commonStyles.inputContainer}>
           <Ionicons name="water-outline" size={20} color={commonStyles.textSecondary} style={commonStyles.inputIcon} />
@@ -733,6 +736,17 @@ const styles = StyleSheet.create({
   },
   actionButton: {
     minHeight: 50,
+  },
+  sectionDivider: {
+    height: 1,
+    backgroundColor: commonStyles.borderColor,
+    marginVertical: 20,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: commonStyles.textPrimary,
+    marginBottom: 16,
   },
 });
 
