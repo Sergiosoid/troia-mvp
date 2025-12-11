@@ -11,19 +11,19 @@ import {
   TouchableOpacity,
   Alert,
   ActivityIndicator,
-  Dimensions
 } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
 import { commonStyles } from '../constants/styles';
-
-const { width, height } = Dimensions.get('window');
+import CameraControlButton from './CameraControlButton';
 
 export default function CameraAbastecimento({ navigation, route }) {
   const [facing, setFacing] = useState('back');
   const [permission, requestPermission] = useCameraPermissions();
   const [isCapturing, setIsCapturing] = useState(false);
   const cameraRef = useRef(null);
+  const insets = useSafeAreaInsets();
   const tipoFoto = route?.params?.tipo || 'bomba'; // 'bomba' ou 'comprovante'
 
   useEffect(() => {
@@ -129,34 +129,46 @@ export default function CameraAbastecimento({ navigation, route }) {
             </View>
           </View>
 
-          {/* Controles */}
-          <View style={styles.controls}>
-            <TouchableOpacity
-              style={styles.controlButton}
-              onPress={() => navigation.goBack()}
-            >
-              <Ionicons name="close" size={32} color="#fff" />
-            </TouchableOpacity>
+          {/* Botão Cancelar - Esquerda */}
+          <CameraControlButton
+            onPress={() => navigation.goBack()}
+            icon="close"
+            label="Cancelar"
+            disabled={isCapturing}
+            style={[
+              styles.controlButtonLeft,
+              { bottom: insets.bottom + 30 }
+            ]}
+          />
 
-            <TouchableOpacity
-              style={styles.captureButton}
-              onPress={takePicture}
-              disabled={isCapturing}
-            >
-              {isCapturing ? (
-                <ActivityIndicator size="small" color="#fff" />
-              ) : (
-                <View style={styles.captureButtonInner} />
-              )}
-            </TouchableOpacity>
+          {/* Botão de Captura - Centralizado */}
+          <TouchableOpacity
+            style={[
+              styles.captureButton,
+              { bottom: insets.bottom + 20 }
+            ]}
+            onPress={takePicture}
+            disabled={isCapturing}
+            activeOpacity={0.8}
+          >
+            {isCapturing ? (
+              <ActivityIndicator size="small" color="#4CAF50" />
+            ) : (
+              <View style={styles.captureButtonInner} />
+            )}
+          </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.controlButton}
-              onPress={toggleCameraFacing}
-            >
-              <Ionicons name="camera-reverse" size={32} color="#fff" />
-            </TouchableOpacity>
-          </View>
+          {/* Botão Alternar Câmera - Direita */}
+          <CameraControlButton
+            onPress={toggleCameraFacing}
+            icon="camera-reverse"
+            label="Virar"
+            disabled={isCapturing}
+            style={[
+              styles.controlButtonRight,
+              { bottom: insets.bottom + 30 }
+            ]}
+          />
         </View>
       </CameraView>
     </View>
@@ -217,39 +229,41 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 3,
   },
-  controls: {
+  controlButtonLeft: {
     position: 'absolute',
-    bottom: 40,
-    left: 0,
-    right: 0,
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    paddingHorizontal: 40,
+    left: 20,
+    zIndex: 3,
+    elevation: 10,
   },
-  controlButton: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
+  controlButtonRight: {
+    position: 'absolute',
+    right: 20,
+    zIndex: 3,
+    elevation: 10,
   },
   captureButton: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    backgroundColor: commonStyles.primaryColor,
+    position: 'absolute',
+    alignSelf: 'center',
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#fff',
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 4,
-    borderColor: '#fff',
+    borderColor: '#4CAF50',
+    zIndex: 3,
+    elevation: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
   },
   captureButtonInner: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: '#fff',
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#4CAF50',
   },
   permissionContainer: {
     flex: 1,
@@ -271,4 +285,3 @@ const styles = StyleSheet.create({
     color: commonStyles.textSecondary,
   },
 });
-
