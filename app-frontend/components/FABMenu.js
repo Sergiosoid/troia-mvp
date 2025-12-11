@@ -117,10 +117,6 @@ export default function FABMenu({ navigation, veiculos = [] }) {
     },
   ];
 
-  // Calcular posição dos botões (empilhados acima do FAB)
-  const fabBottom = insets.bottom + 20;
-  const totalButtonsHeight = (BUTTON_HEIGHT + BUTTON_SPACING) * menuItems.length - BUTTON_SPACING;
-
   return (
     <>
       <Modal
@@ -140,13 +136,13 @@ export default function FABMenu({ navigation, veiculos = [] }) {
         style={[
           styles.container,
           {
-            bottom: fabBottom,
+            bottom: insets.bottom + 20,
             right: 20,
           },
         ]}
         pointerEvents="box-none"
       >
-        {/* Menu Items - Empilhados verticalmente */}
+        {/* Menu Items - Empilhados verticalmente acima do FAB */}
         {menuItems.map((item, index) => {
           const translateY = translateYAnim.interpolate({
             inputRange: [0, 1],
@@ -159,6 +155,8 @@ export default function FABMenu({ navigation, veiculos = [] }) {
           });
 
           // Posição do botão: acima do FAB, empilhado
+          // O primeiro item (index 0) fica mais longe do FAB
+          // O último item (index maior) fica mais perto do FAB
           const buttonBottom = FAB_SIZE + BUTTON_SPACING + (BUTTON_HEIGHT + BUTTON_SPACING) * (menuItems.length - 1 - index);
 
           return (
