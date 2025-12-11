@@ -19,6 +19,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { cadastrarManutencao, listarProprietarios, listarVeiculosPorProprietario } from '../services/api';
 import { commonStyles } from '../constants/styles';
 import HeaderBar from '../components/HeaderBar';
+import CameraButton from '../components/CameraButton';
 
 export default function CadastroManutencaoScreen({ route, navigation }) {
   const { veiculoId: veiculoIdParam, dadosPreenchidos, imageUri } = route?.params || {};
@@ -362,15 +363,12 @@ export default function CadastroManutencaoScreen({ route, navigation }) {
           {/* Imagem da Nota Fiscal */}
           <Text style={commonStyles.label}>Imagem da Nota Fiscal</Text>
           {!imagem && (
-            <TouchableOpacity
-              style={[commonStyles.button, commonStyles.buttonSecondary, styles.imageButton]}
+            <CameraButton
               onPress={() => setMostrarModalImagem(true)}
-            >
-              <Ionicons name="camera-outline" size={20} color="#4CAF50" />
-              <Text style={[commonStyles.buttonText, commonStyles.buttonSecondaryText, { marginLeft: 10 }]}>
-                Enviar Imagem
-              </Text>
-            </TouchableOpacity>
+              label="Enviar Imagem"
+              variant="secondary"
+              style={{ marginBottom: 15 }}
+            />
           )}
           {imagem && (
             <>

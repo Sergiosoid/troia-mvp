@@ -124,8 +124,7 @@ export default function CadastroProprietarioScreen({ navigation, route }) {
           </View>
 
           {/* Botão para importar CNH via foto (melhoria futura) */}
-          <TouchableOpacity
-            style={[commonStyles.button, commonStyles.buttonSecondary, { marginBottom: 10 }]}
+          <CameraButton
             onPress={() => {
               Alert.alert(
                 'Em breve',
@@ -133,10 +132,10 @@ export default function CadastroProprietarioScreen({ navigation, route }) {
                 [{ text: 'OK' }]
               );
             }}
-          >
-            <Ionicons name="camera-outline" size={20} color={commonStyles.primaryColor} style={{ marginRight: 8 }} />
-            <Text style={commonStyles.buttonSecondaryText}>Importar CNH via Foto</Text>
-          </TouchableOpacity>
+            label="Importar CNH via Foto"
+            variant="secondary"
+            style={{ marginBottom: 10 }}
+          />
 
           <TouchableOpacity
             style={[commonStyles.button, loading && commonStyles.buttonDisabled]}

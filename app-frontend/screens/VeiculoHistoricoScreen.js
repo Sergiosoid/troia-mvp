@@ -1,22 +1,22 @@
-import React, { useState, useEffect } from 'react';
+import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
+import React, { useState } from 'react';
 import {
-  View,
-  Text,
+  ActivityIndicator,
+  Alert,
+  Image,
+  Modal,
   ScrollView,
   StyleSheet,
+  Text,
   TouchableOpacity,
-  ActivityIndicator,
-  Image,
-  Alert,
-  Modal,
-  Platform,
+  View
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useFocusEffect } from '@react-navigation/native';
-import { Ionicons } from '@expo/vector-icons';
-import { listarHistoricoVeiculo, buscarVeiculoPorId, excluirManutencao, API_URL } from '../services/api';
-import { commonStyles } from '../constants/styles';
 import HeaderBar from '../components/HeaderBar';
+import { commonStyles } from '../constants/styles';
+import { API_URL, buscarVeiculoPorId, excluirManutencao, listarHistoricoVeiculo } from '../services/api';
+import ActionButton from '../components/ActionButton';
 
 export default function VeiculoHistoricoScreen({ navigation, route }) {
   const { veiculoId } = route?.params || {};
@@ -247,21 +247,21 @@ export default function VeiculoHistoricoScreen({ navigation, route }) {
 
       {/* Botões de Ação */}
       <View style={[styles.actionButtons, { paddingBottom: insets.bottom + 20 }]}>
-        <TouchableOpacity
-          style={[styles.actionButton, styles.actionButtonPrimary]}
+        <ActionButton
           onPress={() => navigation.navigate('CadastroManutencao', { veiculoId })}
-        >
-          <Ionicons name="construct-outline" size={22} color="#fff" />
-          <Text style={styles.actionButtonText}>Nova Manutenção</Text>
-        </TouchableOpacity>
+          label="Nova Manutenção"
+          icon="construct-outline"
+          color="#4CAF50"
+          style={[styles.actionButton, { flex: 1 }]}
+        />
         
-        <TouchableOpacity
-          style={[styles.actionButton, styles.actionButtonSecondary]}
+        <ActionButton
           onPress={() => navigation.navigate('RegistrarAbastecimento', { veiculoId })}
-        >
-          <Ionicons name="water-outline" size={22} color="#fff" />
-          <Text style={styles.actionButtonText}>Abastecer</Text>
-        </TouchableOpacity>
+          label="Abastecer"
+          icon="water-outline"
+          color="#2196F3"
+          style={[styles.actionButton, { flex: 1 }]}
+        />
       </View>
 
       {/* Modal de Confirmação de Exclusão */}
