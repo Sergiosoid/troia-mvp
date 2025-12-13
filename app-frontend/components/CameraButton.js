@@ -39,7 +39,13 @@ export default function CameraButton({
         <>
           <Ionicons name={icon} size={22} color={iconColor} />
           {label && (
-            <Text style={[styles.label, { color: textColor }]}>{label}</Text>
+            <Text 
+              style={[styles.label, { color: textColor }]}
+              numberOfLines={1}
+              allowFontScaling={false}
+            >
+              {label}
+            </Text>
           )}
         </>
       )}
@@ -52,8 +58,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    height: 50,
-    paddingHorizontal: 14,
+    minHeight: 48,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
     borderRadius: 10,
     minWidth: 48,
     elevation: 2,
@@ -65,7 +72,10 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 16,
     fontWeight: '600',
+    lineHeight: 20,
+    textAlign: 'center',
     marginLeft: 8,
+    flexShrink: 1,
   },
 });
 

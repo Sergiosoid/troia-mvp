@@ -8,7 +8,6 @@ import {
   Alert,
   Platform,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { clearLoggedUser, getLoggedUser } from '../utils/authStorage';
 import { commonStyles } from '../constants/styles';
@@ -66,7 +65,7 @@ export default function ConfiguracoesScreen({ navigation }) {
   };
 
   return (
-    <SafeAreaView edges={['top']} style={styles.container}>
+    <View style={styles.container}>
       <HeaderBar title="Configurações" navigation={navigation} />
 
       <ScrollView style={styles.scrollView}>
@@ -154,7 +153,7 @@ export default function ConfiguracoesScreen({ navigation }) {
         {/* Versão */}
         <Text style={styles.versionText}>Versão 1.0.0</Text>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 

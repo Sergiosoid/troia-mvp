@@ -12,11 +12,12 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ActionButton from '../components/ActionButton';
 import HeaderBar from '../components/HeaderBar';
 import { commonStyles } from '../constants/styles';
 import { API_URL, buscarVeiculoPorId, excluirManutencao, listarHistoricoVeiculo } from '../services/api';
+import { getErrorMessage, getSuccessMessage } from '../utils/errorMessages';
 
 export default function VeiculoHistoricoScreen({ navigation, route }) {
   const { veiculoId } = route?.params || {};
@@ -29,7 +30,7 @@ export default function VeiculoHistoricoScreen({ navigation, route }) {
 
   const carregarDados = async () => {
     if (!veiculoId) {
-      Alert.alert('Erro', 'Veículo não identificado');
+      Alert.alert('Ops!', 'Veículo não identificado');
       navigation.goBack();
       return;
     }
@@ -69,12 +70,7 @@ export default function VeiculoHistoricoScreen({ navigation, route }) {
       }
     } catch (error) {
       console.error('Erro ao carregar histórico:', error);
-      const errorMessage = error.message?.includes('indisponível')
-        ? error.message
-        : error.message?.includes('autenticado')
-        ? 'Sessão expirada. Faça login novamente.'
-        : error.message || 'Não foi possível carregar o histórico. Verifique sua conexão.';
-      Alert.alert('Erro', errorMessage);
+      Alert.alert('Ops!', getErrorMessage(error));
     } finally {
       setLoading(false);
     }
@@ -119,11 +115,16 @@ export default function VeiculoHistoricoScreen({ navigation, route }) {
       // Fechar modal
       setModalExcluir({ visivel: false, manutencao: null });
       
-      // Navegar com refresh
-      navigation.navigate('VeiculoHistorico', { veiculoId, refresh: true });
+      // Mostrar feedback de sucesso
+      Alert.alert('Sucesso', getSuccessMessage('exclusao'), [
+        {
+          text: 'OK',
+          onPress: () => navigation.navigate('VeiculoHistorico', { veiculoId, refresh: true }),
+        },
+      ]);
     } catch (error) {
       console.error('Erro ao excluir manutenção:', error);
-      Alert.alert('Erro', error.message || 'Não foi possível excluir a manutenção');
+      Alert.alert('Ops!', getErrorMessage(error));
     } finally {
       setExcluindoId(null);
     }
@@ -139,13 +140,13 @@ export default function VeiculoHistoricoScreen({ navigation, route }) {
 
   if (loading) {
     return (
-      <SafeAreaView style={commonStyles.container} edges={['top']}>
+      <View style={commonStyles.container}>
         <HeaderBar title="Histórico" navigation={navigation} />
         <View style={commonStyles.loadingContainer}>
           <ActivityIndicator size="large" color="#4CAF50" />
           <Text style={commonStyles.loadingText}>Carregando histórico...</Text>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
@@ -167,7 +168,7 @@ export default function VeiculoHistoricoScreen({ navigation, route }) {
   );
 
   return (
-    <SafeAreaView style={commonStyles.container} edges={['top']}>
+    <View style={commonStyles.container}>
       <HeaderBar title="Histórico" navigation={navigation} rightComponent={rightComponent} />
 
       <ScrollView 
@@ -194,8 +195,24 @@ export default function VeiculoHistoricoScreen({ navigation, route }) {
 
         {manutencoes.length === 0 ? (
           <View style={commonStyles.emptyContainer}>
-            <Ionicons name="document-text-outline" size={64} color="#ccc" />
-            <Text style={commonStyles.emptyText}>Nenhuma manutenção registrada</Text>
+            <Ionicons name="construct-outline" size={64} color="#ccc" />
+            <Text style={styles.emptyTitle}>Nenhuma manutenção registrada</Text>
+            <Text style={styles.emptySubtext}>
+              Você ainda não registrou nenhuma manutenção para este veículo.
+            </Text>
+            <TouchableOpacity
+              style={[commonStyles.button, { marginTop: 16, width: '90%', alignSelf: 'center', flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }]}
+              onPress={() => navigation.navigate('CadastroManutencao', { veiculoId })}
+            >
+              <Ionicons name="add-circle-outline" size={20} color="#fff" />
+              <Text 
+                style={[commonStyles.buttonText, { marginLeft: 8 }]}
+                numberOfLines={1}
+                allowFontScaling={false}
+              >
+                Registrar Primeira Manutenção
+              </Text>
+            </TouchableOpacity>
           </View>
         ) : (
           manutencoes.map((manutencao) => (
@@ -325,7 +342,7 @@ export default function VeiculoHistoricoScreen({ navigation, route }) {
           </View>
         </View>
       </Modal>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -436,6 +453,22 @@ const styles = StyleSheet.create({
   emptyContainer: {
     alignItems: 'center',
     padding: 40,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: commonStyles.textPrimary,
+    marginTop: 16,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  emptySubtext: {
+    fontSize: 14,
+    color: commonStyles.textSecondary,
+    textAlign: 'center',
+    marginTop: 8,
+    paddingHorizontal: 16,
+    lineHeight: 20,
   },
   emptyText: {
     fontSize: 16,

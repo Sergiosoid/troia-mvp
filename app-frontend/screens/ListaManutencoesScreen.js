@@ -22,6 +22,7 @@ import {
   API_URL 
 } from '../services/api';
 import { commonStyles } from '../constants/styles';
+import { getErrorMessage } from '../utils/errorMessages';
 
 const SPACING = 16; // Espaçamento padrão de 16
 
@@ -119,7 +120,7 @@ export default function ListaManutencoesScreen({ navigation, route }) {
         console.error('Erro ao carregar manutenções:', error);
         setManutencoes([]);
         if (!refreshing) {
-          Alert.alert('Erro', 'Não foi possível carregar as manutenções.');
+          Alert.alert('Ops!', getErrorMessage(error));
         }
       } finally {
         setLoadingManutencoes(false);
@@ -162,7 +163,7 @@ export default function ListaManutencoesScreen({ navigation, route }) {
           console.error('Erro ao carregar veículos:', error);
           setVeiculos([]);
           if (error.message?.includes('indisponível') || error.message?.includes('autenticado')) {
-            Alert.alert('Erro', error.message);
+            Alert.alert('Ops!', getErrorMessage(error));
           }
         } finally {
           setLoadingVeiculos(false);
@@ -424,8 +425,11 @@ export default function ListaManutencoesScreen({ navigation, route }) {
               <>
                 {manutencoes.length === 0 ? (
                   <View style={commonStyles.emptyContainer}>
-                    <Ionicons name="document-text-outline" size={64} color="#ccc" />
-                    <Text style={commonStyles.emptyText}>Nenhuma manutenção encontrada para este veículo</Text>
+                    <Ionicons name="construct-outline" size={64} color="#ccc" />
+                    <Text style={styles.emptyTitle}>Nenhuma manutenção encontrada</Text>
+                    <Text style={styles.emptySubtext}>
+                      Você ainda não registrou nenhuma manutenção para este veículo.
+                    </Text>
                   </View>
                 ) : (
                   manutencoes.map(m => {
@@ -607,5 +611,20 @@ const styles = StyleSheet.create({
     marginTop: SPACING,
     borderRadius: 8,
     resizeMode: 'cover',
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: commonStyles.textPrimary,
+    marginTop: SPACING,
+    marginBottom: SPACING / 2,
+    textAlign: 'center',
+  },
+  emptySubtext: {
+    fontSize: 14,
+    color: commonStyles.textSecondary,
+    marginTop: SPACING / 2,
+    textAlign: 'center',
+    paddingHorizontal: SPACING,
   },
 });

@@ -18,11 +18,11 @@ import {
   RefreshControl,
   Image,
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { buscarGlobal } from '../services/api';
 import { commonStyles } from '../constants/styles';
 import HeaderBar from '../components/HeaderBar';
 import FiltroBuscaModal from '../components/FiltroBuscaModal';
+import { getErrorMessage } from '../utils/errorMessages';
 
 const SPACING = 16;
 const HISTORICO_KEY = '@busca_historico';
@@ -112,6 +112,9 @@ export default function BuscarScreen({ navigation }) {
     } catch (error) {
       console.error('Erro ao buscar:', error);
       setResultados({ veiculos: [], manutencoes: [], abastecimentos: [] });
+      if (!isRefresh && termo.trim().length > 0) {
+        Alert.alert('Ops!', getErrorMessage(error));
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -159,7 +162,7 @@ export default function BuscarScreen({ navigation }) {
   const totalResultados = resultados.veiculos.length + resultados.manutencoes.length + resultados.abastecimentos.length;
 
   return (
-    <SafeAreaView style={commonStyles.container} edges={['top']}>
+    <View style={commonStyles.container}>
       <HeaderBar title="Buscar" navigation={navigation} />
 
       {/* Barra de Busca */}
@@ -243,9 +246,9 @@ export default function BuscarScreen({ navigation }) {
           {totalResultados === 0 ? (
             <View style={commonStyles.emptyContainer}>
               <Ionicons name="search-outline" size={64} color="#ccc" />
-              <Text style={commonStyles.emptyText}>Nenhum resultado encontrado</Text>
+              <Text style={styles.emptyTitle}>Nenhum resultado encontrado</Text>
               <Text style={styles.emptySubtext}>
-                Tente usar termos diferentes ou ajustar os filtros
+                Tente usar termos diferentes ou ajustar os filtros para encontrar o que procura.
               </Text>
             </View>
           ) : (
@@ -353,7 +356,7 @@ export default function BuscarScreen({ navigation }) {
         filtros={filtros}
         onAplicar={aplicarFiltros}
       />
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -484,11 +487,21 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#999',
   },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: commonStyles.textPrimary,
+    marginTop: 16,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
   emptySubtext: {
     fontSize: 14,
     color: commonStyles.textSecondary,
-    marginTop: SPACING / 2,
     textAlign: 'center',
+    marginTop: 8,
+    paddingHorizontal: 16,
+    lineHeight: 20,
   },
 });
 

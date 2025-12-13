@@ -3,7 +3,9 @@ import React, { useEffect, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
+    Dimensions,
     Modal,
+    Pressable,
     ScrollView,
     StyleSheet,
     Text,
@@ -22,6 +24,7 @@ import {
     listarHistoricoProprietarios,
     removerHistoricoProprietario,
 } from '../services/api';
+import { getErrorMessage, getSuccessMessage } from '../utils/errorMessages';
 
 const tiposVeiculo = [
   { value: 'carro', label: 'Carro' },
@@ -85,12 +88,12 @@ export default function EditarVeiculoScreen({ route, navigation }) {
         setAno(data.ano || '');
         setTipoVeiculo(data.tipo_veiculo || '');
       } else {
-        Alert.alert('Erro', 'Veículo não encontrado');
+        Alert.alert('Ops!', 'Veículo não encontrado');
         navigation.goBack();
       }
     } catch (error) {
       console.error('Erro ao carregar veículo:', error);
-      Alert.alert('Erro', error.message || 'Não foi possível carregar o veículo');
+      Alert.alert('Ops!', getErrorMessage(error));
       navigation.goBack();
     } finally {
       setLoading(false);
@@ -132,7 +135,7 @@ export default function EditarVeiculoScreen({ route, navigation }) {
         tipo_veiculo: tipoVeiculo,
       });
 
-      Alert.alert('Sucesso', 'Veículo atualizado com sucesso!', [
+      Alert.alert('Sucesso', getSuccessMessage('edicao'), [
         {
           text: 'OK',
           onPress: () => navigation.goBack(),
@@ -140,7 +143,7 @@ export default function EditarVeiculoScreen({ route, navigation }) {
       ]);
     } catch (error) {
       console.error('Erro ao atualizar veículo:', error);
-      Alert.alert('Erro', error.message || 'Não foi possível atualizar o veículo');
+      Alert.alert('Ops!', getErrorMessage(error));
     } finally {
       setSaving(false);
     }
@@ -181,21 +184,25 @@ export default function EditarVeiculoScreen({ route, navigation }) {
 
   const handleRemoverProprietario = async (historicoId) => {
     Alert.alert(
-      'Confirmar Exclusão',
-      'Tem certeza que deseja remover este registro do histórico?',
+      'Excluir Registro',
+      'Tem certeza que deseja excluir este registro do histórico?\n\nEsta ação não pode ser desfeita.',
       [
         { text: 'Cancelar', style: 'cancel' },
         {
-          text: 'Remover',
+          text: 'Excluir',
           style: 'destructive',
           onPress: async () => {
             try {
               await removerHistoricoProprietario(veiculoId, historicoId);
-              Alert.alert('Sucesso', 'Registro removido com sucesso!');
-              carregarHistorico();
+              Alert.alert('Sucesso', getSuccessMessage('exclusao'), [
+                {
+                  text: 'OK',
+                  onPress: () => carregarHistorico(),
+                },
+              ]);
             } catch (error) {
               console.error('Erro ao remover proprietário:', error);
-              Alert.alert('Erro', error.message || 'Não foi possível remover o registro');
+              Alert.alert('Ops!', getErrorMessage(error));
             }
           },
         },
@@ -229,18 +236,18 @@ export default function EditarVeiculoScreen({ route, navigation }) {
 
   if (loading) {
     return (
-      <SafeAreaView style={commonStyles.container} edges={['top']}>
+      <View style={commonStyles.container}>
         <HeaderBar title="Editar Veículo" navigation={navigation} />
         <View style={commonStyles.loadingContainer}>
           <ActivityIndicator size="large" color="#4CAF50" />
           <Text style={commonStyles.loadingText}>Carregando veículo...</Text>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={commonStyles.container} edges={['top']}>
+    <View style={commonStyles.container}>
       <HeaderBar title="Editar Veículo" navigation={navigation} />
 
       <ScrollView
@@ -323,7 +330,7 @@ export default function EditarVeiculoScreen({ route, navigation }) {
             <View style={styles.pickerContainer}>
               <TouchableOpacity
                 style={[commonStyles.inputContainer, styles.pickerButton]}
-                onPress={() => setMostrarTipoVeiculo(!mostrarTipoVeiculo)}
+                onPress={() => setMostrarTipoVeiculo(true)}
               >
                 <Ionicons name="car-sport-outline" size={20} color="#666" style={commonStyles.inputIcon} />
                 <Text style={styles.pickerText}>
@@ -333,25 +340,6 @@ export default function EditarVeiculoScreen({ route, navigation }) {
                 </Text>
                 <Ionicons name="chevron-down" size={20} color="#666" />
               </TouchableOpacity>
-              {mostrarTipoVeiculo && (
-                <View style={styles.optionsList}>
-                  {tiposVeiculo.map((tipo) => (
-                    <TouchableOpacity
-                      key={tipo.value}
-                      style={[
-                        styles.optionItem,
-                        tipoVeiculo === tipo.value && styles.optionItemSelected,
-                      ]}
-                      onPress={() => {
-                        setTipoVeiculo(tipo.value);
-                        setMostrarTipoVeiculo(false);
-                      }}
-                    >
-                      <Text style={styles.optionText}>{tipo.label}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              )}
             </View>
 
             <ActionButton
@@ -368,16 +356,19 @@ export default function EditarVeiculoScreen({ route, navigation }) {
 
         {/* Seção: Histórico de Proprietários */}
         <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Histórico de Proprietários</Text>
-            <ActionButton
-              onPress={() => setMostrarModalProprietario(true)}
-              label="Adicionar"
-              icon="add-circle"
-              color="#2196F3"
-              style={styles.addButton}
-            />
-          </View>
+          <Text style={styles.sectionTitle}>
+            Histórico de Proprietários
+          </Text>
+          <Text style={styles.sectionSubtitle}>
+            Adicione proprietários ao histórico deste veículo
+          </Text>
+          <ActionButton
+            onPress={() => setMostrarModalProprietario(true)}
+            label="Adicionar Proprietário"
+            icon="add-circle"
+            color="#2196F3"
+            style={styles.addButton}
+          />
 
           {loadingHistorico ? (
             <View style={styles.loadingContainer}>
@@ -385,9 +376,12 @@ export default function EditarVeiculoScreen({ route, navigation }) {
             </View>
           ) : historico.length === 0 ? (
             <View style={commonStyles.emptyContainer}>
-              <Ionicons name="people-outline" size={48} color="#ccc" />
-              <Text style={commonStyles.emptyText}>
-                Nenhum proprietário cadastrado ainda.
+              <Ionicons name="people-outline" size={64} color="#ccc" />
+              <Text style={styles.emptyTitle}>
+                Nenhum proprietário no histórico
+              </Text>
+              <Text style={styles.emptySubtext}>
+                Adicione proprietários ao histórico deste veículo.
               </Text>
             </View>
           ) : (
@@ -441,10 +435,10 @@ export default function EditarVeiculoScreen({ route, navigation }) {
         animationType="slide"
         onRequestClose={() => setMostrarModalProprietario(false)}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Adicionar Proprietário Anterior</Text>
+        <View style={styles.modalOverlayProprietario}>
+          <View style={styles.modalContentProprietario}>
+            <View style={styles.modalHeaderProprietario}>
+              <Text style={styles.modalTitleProprietario}>Adicionar Proprietário Anterior</Text>
               <TouchableOpacity onPress={() => setMostrarModalProprietario(false)}>
                 <Ionicons name="close" size={24} color="#333" />
               </TouchableOpacity>
@@ -752,7 +746,60 @@ export default function EditarVeiculoScreen({ route, navigation }) {
           </View>
         </Modal>
       )}
-    </SafeAreaView>
+
+      {/* Modal de Seleção de Tipo de Veículo */}
+      <Modal
+        visible={mostrarTipoVeiculo}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setMostrarTipoVeiculo(false)}
+      >
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => setMostrarTipoVeiculo(false)}
+        >
+          <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Selecione o Tipo de Veículo</Text>
+              <TouchableOpacity
+                onPress={() => setMostrarTipoVeiculo(false)}
+                style={styles.modalCloseButton}
+              >
+                <Ionicons name="close" size={24} color="#666" />
+              </TouchableOpacity>
+            </View>
+            <ScrollView
+              style={styles.modalScrollView}
+              showsVerticalScrollIndicator={true}
+            >
+              {tiposVeiculo.map((tipo) => (
+                <TouchableOpacity
+                  key={tipo.value}
+                  style={[
+                    styles.modalOptionItem,
+                    tipoVeiculo === tipo.value && styles.modalOptionItemSelected,
+                  ]}
+                  onPress={() => {
+                    setTipoVeiculo(tipo.value);
+                    setMostrarTipoVeiculo(false);
+                  }}
+                >
+                  <Text style={[
+                    styles.modalOptionText,
+                    tipoVeiculo === tipo.value && styles.modalOptionTextSelected,
+                  ]}>
+                    {tipo.label}
+                  </Text>
+                  {tipoVeiculo === tipo.value && (
+                    <Ionicons name="checkmark" size={20} color="#4CAF50" />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </Pressable>
+      </Modal>
+    </View>
   );
 }
 
@@ -767,18 +814,16 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     color: commonStyles.textPrimary,
-    marginBottom: 16,
+    marginBottom: 8,
   },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+  sectionSubtitle: {
+    fontSize: 14,
+    color: commonStyles.textSecondary,
+    marginTop: 4,
     marginBottom: 16,
   },
   addButton: {
-    minHeight: 40,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
+    marginTop: 8,
   },
   saveButton: {
     marginTop: 20,
@@ -794,31 +839,60 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#333',
   },
-  optionsList: {
-    maxHeight: 200,
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
-    borderRadius: 12,
-    marginTop: 5,
-    backgroundColor: '#fff',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  optionItem: {
-    padding: 15,
+  modalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    width: '90%',
+    maxHeight: Dimensions.get('window').height * 0.6,
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
+  },
+  modalCloseButton: {
+    padding: 4,
+  },
+  modalScrollView: {
+    maxHeight: Dimensions.get('window').height * 0.5,
+  },
+  modalOptionItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#f0f0f0',
-    backgroundColor: '#fff',
   },
-  optionItemSelected: {
-    backgroundColor: '#e3f2fd',
+  modalOptionItemSelected: {
+    backgroundColor: '#e8f5e9',
   },
-  optionText: {
+  modalOptionText: {
     fontSize: 16,
     color: '#333',
+  },
+  modalOptionTextSelected: {
+    color: '#4CAF50',
+    fontWeight: '600',
   },
   loadingContainer: {
     padding: 20,
@@ -860,19 +934,19 @@ const styles = StyleSheet.create({
     marginLeft: 24,
     fontStyle: 'italic',
   },
-  modalOverlay: {
+  modalOverlayProprietario: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'flex-end',
   },
-  modalContent: {
+  modalContentProprietario: {
     backgroundColor: '#fff',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     maxHeight: '90%',
     paddingBottom: 20,
   },
-  modalHeader: {
+  modalHeaderProprietario: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -880,7 +954,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: commonStyles.borderColor,
   },
-  modalTitle: {
+  modalTitleProprietario: {
     fontSize: 18,
     fontWeight: 'bold',
     color: commonStyles.textPrimary,
@@ -965,6 +1039,22 @@ const styles = StyleSheet.create({
   datePickerItemTextSelected: {
     color: '#fff',
     fontWeight: 'bold',
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: commonStyles.textPrimary,
+    marginTop: 16,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  emptySubtext: {
+    fontSize: 14,
+    color: commonStyles.textSecondary,
+    textAlign: 'center',
+    marginTop: 8,
+    paddingHorizontal: 16,
+    lineHeight: 20,
   },
 });
 

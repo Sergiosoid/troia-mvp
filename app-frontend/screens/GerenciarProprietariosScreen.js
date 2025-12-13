@@ -59,7 +59,7 @@ export default function GerenciarProprietariosScreen({ navigation }) {
   const handleExcluir = (proprietario) => {
     Alert.alert(
       'Excluir Proprietário',
-      `Tem certeza que deseja excluir ${proprietario.nome}?`,
+      `Tem certeza que deseja excluir ${proprietario.nome}?\n\nEsta ação não pode ser desfeita e todos os dados relacionados serão perdidos.`,
       [
         { text: 'Cancelar', style: 'cancel' },
         {
@@ -125,7 +125,13 @@ export default function GerenciarProprietariosScreen({ navigation }) {
               style={[commonStyles.button, { marginTop: 20 }]}
               onPress={() => navigation.navigate('CadastroProprietario', { returnTo: 'GerenciarProprietarios' })}
             >
-              <Text style={commonStyles.buttonText}>Cadastrar Primeiro Proprietário</Text>
+              <Text 
+                style={commonStyles.buttonText}
+                numberOfLines={1}
+                allowFontScaling={false}
+              >
+                Cadastrar Primeiro Proprietário
+              </Text>
             </TouchableOpacity>
           </View>
         ) : (

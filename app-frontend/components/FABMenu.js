@@ -1,52 +1,61 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   Alert,
   Animated,
   Modal,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
-  TouchableOpacity
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const FAB_SIZE = 56;
-const BUTTON_HEIGHT = 56;
+const BUTTON_MIN_HEIGHT = 52;
 const BUTTON_SPACING = 10;
-const BUTTON_WIDTH = 200;
+const BUTTON_MIN_WIDTH = 180;
+const BUTTON_MAX_WIDTH = 220;
+const BUTTON_PADDING_HORIZONTAL = 16;
 
 export default function FABMenu({ navigation, veiculos = [] }) {
   const [isOpen, setIsOpen] = useState(false);
   const insets = useSafeAreaInsets();
   
-  const fadeAnim = useState(new Animated.Value(0))[0];
-  const translateYAnim = useState(new Animated.Value(0))[0];
-  const rotateAnim = useState(new Animated.Value(0))[0];
+  // Animação do FAB (rotação)
+  const rotateAnim = useRef(new Animated.Value(0)).current;
+  
+  // Animação individual para cada botão
+  const buttonAnimations = useRef({
+    manutencao: new Animated.Value(0),
+    abastecimento: new Animated.Value(0),
+    km: new Animated.Value(0),
+  }).current;
 
   const toggleMenu = () => {
     const toValue = isOpen ? 0 : 1;
     
-    Animated.parallel([
-      Animated.spring(fadeAnim, {
+    // Animar rotação do FAB
+    Animated.spring(rotateAnim, {
+      toValue,
+      useNativeDriver: true,
+      tension: 50,
+      friction: 7,
+    }).start();
+    
+    // Animar cada botão individualmente com delay escalonado
+    const menuItems = ['manutencao', 'abastecimento', 'km'];
+    menuItems.forEach((itemId, index) => {
+      Animated.spring(buttonAnimations[itemId], {
         toValue,
         useNativeDriver: true,
         tension: 50,
         friction: 7,
-      }),
-      Animated.spring(translateYAnim, {
-        toValue,
-        useNativeDriver: true,
-        tension: 50,
-        friction: 7,
-      }),
-      Animated.spring(rotateAnim, {
-        toValue,
-        useNativeDriver: true,
-        tension: 50,
-        friction: 7,
-      }),
-    ]).start();
+        delay: index * 30, // Delay escalonado para efeito cascata
+      }).start();
+    });
     
     setIsOpen(!isOpen);
   };
@@ -81,9 +90,9 @@ export default function FABMenu({ navigation, veiculos = [] }) {
           return;
         }
         if (veiculos.length === 1) {
-          navigation.navigate('VeiculoHistorico', { veiculoId: veiculos[0].id });
+          navigation.navigate('AtualizarKm', { veiculoId: veiculos[0].id });
         } else {
-          navigation.navigate('EscolherVeiculoParaManutencao');
+          navigation.navigate('EscolherVeiculoParaKm');
         }
         break;
       default:
@@ -123,7 +132,7 @@ export default function FABMenu({ navigation, veiculos = [] }) {
 
   return (
     <>
-      {/* FAB sempre visível (fora do Modal) */}
+      {/* FAB principal - sempre visível, único renderizado */}
       <TouchableOpacity
         style={[
           styles.fabButton,
@@ -144,7 +153,7 @@ export default function FABMenu({ navigation, veiculos = [] }) {
         </Animated.View>
       </TouchableOpacity>
 
-      {/* Modal apenas quando aberto */}
+      {/* Modal apenas quando aberto - contém SOMENTE os botões secundários */}
       <Modal
         visible={isOpen}
         transparent={true}
@@ -158,64 +167,65 @@ export default function FABMenu({ navigation, veiculos = [] }) {
           pointerEvents="box-only"
         />
 
-        {/* 2. Menu Items */}
-        <Animated.View
+        {/* 2. Menu Items - cada um com sua própria animação */}
+        <View
           style={[
             styles.menuContainer,
             {
               bottom: fabBottom + FAB_SIZE + BUTTON_SPACING,
               right: fabRight,
-              opacity: fadeAnim,
-              transform: [{ translateY: translateYAnim }],
             },
           ]}
         >
           {menuItems.map((item, index) => {
-            // Posição do botão: acima do FAB, empilhado
-            const buttonBottom = (BUTTON_HEIGHT + BUTTON_SPACING) * (menuItems.length - 1 - index);
+            const buttonAnim = buttonAnimations[item.id];
+            
+            // Interpolação para cada botão individual
+            const opacity = buttonAnim.interpolate({
+              inputRange: [0, 1],
+              outputRange: [0, 1],
+            });
+            
+            const translateY = buttonAnim.interpolate({
+              inputRange: [0, 1],
+              outputRange: [20, 0],
+            });
 
             return (
-              <TouchableOpacity
+              <Animated.View
                 key={item.id}
                 style={[
-                  styles.menuItem,
                   {
-                    backgroundColor: item.color,
+                    opacity,
+                    transform: [{ translateY }],
                     marginBottom: index < menuItems.length - 1 ? BUTTON_SPACING : 0,
-                    position: 'relative',
-                    bottom: buttonBottom,
                   },
                 ]}
-                onPress={() => handleAction(item.id)}
-                activeOpacity={0.8}
               >
-                <Ionicons name={item.icon} size={22} color="#fff" />
-                <Text style={styles.menuItemLabel}>{item.label}</Text>
-              </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.menuItem,
+                    {
+                      backgroundColor: item.color,
+                    },
+                  ]}
+                  onPress={() => handleAction(item.id)}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name={item.icon} size={22} color="#fff" />
+                  <Text 
+                    style={styles.menuItemLabel}
+                    numberOfLines={1}
+                    ellipsizeMode="tail"
+                    allowFontScaling={false}
+                  >
+                    {item.label}
+                  </Text>
+                </TouchableOpacity>
+              </Animated.View>
             );
           })}
-        </Animated.View>
-
-        {/* 3. FAB dentro do Modal (sempre acima de tudo quando modal aberto) */}
-        <TouchableOpacity
-          style={[
-            styles.fabButton,
-            {
-              bottom: fabBottom,
-              right: fabRight,
-            },
-          ]}
-          onPress={toggleMenu}
-          activeOpacity={0.8}
-        >
-          <Animated.View
-            style={{
-              transform: [{ rotate: rotateInterpolate }],
-            }}
-          >
-            <Ionicons name="add" size={28} color="#fff" />
-          </Animated.View>
-        </TouchableOpacity>
+        </View>
       </Modal>
     </>
   );
@@ -240,22 +250,30 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'flex-start',
-    width: BUTTON_WIDTH,
-    height: BUTTON_HEIGHT,
+    minWidth: BUTTON_MIN_WIDTH,
+    maxWidth: BUTTON_MAX_WIDTH,
+    minHeight: BUTTON_MIN_HEIGHT,
     paddingVertical: 12,
-    paddingHorizontal: 16,
+    paddingHorizontal: BUTTON_PADDING_HORIZONTAL,
     borderRadius: 8,
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
+    ...Platform.select({
+      android: {
+        elevation: 4,
+      },
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.25,
+        shadowRadius: 4,
+      },
+    }),
   },
   menuItemLabel: {
     color: '#fff',
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
     marginLeft: 12,
+    flexShrink: 1,
   },
   fabButton: {
     position: 'absolute',
@@ -266,10 +284,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 30,
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
+    ...Platform.select({
+      android: {
+        elevation: 8,
+      },
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 6,
+      },
+    }),
   },
 });

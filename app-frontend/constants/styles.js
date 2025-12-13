@@ -87,12 +87,13 @@ export const commonStyles = StyleSheet.create({
   // Buttons
   button: {
     backgroundColor: '#4CAF50',
-    height: 50,
+    minHeight: 48,
     borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: 12,
     paddingVertical: 14,
+    paddingHorizontal: 16,
     elevation: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -101,8 +102,10 @@ export const commonStyles = StyleSheet.create({
   },
   buttonText: {
     color: '#fff',
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
+    lineHeight: 20,
+    textAlign: 'center',
   },
   buttonSecondary: {
     backgroundColor: '#fff',
@@ -111,6 +114,8 @@ export const commonStyles = StyleSheet.create({
   },
   buttonSecondaryText: {
     color: '#4CAF50',
+    lineHeight: 20,
+    textAlign: 'center',
   },
   buttonDisabled: {
     opacity: 0.6,

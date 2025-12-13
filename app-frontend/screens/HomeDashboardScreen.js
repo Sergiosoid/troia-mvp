@@ -18,6 +18,7 @@ import FABMenu from '../components/FABMenu';
 import VehicleCard from '../components/VehicleCard';
 import { commonStyles } from '../constants/styles';
 import { buscarAlertas, buscarResumoDashboard, calcularTotalGeral, listarVeiculosComTotais } from '../services/api';
+import { getErrorMessage } from '../utils/errorMessages';
 
 const SPACING = 16; // Espaçamento padrão de 16
 
@@ -52,14 +53,9 @@ export default function HomeDashboardScreen({ navigation, route }) {
       setAlertas(Array.isArray(alertasData) ? alertasData : []);
     } catch (error) {
       console.error('Erro ao carregar dados:', error);
-      const errorMessage = error.message?.includes('indisponível')
-        ? error.message
-        : error.message?.includes('autenticado')
-        ? 'Sessão expirada. Faça login novamente.'
-        : 'Não foi possível carregar os dados. Verifique sua conexão.';
       
       if (!isRefresh) {
-        Alert.alert('Erro', errorMessage);
+        Alert.alert('Ops!', getErrorMessage(error));
       }
       
       setVeiculos([]);
@@ -113,8 +109,8 @@ export default function HomeDashboardScreen({ navigation, route }) {
   // Tela de loading dedicada
   if (loading && !refreshing) {
     return (
-      <SafeAreaView style={commonStyles.container} edges={['top']}>
-        <View style={[styles.topBar, { paddingTop: insets.top + 10 }]}>
+      <SafeAreaView style={commonStyles.container} edges={[]}>
+        <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
           <View style={styles.topBarPlaceholder} />
           <TouchableOpacity
             onPress={() => navigation.navigate('Configuracoes')}
@@ -132,9 +128,9 @@ export default function HomeDashboardScreen({ navigation, route }) {
   }
 
   return (
-    <SafeAreaView style={commonStyles.container} edges={['top']}>
+    <SafeAreaView style={commonStyles.container} edges={[]}>
       {/* Top Bar sem título - apenas ícones */}
-      <View style={[styles.topBar, { paddingTop: insets.top + 10 }]}>
+      <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
         <View style={styles.topBarPlaceholder} />
         <View style={styles.topBarButtons}>
           <TouchableOpacity
@@ -235,16 +231,20 @@ export default function HomeDashboardScreen({ navigation, route }) {
         {veiculos.length === 0 ? (
           <View style={commonStyles.emptyContainer}>
             <Ionicons name="car-outline" size={64} color="#ccc" />
-            <Text style={commonStyles.emptyText}>Nenhum veículo cadastrado ainda</Text>
+            <Text style={styles.emptyTitle}>Nenhum veículo cadastrado</Text>
             <Text style={styles.emptySubtext}>
-              Comece cadastrando seu primeiro veículo para gerenciar manutenções e abastecimentos
+              Comece cadastrando seu primeiro veículo para gerenciar manutenções e abastecimentos.
             </Text>
             <TouchableOpacity
-              style={[commonStyles.button, { marginTop: SPACING, width: '90%', alignSelf: 'center' }]}
+              style={[commonStyles.button, { marginTop: 16, width: '90%', alignSelf: 'center', flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }]}
               onPress={() => navigation.navigate('CadastroVeiculo')}
             >
               <Ionicons name="add-circle-outline" size={20} color="#fff" />
-              <Text style={[commonStyles.buttonText, { marginLeft: SPACING / 2 }]}>
+              <Text 
+                style={[commonStyles.buttonText, { marginLeft: 8 }]}
+                numberOfLines={1}
+                allowFontScaling={false}
+              >
                 Cadastrar Veículo
               </Text>
             </TouchableOpacity>
@@ -393,12 +393,20 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginLeft: SPACING / 2,
   },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: commonStyles.textPrimary,
+    marginTop: 16,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
   emptySubtext: {
     fontSize: 14,
-    color: '#666',
+    color: commonStyles.textSecondary,
     textAlign: 'center',
-    marginTop: SPACING / 2,
-    paddingHorizontal: SPACING,
+    marginTop: 8,
+    paddingHorizontal: 16,
     lineHeight: 20,
   },
   alertasCard: {

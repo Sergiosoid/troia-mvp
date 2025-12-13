@@ -8,6 +8,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import React, { useEffect, useState } from 'react';
 import {
     ActivityIndicator,
+    Alert,
     Dimensions,
     RefreshControl,
     ScrollView,
@@ -16,10 +17,10 @@ import {
     View,
 } from 'react-native';
 import { BarChart, LineChart, PieChart } from 'react-native-chart-kit';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import HeaderBar from '../components/HeaderBar';
 import { commonStyles } from '../constants/styles';
 import { buscarEstatisticas } from '../services/api';
+import { getErrorMessage } from '../utils/errorMessages';
 
 const SPACING = 16;
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -72,6 +73,9 @@ export default function EstatisticasScreen({ route, navigation }) {
     } catch (error) {
       console.error('Erro ao carregar estatísticas:', error);
       setEstatisticas(null);
+      if (!isRefresh) {
+        Alert.alert('Ops!', getErrorMessage(error));
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -113,7 +117,10 @@ export default function EstatisticasScreen({ route, navigation }) {
       return (
         <View style={styles.emptyContainer}>
           <Ionicons name="leaf-outline" size={64} color="#ccc" />
-          <Text style={styles.emptyText}>Nenhum dado de consumo disponível</Text>
+          <Text style={styles.emptyTitle}>Nenhum dado de consumo disponível</Text>
+          <Text style={styles.emptySubtext}>
+            Registre abastecimentos com KM antes e depois para ver o consumo médio.
+          </Text>
         </View>
       );
     }
@@ -124,7 +131,10 @@ export default function EstatisticasScreen({ route, navigation }) {
       return (
         <View style={styles.emptyContainer}>
           <Ionicons name="leaf-outline" size={64} color="#ccc" />
-          <Text style={styles.emptyText}>Dados insuficientes para calcular consumo</Text>
+          <Text style={styles.emptyTitle}>Dados insuficientes</Text>
+          <Text style={styles.emptySubtext}>
+            É necessário registrar abastecimentos com KM antes e depois para calcular o consumo.
+          </Text>
         </View>
       );
     }
@@ -212,7 +222,10 @@ export default function EstatisticasScreen({ route, navigation }) {
       return (
         <View style={styles.emptyContainer}>
           <Ionicons name="speedometer-outline" size={64} color="#ccc" />
-          <Text style={styles.emptyText}>Nenhum dado de KM disponível</Text>
+          <Text style={styles.emptyTitle}>Nenhum dado de KM disponível</Text>
+          <Text style={styles.emptySubtext}>
+            Atualize o KM do veículo para ver o histórico de quilometragem.
+          </Text>
         </View>
       );
     }
@@ -259,7 +272,10 @@ export default function EstatisticasScreen({ route, navigation }) {
       return (
         <View style={styles.emptyContainer}>
           <Ionicons name="construct-outline" size={64} color="#ccc" />
-          <Text style={styles.emptyText}>Nenhuma manutenção cadastrada</Text>
+          <Text style={styles.emptyTitle}>Nenhuma manutenção cadastrada</Text>
+          <Text style={styles.emptySubtext}>
+            Registre manutenções para ver a distribuição por tipo.
+          </Text>
         </View>
       );
     }
@@ -312,18 +328,18 @@ export default function EstatisticasScreen({ route, navigation }) {
 
   if (loading && !refreshing) {
     return (
-      <SafeAreaView style={commonStyles.container} edges={['top']}>
+      <View style={commonStyles.container}>
         <HeaderBar title="Estatísticas" navigation={navigation} />
         <View style={commonStyles.loadingContainer}>
           <ActivityIndicator size="large" color="#4CAF50" />
           <Text style={commonStyles.loadingText}>Carregando estatísticas...</Text>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={commonStyles.container} edges={['top']}>
+    <View style={commonStyles.container}>
       <HeaderBar title="Estatísticas" navigation={navigation} />
 
       {/* Tabs */}
@@ -376,7 +392,7 @@ export default function EstatisticasScreen({ route, navigation }) {
       >
         {renderContent()}
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -448,6 +464,22 @@ const styles = StyleSheet.create({
   emptyContainer: {
     ...commonStyles.emptyContainer,
     paddingVertical: SPACING * 3,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: commonStyles.textPrimary,
+    marginTop: 16,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  emptySubtext: {
+    fontSize: 14,
+    color: commonStyles.textSecondary,
+    textAlign: 'center',
+    marginTop: 8,
+    paddingHorizontal: 16,
+    lineHeight: 20,
   },
   emptyText: {
     ...commonStyles.emptyText,

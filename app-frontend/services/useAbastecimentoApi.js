@@ -4,7 +4,52 @@
  */
 
 import { useState } from 'react';
-import { API_URL, fetchWithTimeout, getHeaders } from './api.js';
+import { getToken } from '../utils/authStorage';
+
+// Função interna para fetch com timeout (não exportada)
+const API_URL = 'https://troia-mvp.onrender.com';
+
+const fetchWithTimeout = async (url, options = {}, timeout = 15000) => {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+
+    // Verificar se a resposta é ok
+    if (!response.ok) {
+      let errorMessage = `Erro HTTP ${response.status}: ${response.statusText}`;
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData.error || errorData.message || errorMessage;
+      } catch (e) {
+        // Se não conseguir parsear JSON, usar mensagem padrão
+      }
+      throw new Error(errorMessage);
+    }
+
+    // Sempre retornar JSON parseado
+    const json = await response.json();
+    return json;
+  } catch (error) {
+    clearTimeout(timeoutId);
+    
+    if (error.name === 'AbortError') {
+      throw new Error(`Requisição expirou após ${timeout}ms. Verifique sua conexão.`);
+    }
+    
+    if (error.message) {
+      throw error;
+    }
+    
+    throw new Error(`Erro na requisição: ${error.message || 'Erro desconhecido'}`);
+  }
+};
 
 /**
  * Faz upload de imagem para análise OCR de abastecimento
@@ -17,7 +62,13 @@ export const processarOcrAbastecimento = async (formData) => {
       throw new Error('Imagem não fornecida');
     }
 
-    const headers = await getHeaders(true, null); // Sem Content-Type para FormData
+    // Criar headers diretamente (sem Content-Type para FormData, com Authorization)
+    const token = await getToken();
+    const headers = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    // Não definir Content-Type - o browser/React Native define automaticamente para FormData
     
     const res = await fetchWithTimeout(
       `${API_URL}/abastecimentos/ocr`,
@@ -83,7 +134,13 @@ export const registrarAbastecimento = async (dados, imagemUri = null) => {
       });
     }
 
-    const headers = await getHeaders(true, null); // Sem Content-Type para FormData
+    // Criar headers diretamente (sem Content-Type para FormData, com Authorization)
+    const token = await getToken();
+    const headers = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    // Não definir Content-Type - o browser/React Native define automaticamente para FormData
     
     const res = await fetchWithTimeout(
       `${API_URL}/abastecimentos`,
@@ -113,7 +170,14 @@ export const registrarAbastecimento = async (dados, imagemUri = null) => {
  */
 export const listarAbastecimentos = async (veiculoId) => {
   try {
-    const headers = await getHeaders();
+    // Criar headers diretamente
+    const token = await getToken();
+    const headers = {
+      'Content-Type': 'application/json',
+    };
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
     
     const res = await fetchWithTimeout(
       `${API_URL}/abastecimentos/${veiculoId}`,
@@ -144,7 +208,14 @@ export const listarAbastecimentos = async (veiculoId) => {
  */
 export const buscarEstatisticas = async (veiculoId) => {
   try {
-    const headers = await getHeaders();
+    // Criar headers diretamente
+    const token = await getToken();
+    const headers = {
+      'Content-Type': 'application/json',
+    };
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
     
     const res = await fetchWithTimeout(
       `${API_URL}/abastecimentos/estatisticas/${veiculoId}`,

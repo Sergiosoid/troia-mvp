@@ -99,11 +99,12 @@ const upload = multer({
   limits: { fileSize: 10 * 1024 * 1024 }
 });
 
-// Rotas
-app.use('/auth', authRouter);
-app.use('/alertas', alertasRouter);
-app.use('/buscar', buscarRouter);
+// Rotas - Ordem importa: rotas específicas antes de genéricas
+// Dashboard e Alertas devem estar registrados explicitamente
 app.use('/dashboard', dashboardRouter);
+app.use('/alertas', alertasRouter);
+app.use('/auth', authRouter);
+app.use('/buscar', buscarRouter);
 app.use('/estatisticas', estatisticasRouter);
 app.use('/proprietarios', proprietariosRouter);
 app.use('/veiculos', veiculosRouter);

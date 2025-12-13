@@ -7,14 +7,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import React, { useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Alert,
+    RefreshControl,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { commonStyles } from '../constants/styles';
@@ -59,7 +59,7 @@ export default function GerenciarVeiculosScreen({ navigation }) {
   const handleExcluir = (veiculo) => {
     Alert.alert(
       'Excluir Veículo',
-      `Tem certeza que deseja excluir o veículo ${veiculo.placa}?`,
+      `Tem certeza que deseja excluir o veículo ${veiculo.placa || 'selecionado'}?\n\nEsta ação não pode ser desfeita e todos os dados relacionados serão perdidos.`,
       [
         { text: 'Cancelar', style: 'cancel' },
         {
@@ -125,12 +125,21 @@ export default function GerenciarVeiculosScreen({ navigation }) {
         {veiculos.length === 0 ? (
           <View style={commonStyles.emptyContainer}>
             <Ionicons name="car-outline" size={64} color={commonStyles.textLight} />
-            <Text style={commonStyles.emptyText}>Nenhum veículo cadastrado</Text>
+            <Text style={styles.emptyTitle}>Nenhum veículo cadastrado</Text>
+            <Text style={styles.emptySubtext}>
+              Comece cadastrando seu primeiro veículo para gerenciar manutenções e abastecimentos.
+            </Text>
             <TouchableOpacity
               style={[commonStyles.button, { marginTop: 20 }]}
               onPress={() => navigation.navigate('CadastroVeiculo', { returnTo: 'GerenciarVeiculos' })}
             >
-              <Text style={commonStyles.buttonText}>Cadastrar Primeiro Veículo</Text>
+              <Text 
+                style={commonStyles.buttonText}
+                numberOfLines={1}
+                allowFontScaling={false}
+              >
+                Cadastrar Primeiro Veículo
+              </Text>
             </TouchableOpacity>
           </View>
         ) : (

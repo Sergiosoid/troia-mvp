@@ -20,6 +20,7 @@ import { cadastrarManutencao, listarProprietarios, listarVeiculosPorProprietario
 import { commonStyles } from '../constants/styles';
 import HeaderBar from '../components/HeaderBar';
 import CameraButton from '../components/CameraButton';
+import { getErrorMessage, getSuccessMessage } from '../utils/errorMessages';
 
 export default function CadastroManutencaoScreen({ route, navigation }) {
   const { veiculoId: veiculoIdParam, dadosPreenchidos, imageUri } = route?.params || {};
@@ -173,22 +174,22 @@ export default function CadastroManutencaoScreen({ route, navigation }) {
   const enviarManutencao = async () => {
     const veiculoIdFinal = veiculoId || veiculoSelecionado || dadosPreenchidos?.veiculoId;
     if (!veiculoIdFinal) {
-      Alert.alert('Atenção', 'Selecione um veículo para continuar.');
+      Alert.alert('Atenção', 'Selecione um veículo para continuar');
       return;
     }
 
     if (!tipoManutencao) {
-      Alert.alert('Atenção', 'Selecione o tipo de manutenção.');
+      Alert.alert('Atenção', 'Selecione o tipo de manutenção');
       return;
     }
 
     if (!areaManutencao) {
-      Alert.alert('Atenção', 'Selecione a área de manutenção.');
+      Alert.alert('Atenção', 'Selecione a área de manutenção');
       return;
     }
 
     if (!valor || parseFloat(valor) <= 0) {
-      Alert.alert('Atenção', 'Informe um valor válido.');
+      Alert.alert('Atenção', 'Informe um valor válido');
       return;
     }
 
@@ -212,22 +213,23 @@ export default function CadastroManutencaoScreen({ route, navigation }) {
     try {
       const response = await cadastrarManutencao(formData);
       if (response && (response.id || (response.success && response.id))) {
-        // Navegar automaticamente para o histórico do veículo
-        navigation.navigate('VeiculoHistorico', { 
-          veiculoId: veiculoIdFinal,
-          refresh: true 
-        });
+        Alert.alert('Sucesso', getSuccessMessage('manutencao'), [
+          {
+            text: 'OK',
+            onPress: () => {
+              navigation.navigate('VeiculoHistorico', { 
+                veiculoId: veiculoIdFinal,
+                refresh: true 
+              });
+            },
+          },
+        ]);
       } else {
         throw new Error('Resposta inválida do servidor');
       }
     } catch (error) {
       console.error('Erro ao cadastrar manutenção:', error);
-      const errorMessage = error.message?.includes('indisponível')
-        ? error.message
-        : error.message?.includes('autenticado')
-        ? 'Sessão expirada. Faça login novamente.'
-        : 'Erro ao cadastrar manutenção. Verifique sua conexão e tente novamente.';
-      Alert.alert('Erro', errorMessage);
+      Alert.alert('Ops!', getErrorMessage(error));
     } finally {
       setLoading(false);
     }
@@ -235,18 +237,18 @@ export default function CadastroManutencaoScreen({ route, navigation }) {
 
   if (loading) {
     return (
-      <SafeAreaView edges={['top']} style={commonStyles.container}>
+      <View style={commonStyles.container}>
         <HeaderBar title="Cadastrar Manutenção" navigation={navigation} />
         <View style={commonStyles.loadingContainer}>
           <ActivityIndicator size="large" color="#4CAF50" />
           <Text style={commonStyles.loadingText}>Salvando manutenção...</Text>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView edges={['top']} style={commonStyles.container}>
+    <View style={commonStyles.container}>
       <HeaderBar title="Cadastrar Manutenção" navigation={navigation} />
 
       <ScrollView 
@@ -377,7 +379,11 @@ export default function CadastroManutencaoScreen({ route, navigation }) {
                 style={[commonStyles.button, commonStyles.buttonSecondary, { marginTop: 10 }]}
                 onPress={() => setMostrarModalImagem(true)}
               >
-                <Text style={[commonStyles.buttonText, commonStyles.buttonSecondaryText]}>
+                <Text 
+                  style={[commonStyles.buttonText, commonStyles.buttonSecondaryText]}
+                  numberOfLines={1}
+                  allowFontScaling={false}
+                >
                   Trocar Imagem
                 </Text>
               </TouchableOpacity>
@@ -499,7 +505,13 @@ export default function CadastroManutencaoScreen({ route, navigation }) {
             {loading ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={commonStyles.buttonText}>Cadastrar Manutenção</Text>
+              <Text 
+                style={commonStyles.buttonText}
+                numberOfLines={1}
+                allowFontScaling={false}
+              >
+                Cadastrar Manutenção
+              </Text>
             )}
           </TouchableOpacity>
         </View>
@@ -630,7 +642,7 @@ export default function CadastroManutencaoScreen({ route, navigation }) {
           </View>
         </View>
       </Modal>
-    </SafeAreaView>
+    </View>
   );
 }
 

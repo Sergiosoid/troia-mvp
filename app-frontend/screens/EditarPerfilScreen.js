@@ -14,13 +14,14 @@ import {
   TouchableOpacity,
   ActivityIndicator,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { getLoggedUser } from '../utils/authStorage';
 import { commonStyles } from '../constants/styles';
 import HeaderBar from '../components/HeaderBar';
 
 export default function EditarPerfilScreen({ navigation }) {
+  const insets = useSafeAreaInsets();
   const [nome, setNome] = useState('');
   const [email, setEmail] = useState('');
   const [senhaAtual, setSenhaAtual] = useState('');
@@ -98,10 +99,13 @@ export default function EditarPerfilScreen({ navigation }) {
   };
 
   return (
-    <SafeAreaView style={commonStyles.container} edges={['top']}>
+    <View style={commonStyles.container}>
       <HeaderBar title="Editar Perfil" navigation={navigation} />
 
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+      <ScrollView 
+        style={styles.scrollView} 
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 20 }]}
+      >
         <Text style={commonStyles.label}>Nome *</Text>
         <View style={commonStyles.inputContainer}>
           <Ionicons name="person-outline" size={20} color={commonStyles.textSecondary} style={commonStyles.inputIcon} />
@@ -199,11 +203,17 @@ export default function EditarPerfilScreen({ navigation }) {
           {loading ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <Text style={commonStyles.buttonText}>Salvar Alterações</Text>
+            <Text 
+              style={commonStyles.buttonText}
+              numberOfLines={1}
+              allowFontScaling={false}
+            >
+              Salvar Alterações
+            </Text>
           )}
         </TouchableOpacity>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -214,7 +224,6 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 16,
-    paddingBottom: 40,
   },
   hint: {
     fontSize: 12,

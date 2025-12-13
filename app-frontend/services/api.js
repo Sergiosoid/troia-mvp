@@ -439,11 +439,20 @@ export const uploadNotaParaAnalise = async (formData) => {
       throw new Error('Imagem não fornecida');
     }
 
+    // Criar headers diretamente (sem Content-Type para FormData, com Authorization)
+    const token = await getToken();
+    const headers = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    // Não definir Content-Type - o browser/React Native define automaticamente para FormData
+
     // Fazer requisição com timeout maior (análise de imagem pode demorar)
     const res = await fetchWithTimeout(
       `${API_URL}/analyze-note`, 
       {
         method: 'POST',
+        headers,
         body: formData
       }, 
       45000 // 45 segundos (OpenAI pode demorar)
@@ -869,5 +878,114 @@ export const buscarVeiculoPorId = async (veiculoId) => {
     }
     // Outros erros, lançar exception clara
     throw new Error(error.message || 'Erro ao buscar veículo. Verifique sua conexão.');
+  }
+};
+
+/**
+ * Processa OCR de KM a partir de uma imagem do painel
+ * @param {FormData} formData - FormData contendo a imagem do painel
+ * @returns {Promise<Object>} Objeto com { success: boolean, km: number }
+ */
+export const processarOcrKm = async (formData) => {
+  try {
+    if (!formData) {
+      throw new Error('Imagem não fornecida');
+    }
+
+    // Criar headers diretamente (sem Content-Type para FormData, com Authorization)
+    const token = await getToken();
+    const headers = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    // Não definir Content-Type - o browser/React Native define automaticamente para FormData
+
+    const res = await fetchWithTimeout(
+      `${API_URL}/veiculos/ocr-km`,
+      {
+        method: 'POST',
+        headers,
+        body: formData,
+      },
+      45000 // 45 segundos (OpenAI pode demorar)
+    );
+
+    if (res && res.success && res.km) {
+      return { success: true, km: res.km };
+    }
+
+    return { success: false, error: res.error || 'Não foi possível detectar o KM na imagem' };
+  } catch (error) {
+    console.error('[OCR KM] Erro:', error);
+    
+    if (error.message?.includes('timeout') || error.message?.includes('expirou')) {
+      throw new Error('A análise está demorando mais que o esperado. Tente novamente ou insira o KM manualmente.');
+    }
+    
+    if (error.message?.includes('502') || error.message?.includes('500')) {
+      throw new Error('Servidor temporariamente indisponível. Tente novamente em alguns instantes.');
+    }
+    
+    if (error.message?.includes('401') || error.message?.includes('autenticado')) {
+      throw new Error('Sessão expirada. Faça login novamente.');
+    }
+    
+    throw new Error(error.message || 'Não foi possível extrair o KM da imagem automaticamente.');
+  }
+};
+
+/**
+ * Atualiza o KM de um veículo
+ * @param {number} veiculoId - ID do veículo
+ * @param {number} km - Novo valor de KM
+ * @returns {Promise<Object>} Objeto com { success: boolean, mensagem: string }
+ */
+export const atualizarKm = async (veiculoId, km) => {
+  try {
+    if (!veiculoId) {
+      throw new Error('ID do veículo não fornecido');
+    }
+
+    const kmNum = parseInt(km.toString().replace(/\D/g, ''), 10);
+    if (!kmNum || kmNum <= 0) {
+      throw new Error('KM inválido');
+    }
+
+    // Criar headers diretamente
+    const token = await getToken();
+    const headers = {
+      'Content-Type': 'application/json',
+    };
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const res = await fetchWithTimeout(
+      `${API_URL}/veiculos/${veiculoId}/km`,
+      {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify({ km_atual: kmNum }),
+      },
+      30000
+    );
+
+    if (res && res.success) {
+      return { success: true, mensagem: 'KM atualizado com sucesso!' };
+    }
+
+    throw new Error(res.error || 'Erro ao atualizar KM');
+  } catch (error) {
+    console.error('[Atualizar KM] Erro:', error);
+    
+    if (error.message?.includes('502') || error.message?.includes('500')) {
+      throw new Error('Servidor temporariamente indisponível. Tente novamente em alguns instantes.');
+    }
+    
+    if (error.message?.includes('401') || error.message?.includes('autenticado')) {
+      throw new Error('Sessão expirada. Faça login novamente.');
+    }
+    
+    throw error;
   }
 };

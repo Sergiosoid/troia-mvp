@@ -61,18 +61,18 @@ export default function CadastroProprietarioScreen({ navigation, route }) {
 
   if (loading) {
     return (
-      <SafeAreaView style={commonStyles.container} edges={['top']}>
+      <View style={commonStyles.container}>
         <HeaderBar title="Cadastrar Proprietário" navigation={navigation} />
         <View style={commonStyles.loadingContainer}>
           <ActivityIndicator size="large" color="#4CAF50" />
           <Text style={commonStyles.loadingText}>Salvando proprietário...</Text>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView edges={['top']} style={commonStyles.container}>
+    <View style={commonStyles.container}>
       <HeaderBar title="Cadastrar Proprietário" navigation={navigation} />
 
       <ScrollView style={commonStyles.scrollContainer} contentContainerStyle={{ paddingBottom: Platform.OS === 'android' ? 40 : 20 }}>
@@ -145,12 +145,18 @@ export default function CadastroProprietarioScreen({ navigation, route }) {
             {loading ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={commonStyles.buttonText}>Cadastrar Proprietário</Text>
+              <Text 
+                style={commonStyles.buttonText}
+                numberOfLines={1}
+                allowFontScaling={false}
+              >
+                Cadastrar Proprietário
+              </Text>
             )}
           </TouchableOpacity>
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 

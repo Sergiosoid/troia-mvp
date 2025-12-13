@@ -26,6 +26,7 @@ import HeaderBar from '../components/HeaderBar';
 import { commonStyles } from '../constants/styles';
 import { buscarVeiculoPorId, listarVeiculosComTotais } from '../services/api';
 import { useAbastecimentoApi } from '../services/useAbastecimentoApi';
+import { getErrorMessage, getSuccessMessage } from '../utils/errorMessages';
 
 export default function RegistrarAbastecimentoScreen({ route, navigation }) {
   const { veiculoId: veiculoIdParam, imagemUri } = route?.params || {};
@@ -222,7 +223,7 @@ export default function RegistrarAbastecimentoScreen({ route, navigation }) {
 
   const validarFormulario = () => {
     if (!veiculoId) {
-      Alert.alert('Atenção', 'Selecione um veículo');
+      Alert.alert('Atenção', 'Selecione um veículo para continuar');
       return false;
     }
     if (!litros || parseFloat(litros) <= 0) {
@@ -230,7 +231,7 @@ export default function RegistrarAbastecimentoScreen({ route, navigation }) {
       return false;
     }
     if (!valorTotal || parseFloat(valorTotal) <= 0) {
-      Alert.alert('Atenção', 'Informe o valor total');
+      Alert.alert('Atenção', 'Informe o valor total do abastecimento');
       return false;
     }
     if (kmAntes && kmDepois && parseFloat(kmDepois) < parseFloat(kmAntes)) {
@@ -260,7 +261,7 @@ export default function RegistrarAbastecimentoScreen({ route, navigation }) {
 
       Alert.alert(
         'Sucesso',
-        'Abastecimento registrado com sucesso!',
+        getSuccessMessage('abastecimento'),
         [
           {
             text: 'OK',
@@ -269,12 +270,13 @@ export default function RegistrarAbastecimentoScreen({ route, navigation }) {
         ]
       );
     } catch (error) {
-      Alert.alert('Erro', error.message || 'Erro ao registrar abastecimento');
+      console.error('Erro ao registrar abastecimento:', error);
+      Alert.alert('Ops!', getErrorMessage(error));
     }
   };
 
   return (
-    <SafeAreaView style={commonStyles.container} edges={['top']}>
+    <View style={commonStyles.container}>
       <HeaderBar title="Registrar Abastecimento" navigation={navigation} />
 
       <ScrollView 
@@ -573,7 +575,7 @@ export default function RegistrarAbastecimentoScreen({ route, navigation }) {
           <Image source={imagem} style={styles.imageModal} resizeMode="contain" />
         </View>
       </Modal>
-    </SafeAreaView>
+    </View>
   );
 }
 

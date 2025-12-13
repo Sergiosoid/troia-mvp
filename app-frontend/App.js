@@ -16,7 +16,9 @@ import ConfiguracoesScreen from './screens/ConfiguracoesScreen';
 import EditarPerfilScreen from './screens/EditarPerfilScreen';
 import EditarVeiculoScreen from './screens/EditarVeiculoScreen';
 import EscolherVeiculoParaAbastecimentoScreen from './screens/EscolherVeiculoParaAbastecimentoScreen';
+import EscolherVeiculoParaKmScreen from './screens/EscolherVeiculoParaKmScreen';
 import EscolherVeiculoParaManutencaoScreen from './screens/EscolherVeiculoParaManutencaoScreen';
+import AtualizarKmScreen from './screens/AtualizarKmScreen';
 import GerenciarProprietariosScreen from './screens/GerenciarProprietariosScreen';
 import GerenciarVeiculosScreen from './screens/GerenciarVeiculosScreen';
 import HomeDashboardScreen from './screens/HomeDashboardScreen';
@@ -93,6 +95,16 @@ function App() {
         <Stack.Screen 
           name="EscolherVeiculoParaAbastecimento" 
           component={EscolherVeiculoParaAbastecimentoScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen 
+          name="EscolherVeiculoParaKm" 
+          component={EscolherVeiculoParaKmScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen 
+          name="AtualizarKm" 
+          component={AtualizarKmScreen}
           options={{ headerShown: false }}
         />
         <Stack.Screen 

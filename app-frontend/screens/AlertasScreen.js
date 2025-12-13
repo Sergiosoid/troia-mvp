@@ -12,13 +12,14 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
+  Alert,
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { buscarAlertas } from '../services/api';
 import { commonStyles } from '../constants/styles';
 import HeaderBar from '../components/HeaderBar';
+import { getErrorMessage } from '../utils/errorMessages';
 
 const SPACING = 16;
 
@@ -38,6 +39,9 @@ export default function AlertasScreen({ navigation }) {
     } catch (error) {
       console.error('Erro ao carregar alertas:', error);
       setAlertas([]);
+      if (!isRefresh) {
+        Alert.alert('Ops!', getErrorMessage(error));
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -94,13 +98,13 @@ export default function AlertasScreen({ navigation }) {
 
   if (loading && !refreshing) {
     return (
-      <SafeAreaView style={commonStyles.container} edges={['top']}>
+      <View style={commonStyles.container}>
         <HeaderBar title="Alertas de Manutenção" navigation={navigation} />
         <View style={commonStyles.loadingContainer}>
           <ActivityIndicator size="large" color="#4CAF50" />
           <Text style={commonStyles.loadingText}>Carregando alertas...</Text>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
@@ -115,7 +119,7 @@ export default function AlertasScreen({ navigation }) {
   );
 
   return (
-    <SafeAreaView style={commonStyles.container} edges={['top']}>
+    <View style={commonStyles.container}>
       <HeaderBar title="Alertas de Manutenção" navigation={navigation} />
 
       <ScrollView
@@ -161,11 +165,11 @@ export default function AlertasScreen({ navigation }) {
         {alertas.length === 0 ? (
           <View style={commonStyles.emptyContainer}>
             <Ionicons name="checkmark-circle-outline" size={64} color="#4CAF50" />
-            <Text style={commonStyles.emptyText}>
+            <Text style={styles.emptyTitle}>
               Nenhum alerta de manutenção no momento
             </Text>
             <Text style={styles.emptySubtext}>
-              Todos os seus veículos estão em dia com as manutenções
+              Todos os seus veículos estão em dia com as manutenções.
             </Text>
           </View>
         ) : (
@@ -248,7 +252,7 @@ export default function AlertasScreen({ navigation }) {
           ))
         )}
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -357,12 +361,21 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: commonStyles.textSecondary,
   },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: commonStyles.textPrimary,
+    marginTop: 16,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
   emptySubtext: {
     fontSize: 14,
     color: commonStyles.textSecondary,
     textAlign: 'center',
-    marginTop: SPACING / 2,
-    paddingHorizontal: SPACING,
+    marginTop: 8,
+    paddingHorizontal: 16,
+    lineHeight: 20,
   },
 });
 

@@ -44,7 +44,11 @@ export default function ActionButton({
         <>
           {icon && <Ionicons name={icon} size={iconSize} color={textColor} />}
           {label && (
-            <Text style={[styles.label, { color: textColor, marginLeft: icon ? 8 : 0 }]}>
+            <Text 
+              style={[styles.label, { color: textColor, marginLeft: icon ? 8 : 0 }]}
+              numberOfLines={1}
+              allowFontScaling={false}
+            >
               {label}
             </Text>
           )}
@@ -72,6 +76,9 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 16,
     fontWeight: '600',
+    lineHeight: 20,
+    textAlign: 'center',
+    flexShrink: 1,
   },
 });
 

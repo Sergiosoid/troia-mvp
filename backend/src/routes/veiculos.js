@@ -229,6 +229,128 @@ router.get('/:id/historico', authRequired, async (req, res) => {
     }
 });
 
+// Listar histórico de proprietários de um veículo (DEVE VIR ANTES DE /:id)
+router.get('/:id/proprietarios-historico', authRequired, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.userId;
+
+    // Verificar se veículo pertence ao usuário
+    const veiculo = await queryOne(
+      'SELECT * FROM veiculos WHERE id = ? AND usuario_id = ?',
+      [id, userId]
+    );
+
+    if (!veiculo) {
+      return res.status(404).json({ error: 'Veículo não encontrado' });
+    }
+
+    // Buscar histórico
+    const historico = await queryAll(
+      'SELECT * FROM proprietarios_historico WHERE veiculo_id = ? ORDER BY data_aquisicao DESC',
+      [id]
+    );
+
+    res.json(historico || []);
+  } catch (err) {
+    console.error('Erro ao listar histórico de proprietários:', err);
+    res.status(500).json({ error: 'Erro ao listar histórico de proprietários' });
+  }
+});
+
+// Adicionar proprietário ao histórico (DEVE VIR ANTES DE /:id)
+router.post('/:id/proprietarios-historico', authRequired, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { nome, data_aquisicao, data_venda, km_aquisicao, km_venda } = req.body;
+    const userId = req.userId;
+
+    // Verificar se veículo pertence ao usuário
+    const veiculo = await queryOne(
+      'SELECT * FROM veiculos WHERE id = ? AND usuario_id = ?',
+      [id, userId]
+    );
+
+    if (!veiculo) {
+      return res.status(404).json({ error: 'Veículo não encontrado' });
+    }
+
+    // Validações
+    if (!nome || !nome.trim()) {
+      return res.status(400).json({ error: 'Nome é obrigatório' });
+    }
+
+    if (!data_aquisicao) {
+      return res.status(400).json({ error: 'Data de aquisição é obrigatória' });
+    }
+
+    // Inserir histórico
+    const result = await query(
+      `INSERT INTO proprietarios_historico (veiculo_id, nome, data_aquisicao, data_venda, km_aquisicao, km_venda)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [
+        id,
+        nome.trim(),
+        data_aquisicao,
+        data_venda || null,
+        km_aquisicao || null,
+        km_venda || null
+      ]
+    );
+
+    res.json({
+      success: true,
+      id: result.insertId,
+      mensagem: 'Proprietário adicionado ao histórico com sucesso'
+    });
+  } catch (err) {
+    console.error('Erro ao adicionar proprietário ao histórico:', err);
+    res.status(500).json({ error: 'Erro ao adicionar proprietário ao histórico' });
+  }
+});
+
+// Remover proprietário do histórico (DEVE VIR ANTES DE /:id)
+router.delete('/:veiculoId/proprietarios-historico/:historicoId', authRequired, async (req, res) => {
+  try {
+    const { veiculoId, historicoId } = req.params;
+    const userId = req.userId;
+
+    // Verificar se veículo pertence ao usuário
+    const veiculo = await queryOne(
+      'SELECT * FROM veiculos WHERE id = ? AND usuario_id = ?',
+      [veiculoId, userId]
+    );
+
+    if (!veiculo) {
+      return res.status(404).json({ error: 'Veículo não encontrado' });
+    }
+
+    // Verificar se histórico existe e pertence ao veículo
+    const historico = await queryOne(
+      'SELECT * FROM proprietarios_historico WHERE id = ? AND veiculo_id = ?',
+      [historicoId, veiculoId]
+    );
+
+    if (!historico) {
+      return res.status(404).json({ error: 'Registro de histórico não encontrado' });
+    }
+
+    // Deletar histórico
+    await query(
+      'DELETE FROM proprietarios_historico WHERE id = ? AND veiculo_id = ?',
+      [historicoId, veiculoId]
+    );
+
+    res.json({
+      success: true,
+      mensagem: 'Registro removido do histórico com sucesso'
+    });
+  } catch (err) {
+    console.error('Erro ao remover proprietário do histórico:', err);
+    res.status(500).json({ error: 'Erro ao remover proprietário do histórico' });
+  }
+});
+
 // Buscar veículo por ID (DEVE VIR POR ÚLTIMO)
 // SEGURANÇA: Filtra obrigatoriamente por usuario_id para prevenir acesso não autorizado
 router.get('/:id', authRequired, async (req, res) => {
@@ -471,128 +593,6 @@ router.put('/:id', authRequired, async (req, res) => {
   } catch (err) {
     console.error('Erro ao atualizar veículo:', err);
     res.status(500).json({ error: 'Erro ao atualizar veículo' });
-  }
-});
-
-// Listar histórico de proprietários de um veículo
-router.get('/:id/proprietarios-historico', authRequired, async (req, res) => {
-  try {
-    const { id } = req.params;
-    const userId = req.userId;
-
-    // Verificar se veículo pertence ao usuário
-    const veiculo = await queryOne(
-      'SELECT * FROM veiculos WHERE id = ? AND usuario_id = ?',
-      [id, userId]
-    );
-
-    if (!veiculo) {
-      return res.status(404).json({ error: 'Veículo não encontrado' });
-    }
-
-    // Buscar histórico
-    const historico = await queryAll(
-      'SELECT * FROM proprietarios_historico WHERE veiculo_id = ? ORDER BY data_aquisicao DESC',
-      [id]
-    );
-
-    res.json(historico || []);
-  } catch (err) {
-    console.error('Erro ao listar histórico de proprietários:', err);
-    res.status(500).json({ error: 'Erro ao listar histórico de proprietários' });
-  }
-});
-
-// Adicionar proprietário ao histórico
-router.post('/:id/proprietarios-historico', authRequired, async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { nome, data_aquisicao, data_venda, km_aquisicao, km_venda } = req.body;
-    const userId = req.userId;
-
-    // Verificar se veículo pertence ao usuário
-    const veiculo = await queryOne(
-      'SELECT * FROM veiculos WHERE id = ? AND usuario_id = ?',
-      [id, userId]
-    );
-
-    if (!veiculo) {
-      return res.status(404).json({ error: 'Veículo não encontrado' });
-    }
-
-    // Validações
-    if (!nome || !nome.trim()) {
-      return res.status(400).json({ error: 'Nome é obrigatório' });
-    }
-
-    if (!data_aquisicao) {
-      return res.status(400).json({ error: 'Data de aquisição é obrigatória' });
-    }
-
-    // Inserir histórico
-    const result = await query(
-      `INSERT INTO proprietarios_historico (veiculo_id, nome, data_aquisicao, data_venda, km_aquisicao, km_venda)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [
-        id,
-        nome.trim(),
-        data_aquisicao,
-        data_venda || null,
-        km_aquisicao || null,
-        km_venda || null
-      ]
-    );
-
-    res.json({
-      success: true,
-      id: result.insertId,
-      mensagem: 'Proprietário adicionado ao histórico com sucesso'
-    });
-  } catch (err) {
-    console.error('Erro ao adicionar proprietário ao histórico:', err);
-    res.status(500).json({ error: 'Erro ao adicionar proprietário ao histórico' });
-  }
-});
-
-// Remover proprietário do histórico
-router.delete('/:veiculoId/proprietarios-historico/:historicoId', authRequired, async (req, res) => {
-  try {
-    const { veiculoId, historicoId } = req.params;
-    const userId = req.userId;
-
-    // Verificar se veículo pertence ao usuário
-    const veiculo = await queryOne(
-      'SELECT * FROM veiculos WHERE id = ? AND usuario_id = ?',
-      [veiculoId, userId]
-    );
-
-    if (!veiculo) {
-      return res.status(404).json({ error: 'Veículo não encontrado' });
-    }
-
-    // Verificar se histórico existe e pertence ao veículo
-    const historico = await queryOne(
-      'SELECT * FROM proprietarios_historico WHERE id = ? AND veiculo_id = ?',
-      [historicoId, veiculoId]
-    );
-
-    if (!historico) {
-      return res.status(404).json({ error: 'Registro de histórico não encontrado' });
-    }
-
-    // Deletar histórico
-    await query(
-      'DELETE FROM proprietarios_historico WHERE id = ? AND veiculo_id = ?',
-      [historicoId, veiculoId]
-    );
-
-    res.json({
-      success: true,
-      mensagem: 'Registro removido do histórico com sucesso'
-    });
-  } catch (err) {
-    console.error('Erro ao remover proprietário do histórico:', err);
-    res.status(500).json({ error: 'Erro ao remover proprietário do histórico' });
   }
 });
 
