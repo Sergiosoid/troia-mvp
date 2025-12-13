@@ -7,8 +7,8 @@ import { isUserLoggedIn } from './utils/authStorage';
 
 import CameraAbastecimento from './components/CameraAbastecimento';
 import AlertasScreen from './screens/AlertasScreen';
+import BuscarScreen from './screens/BuscarScreen';
 import CadastroManutencaoScreen from './screens/CadastroManutencaoScreen';
-import EstatisticasScreen from './screens/EstatisticasScreen';
 import CadastroProprietarioScreen from './screens/CadastroProprietarioScreen';
 import CadastroVeiculoScreen from './screens/CadastroVeiculoScreen';
 import CameraCaptureScreen from './screens/CameraCaptureScreen';

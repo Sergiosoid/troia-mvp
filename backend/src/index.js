@@ -15,6 +15,7 @@ import veiculosRouter from './routes/veiculos.js';
 import manutencoesRouter from './routes/manutencoes.js';
 import abastecimentosRouter from './routes/abastecimentos.js';
 import alertasRouter from './routes/alertas.js';
+import buscarRouter from './routes/buscar.js';
 import dashboardRouter from './routes/dashboard.js';
 import estatisticasRouter from './routes/estatisticas.js';
 import healthRouter from './routes/health.js';
@@ -101,6 +102,7 @@ const upload = multer({
 // Rotas
 app.use('/auth', authRouter);
 app.use('/alertas', alertasRouter);
+app.use('/buscar', buscarRouter);
 app.use('/dashboard', dashboardRouter);
 app.use('/estatisticas', estatisticasRouter);
 app.use('/proprietarios', proprietariosRouter);

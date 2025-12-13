@@ -701,6 +701,49 @@ export const adicionarHistoricoProprietario = async (veiculoId, data) => {
   }
 };
 
+export const buscarGlobal = async (termo = '', filtros = {}) => {
+  try {
+    const token = await getToken();
+    if (!token) {
+      return { veiculos: [], manutencoes: [], abastecimentos: [] };
+    }
+
+    const headers = await getHeaders();
+    
+    // Construir query string
+    const params = new URLSearchParams();
+    if (termo) params.append('termo', termo);
+    if (filtros.tipo) params.append('tipo', filtros.tipo);
+    if (filtros.dataInicial) params.append('dataInicial', filtros.dataInicial);
+    if (filtros.dataFinal) params.append('dataFinal', filtros.dataFinal);
+    if (filtros.valorMin) params.append('valorMin', filtros.valorMin);
+    if (filtros.valorMax) params.append('valorMax', filtros.valorMax);
+    if (filtros.tipo_veiculo) params.append('tipo_veiculo', filtros.tipo_veiculo);
+    if (filtros.tipo_manutencao) params.append('tipo_manutencao', filtros.tipo_manutencao);
+    if (filtros.kmMin) params.append('kmMin', filtros.kmMin);
+    if (filtros.kmMax) params.append('kmMax', filtros.kmMax);
+    if (filtros.pagina) params.append('pagina', filtros.pagina);
+    if (filtros.limite) params.append('limite', filtros.limite);
+
+    const res = await fetchWithTimeout(`${API_URL}/buscar?${params.toString()}`, {
+      headers,
+    });
+
+    if (res && typeof res === 'object') {
+      return {
+        veiculos: Array.isArray(res.veiculos) ? res.veiculos : [],
+        manutencoes: Array.isArray(res.manutencoes) ? res.manutencoes : [],
+        abastecimentos: Array.isArray(res.abastecimentos) ? res.abastecimentos : [],
+      };
+    }
+
+    return { veiculos: [], manutencoes: [], abastecimentos: [] };
+  } catch (error) {
+    console.error('Erro ao buscar:', error);
+    return { veiculos: [], manutencoes: [], abastecimentos: [] };
+  }
+};
+
 export const buscarEstatisticas = async (veiculoId) => {
   try {
     const token = await getToken();

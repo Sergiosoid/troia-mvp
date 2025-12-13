@@ -3,23 +3,23 @@
  * Exibe gráficos de consumo, gastos, KM e manutenções
  */
 
-import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  ScrollView,
-  StyleSheet,
-  ActivityIndicator,
-  Dimensions,
-  RefreshControl,
-} from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { LineChart, BarChart, PieChart } from 'react-native-chart-kit';
-import { buscarEstatisticas } from '../services/api';
-import { commonStyles } from '../constants/styles';
+import { useFocusEffect } from '@react-navigation/native';
+import React, { useEffect, useState } from 'react';
+import {
+    ActivityIndicator,
+    Dimensions,
+    RefreshControl,
+    ScrollView,
+    StyleSheet,
+    Text,
+    View,
+} from 'react-native';
+import { BarChart, LineChart, PieChart } from 'react-native-chart-kit';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import HeaderBar from '../components/HeaderBar';
+import { commonStyles } from '../constants/styles';
+import { buscarEstatisticas } from '../services/api';
 
 const SPACING = 16;
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
