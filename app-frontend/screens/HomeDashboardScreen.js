@@ -136,12 +136,20 @@ export default function HomeDashboardScreen({ navigation, route }) {
       {/* Top Bar sem título - apenas ícones */}
       <View style={[styles.topBar, { paddingTop: insets.top + 10 }]}>
         <View style={styles.topBarPlaceholder} />
-        <TouchableOpacity
-          onPress={() => navigation.navigate('Configuracoes')}
-          style={styles.topBarButton}
-        >
-          <Ionicons name="settings-outline" size={24} color="#333" />
-        </TouchableOpacity>
+        <View style={styles.topBarButtons}>
+          <TouchableOpacity
+            onPress={() => navigation.navigate('Buscar')}
+            style={styles.topBarButton}
+          >
+            <Ionicons name="search-outline" size={24} color="#333" />
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => navigation.navigate('Configuracoes')}
+            style={styles.topBarButton}
+          >
+            <Ionicons name="settings-outline" size={24} color="#333" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView
