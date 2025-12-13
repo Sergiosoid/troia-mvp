@@ -167,6 +167,11 @@ function App() {
           component={AlertasScreen}
           options={{ headerShown: false }}
         />
+        <Stack.Screen 
+          name="Buscar" 
+          component={BuscarScreen}
+          options={{ headerShown: false }}
+        />
       </Stack.Navigator>
     </NavigationContainer>
   );
