@@ -354,6 +354,10 @@ const styles = StyleSheet.create({
   topBarPlaceholder: {
     flex: 1,
   },
+  topBarButtons: {
+    flexDirection: 'row',
+    gap: 8,
+  },
   topBarButton: {
     padding: 8,
   },
