@@ -590,6 +590,37 @@ export const calcularTotalGeral = async () => {
   }
 };
 
+/**
+ * Lista o histórico de KM de um veículo
+ * @param {number} veiculoId - ID do veículo
+ * @returns {Promise<Array>} Array com histórico de KM
+ */
+export const listarHistoricoKm = async (veiculoId) => {
+  try {
+    const token = await getToken();
+    const headers = {
+      'Content-Type': 'application/json',
+    };
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const res = await fetchWithTimeout(
+      `${API_URL}/veiculos/${veiculoId}/km-historico`,
+      {
+        method: 'GET',
+        headers,
+      },
+      30000
+    );
+
+    return Array.isArray(res) ? res : [];
+  } catch (error) {
+    console.error('[listarHistoricoKm] Erro:', error);
+    throw error;
+  }
+};
+
 export const listarHistoricoVeiculo = async (veiculoId) => {
   try {
     const token = await getToken();

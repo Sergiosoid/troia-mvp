@@ -153,6 +153,12 @@ export default function VeiculoHistoricoScreen({ navigation, route }) {
   const rightComponent = (
     <View style={styles.headerButtons}>
       <TouchableOpacity
+        onPress={() => navigation.navigate('HistoricoKm', { veiculoId })}
+        style={styles.headerButton}
+      >
+        <Ionicons name="speedometer-outline" size={24} color="#2196F3" />
+      </TouchableOpacity>
+      <TouchableOpacity
         onPress={() => navigation.navigate('Estatisticas', { veiculoId })}
         style={styles.headerButton}
       >

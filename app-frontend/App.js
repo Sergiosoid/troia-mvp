@@ -108,6 +108,11 @@ function App() {
           options={{ headerShown: false }}
         />
         <Stack.Screen 
+          name="HistoricoKm" 
+          component={HistoricoKmScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen 
           name="CadastroProprietario" 
           component={CadastroProprietarioScreen}
           options={{ headerShown: false }}
