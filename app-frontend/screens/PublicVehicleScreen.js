@@ -13,8 +13,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import HeaderBar from '../components/HeaderBar';
 import { commonStyles } from '../constants/styles';
-import { buscarVeiculoCompartilhado } from '../services/api';
+import { buscarVeiculoCompartilhado, aceitarVeiculoCompartilhado } from '../services/api';
 import { getErrorMessage } from '../utils/errorMessages';
+import { isUserLoggedIn } from '../utils/authStorage';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import ActionButton from '../components/ActionButton';
 
 const API_URL = 'https://troia-mvp.onrender.com';
 
@@ -22,7 +25,25 @@ export default function PublicVehicleScreen({ navigation, route }) {
   const { token } = route?.params || {};
   const [dados, setDados] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [userId, setUserId] = useState(null);
+  const [mostrarModalAceitar, setMostrarModalAceitar] = useState(false);
+  const [aceitando, setAceitando] = useState(false);
   const insets = useSafeAreaInsets();
+
+  const verificarLogin = async () => {
+    try {
+      const loggedIn = await isUserLoggedIn();
+      setIsLoggedIn(loggedIn);
+      if (loggedIn) {
+        const id = await AsyncStorage.getItem('userId');
+        setUserId(id);
+      }
+    } catch (error) {
+      console.error('Erro ao verificar login:', error);
+      setIsLoggedIn(false);
+    }
+  };
 
   const carregarDados = async () => {
     if (!token) {
@@ -35,6 +56,7 @@ export default function PublicVehicleScreen({ navigation, route }) {
       setLoading(true);
       const resultado = await buscarVeiculoCompartilhado(token);
       setDados(resultado);
+      await verificarLogin();
     } catch (error) {
       console.error('Erro ao carregar veículo compartilhado:', error);
       Alert.alert('Ops!', getErrorMessage(error));
