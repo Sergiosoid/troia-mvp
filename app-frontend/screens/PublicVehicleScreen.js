@@ -549,6 +549,22 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginLeft: 6,
   },
+  avisoDiscreto: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: '#fff9e6',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#ffe082',
+  },
+  avisoDiscretoText: {
+    fontSize: 12,
+    color: '#856404',
+    marginLeft: 8,
+    flex: 1,
+    lineHeight: 16,
+  },
   veiculoInfo: {
     backgroundColor: '#fff',
     padding: 16,
