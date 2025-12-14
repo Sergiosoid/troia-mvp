@@ -652,18 +652,19 @@ router.post('/:id/atualizar-km', authRequired, upload.single('painel'), async (r
       return res.status(400).json({ error: "KM detectado é menor que o atual. Confirme manualmente." });
     }
 
-    // Salvar histórico de KM (se a tabela existir)
+    // Salvar no histórico de KM (sempre criar novo registro)
     try {
       await query(
-        "INSERT INTO km_historico (veiculo_id, km, fonte, criado_em) VALUES (?, ?, ?, datetime('now'))",
-        [veiculoId, kmExtraido, "foto"]
+        `INSERT INTO km_historico (veiculo_id, usuario_id, km, origem, data_registro, criado_em) 
+         VALUES (?, ?, ?, ?, datetime('now'), datetime('now'))`,
+        [veiculoId, userId, kmExtraido, 'ocr']
       );
     } catch (histError) {
-      // Se a tabela não existir, apenas logar (não é crítico)
-      console.warn('[AVISO] Tabela km_historico não existe ou erro ao inserir:', histError.message);
+      // Se a tabela não existir ou erro, apenas logar (não é crítico)
+      console.warn('[AVISO] Erro ao salvar no histórico de KM:', histError.message);
     }
 
-    // Atualizar veículo
+    // Atualizar KM atual do veículo
     await query(
       "UPDATE veiculos SET km_atual = ? WHERE id = ? AND usuario_id = ?",
       [kmExtraido, veiculoId, userId]
