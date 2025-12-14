@@ -1,6 +1,7 @@
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { registerRootComponent } from 'expo';
+import * as Linking from 'expo-linking';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { isUserLoggedIn } from './utils/authStorage';
@@ -65,9 +66,55 @@ function App() {
     );
   }
 
+  // Determinar rota inicial considerando deep link
+  const getInitialRoute = () => {
+    if (initialRoute) {
+      return initialRoute;
+    }
+    return isLoggedIn ? "HomeDashboard" : "Login";
+  };
+
+  // Criar estado inicial para navegação com deep link
+  const getInitialState = () => {
+    if (initialRoute === 'PublicVehicle' && initialParams) {
+      return {
+        routes: [
+          {
+            name: 'PublicVehicle',
+            params: initialParams,
+          },
+        ],
+      };
+    }
+    return undefined;
+  };
+
   return (
-    <NavigationContainer>
-      <Stack.Navigator initialRouteName={isLoggedIn ? "HomeDashboard" : "Login"}>
+    <NavigationContainer
+      linking={{
+        prefixes: ['troia://', 'https://troia-mvp.onrender.com'],
+        config: {
+          screens: {
+            PublicVehicle: {
+              path: 'compartilhamento/:token',
+              parse: {
+                token: (token) => token,
+              },
+            },
+            Login: 'login',
+            Register: 'register',
+            HomeDashboard: 'home',
+          },
+        },
+      }}
+      initialState={getInitialState()}
+    >
+      <Stack.Navigator 
+        initialRouteName={getInitialRoute()}
+        screenOptions={{
+          headerShown: false,
+        }}
+      >
         <Stack.Screen 
           name="Login" 
           component={LoginScreen}

@@ -14,6 +14,7 @@ import {
     View
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import QRCode from 'react-native-qrcode-svg';
 import ActionButton from '../components/ActionButton';
 import HeaderBar from '../components/HeaderBar';
 import { commonStyles } from '../constants/styles';
@@ -846,7 +847,7 @@ export default function EditarVeiculoScreen({ route, navigation }) {
 
             <ScrollView style={styles.modalScroll}>
               <Text style={styles.compartilharInfo}>
-                Compartilhe este link para permitir que outras pessoas visualizem o histórico técnico do veículo (sem valores privados).
+                Quem abrir este link poderá visualizar o histórico técnico do veículo
               </Text>
 
               <View style={styles.linkContainer}>
@@ -867,10 +868,29 @@ export default function EditarVeiculoScreen({ route, navigation }) {
 
               <View style={styles.qrCodeContainer}>
                 <Text style={styles.qrCodeLabel}>QR Code:</Text>
-                <View style={styles.qrCodePlaceholder}>
-                  <Ionicons name="qr-code-outline" size={80} color="#ccc" />
-                  <Text style={styles.qrCodeText}>QR Code será implementado em breve</Text>
-                </View>
+                <Text style={styles.qrCodeInfo}>
+                  Quem abrir este link poderá visualizar o histórico técnico do veículo
+                </Text>
+                {linkCompartilhamento ? (
+                  <View style={styles.qrCodeWrapper}>
+                    <QRCode
+                      value={linkCompartilhamento}
+                      size={200}
+                      color="#333"
+                      backgroundColor="#fff"
+                      logo={require('../assets/icon.png')}
+                      logoSize={40}
+                      logoBackgroundColor="#fff"
+                      logoMargin={4}
+                      logoBorderRadius={8}
+                    />
+                  </View>
+                ) : (
+                  <View style={styles.qrCodePlaceholder}>
+                    <Ionicons name="qr-code-outline" size={80} color="#ccc" />
+                    <Text style={styles.qrCodeText}>Gerando QR Code...</Text>
+                  </View>
+                )}
               </View>
             </ScrollView>
           </View>
@@ -1286,13 +1306,32 @@ const styles = StyleSheet.create({
   },
   qrCodeContainer: {
     marginTop: 20,
+    alignItems: 'center',
   },
   qrCodeLabel: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '600',
     color: '#333',
-    marginBottom: 12,
+    marginBottom: 8,
     textAlign: 'center',
+  },
+  qrCodeInfo: {
+    fontSize: 12,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 16,
+    paddingHorizontal: 20,
+    lineHeight: 18,
+  },
+  qrCodeWrapper: {
+    backgroundColor: '#fff',
+    padding: 16,
+    borderRadius: 12,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
   },
   qrCodePlaceholder: {
     alignItems: 'center',
@@ -1303,6 +1342,8 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: '#e0e0e0',
     borderStyle: 'dashed',
+    width: 200,
+    height: 200,
   },
   qrCodeText: {
     fontSize: 12,
