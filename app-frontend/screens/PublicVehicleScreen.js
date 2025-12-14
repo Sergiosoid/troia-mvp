@@ -195,10 +195,34 @@ export default function PublicVehicleScreen({ navigation, route }) {
     <View style={commonStyles.container}>
       <HeaderBar title="Histórico Técnico" navigation={navigation} />
 
+      {/* Cabeçalho informativo */}
+      <View style={styles.headerInfo}>
+        <Text style={styles.headerTitle}>Histórico Técnico do Veículo</Text>
+        <Text style={styles.headerSubtitle}>
+          Este histórico representa os registros técnicos conhecidos deste veículo.
+        </Text>
+      </View>
+
+      {/* Badge de confiança */}
+      <View style={styles.confidenceBadge}>
+        <Ionicons name="shield-checkmark-outline" size={18} color="#4CAF50" />
+        <Text style={styles.confidenceBadgeText}>
+          Histórico preservado • Registros por período
+        </Text>
+      </View>
+
       {/* Badge de visualização pública */}
       <View style={styles.publicBadge}>
         <Ionicons name="eye-outline" size={16} color="#2196F3" />
         <Text style={styles.publicBadgeText}>Visualização Pública - Apenas Leitura</Text>
+      </View>
+
+      {/* Aviso discreto */}
+      <View style={styles.avisoDiscreto}>
+        <Ionicons name="information-circle-outline" size={14} color="#666" />
+        <Text style={styles.avisoDiscretoText}>
+          Valores financeiros e observações privadas não são exibidos nesta visualização.
+        </Text>
       </View>
 
       {/* Botão de aceitar veículo (se logado e não for proprietário) */}
