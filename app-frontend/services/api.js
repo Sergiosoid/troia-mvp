@@ -696,6 +696,25 @@ export const buscarVeiculoCompartilhado = async (token) => {
 };
 
 /**
+ * Aceita um veículo compartilhado e transfere para o usuário autenticado
+ * @param {string} token - Token de compartilhamento
+ * @returns {Promise<Object>} Dados do veículo aceito
+ */
+export const aceitarVeiculoCompartilhado = async (token) => {
+  try {
+    const headers = await getHeaders();
+    const res = await fetchWithTimeout(`${API_URL}/compartilhamento/${token}/aceitar`, {
+      method: 'POST',
+      headers,
+    });
+    return res;
+  } catch (error) {
+    console.error('[aceitarVeiculoCompartilhado] Erro:', error);
+    throw error;
+  }
+};
+
+/**
  * Transferir veículo para outro usuário
  * @param {number} veiculoId - ID do veículo
  * @param {number} novoUsuarioId - ID do novo proprietário
