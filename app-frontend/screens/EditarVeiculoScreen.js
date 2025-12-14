@@ -815,6 +815,57 @@ export default function EditarVeiculoScreen({ route, navigation }) {
           </View>
         </Pressable>
       </Modal>
+
+      {/* Modal de Compartilhamento */}
+      <Modal
+        visible={mostrarModalCompartilhar}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setMostrarModalCompartilhar(false)}
+      >
+        <View style={styles.modalOverlayProprietario}>
+          <View style={styles.modalContentProprietario}>
+            <View style={styles.modalHeaderProprietario}>
+              <Text style={styles.modalTitleProprietario}>Compartilhar Veículo</Text>
+              <TouchableOpacity
+                onPress={() => setMostrarModalCompartilhar(false)}
+              >
+                <Ionicons name="close" size={24} color="#666" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.modalScroll}>
+              <Text style={styles.compartilharInfo}>
+                Compartilhe este link para permitir que outras pessoas visualizem o histórico técnico do veículo (sem valores privados).
+              </Text>
+
+              <View style={styles.linkContainer}>
+                <Text style={styles.linkLabel}>Link de compartilhamento:</Text>
+                <View style={styles.linkBox}>
+                  <Text style={styles.linkText} numberOfLines={2}>
+                    {linkCompartilhamento}
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  style={styles.copiarButton}
+                  onPress={copiarLink}
+                >
+                  <Ionicons name="copy-outline" size={20} color="#fff" />
+                  <Text style={styles.copiarButtonText}>Copiar Link</Text>
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.qrCodeContainer}>
+                <Text style={styles.qrCodeLabel}>QR Code:</Text>
+                <View style={styles.qrCodePlaceholder}>
+                  <Ionicons name="qr-code-outline" size={80} color="#ccc" />
+                  <Text style={styles.qrCodeText}>QR Code será implementado em breve</Text>
+                </View>
+              </View>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
