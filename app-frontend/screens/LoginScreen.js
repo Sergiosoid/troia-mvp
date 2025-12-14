@@ -58,8 +58,35 @@ export default function LoginScreen({ navigation }) {
           email: response.email || '',
         });
 
-        // Navegar para dashboard
-        navigation.replace('HomeDashboard');
+        // Verificar se há contexto de onboarding pendente
+        const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
+        const contexto = await AsyncStorage.getItem('onboarding_context');
+        const pendingToken = await AsyncStorage.getItem('pending_share_token');
+        
+        if (contexto === 'link_compartilhado' && pendingToken) {
+          // Limpar contexto e navegar para veículo compartilhado
+          await AsyncStorage.removeItem('onboarding_context');
+          await AsyncStorage.removeItem('pending_share_token');
+          navigation.replace('PublicVehicle', { token: pendingToken });
+        } else if (contexto) {
+          // Limpar contexto e navegar para onboarding
+          await AsyncStorage.removeItem('onboarding_context');
+          navigation.replace('OnboardingContextual', { contexto });
+        } else {
+          // Verificar se tem veículos
+          const { listarVeiculosComTotais } = await import('../services/api');
+          const veiculos = await listarVeiculosComTotais().catch(() => []);
+          
+          if (!veiculos || veiculos.length === 0) {
+            // Sem veículos, mostrar onboarding
+            navigation.replace('OnboardingContextual', {
+              contexto: 'conta_sem_veiculo',
+            });
+          } else {
+            // Tem veículos, ir para dashboard
+            navigation.replace('HomeDashboard');
+          }
+        }
       } else {
         throw new Error('Resposta inválida do servidor');
       }

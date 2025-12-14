@@ -39,9 +39,11 @@ export default function PublicVehicleScreen({ navigation, route }) {
         const id = await AsyncStorage.getItem('userId');
         setUserId(id);
       }
+      return loggedIn;
     } catch (error) {
       console.error('Erro ao verificar login:', error);
       setIsLoggedIn(false);
+      return false;
     }
   };
 
