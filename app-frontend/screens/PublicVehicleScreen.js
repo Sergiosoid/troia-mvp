@@ -173,6 +173,19 @@ export default function PublicVehicleScreen({ navigation, route }) {
         <Text style={styles.publicBadgeText}>Visualização Pública - Apenas Leitura</Text>
       </View>
 
+      {/* Botão de aceitar veículo (se logado e não for proprietário) */}
+      {isLoggedIn && dados?.veiculo && (
+        <View style={styles.aceitarContainer}>
+          <ActionButton
+            onPress={() => setMostrarModalAceitar(true)}
+            label="Aceitar este veículo"
+            icon="checkmark-circle-outline"
+            color="#4CAF50"
+            style={styles.aceitarButton}
+          />
+        </View>
+      )}
+
       <ScrollView
         style={commonStyles.scrollContainer}
         contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 20 }]}
@@ -625,6 +638,107 @@ const styles = StyleSheet.create({
     color: '#666',
     textAlign: 'center',
     paddingHorizontal: 20,
+  },
+  aceitarContainer: {
+    padding: 16,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  aceitarButton: {
+    width: '100%',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    width: '90%',
+    maxHeight: '80%',
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
+  },
+  modalScroll: {
+    maxHeight: 400,
+  },
+  avisoAceite: {
+    padding: 20,
+    alignItems: 'center',
+  },
+  avisoAceiteTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#FF9800',
+    marginTop: 12,
+    marginBottom: 16,
+  },
+  avisoAceiteText: {
+    fontSize: 16,
+    color: '#333',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  listaAviso: {
+    width: '100%',
+    marginBottom: 16,
+  },
+  itemAviso: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 8,
+    lineHeight: 20,
+  },
+  avisoAceiteFinal: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#dc3545',
+    textAlign: 'center',
+    marginTop: 8,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    padding: 16,
+    gap: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#e0e0e0',
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalButtonCancel: {
+    backgroundColor: '#f5f5f5',
+  },
+  modalButtonCancelText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#666',
+  },
+  modalButtonConfirm: {
+    flex: 1,
   },
 });
 
