@@ -395,6 +395,77 @@ export default function PublicVehicleScreen({ navigation, route }) {
           )}
         </View>
       </ScrollView>
+
+      {/* Modal de Confirmação de Aceite */}
+      <Modal
+        visible={mostrarModalAceitar}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setMostrarModalAceitar(false)}
+      >
+        <Pressable 
+          style={styles.modalOverlay} 
+          onPress={() => setMostrarModalAceitar(false)}
+        >
+          <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Aceitar Veículo</Text>
+              <TouchableOpacity onPress={() => setMostrarModalAceitar(false)}>
+                <Ionicons name="close" size={24} color="#666" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.modalScroll}>
+              <View style={styles.avisoAceite}>
+                <Ionicons name="warning-outline" size={32} color="#FF9800" />
+                <Text style={styles.avisoAceiteTitle}>Atenção: Ação Irreversível</Text>
+                <Text style={styles.avisoAceiteText}>
+                  Ao aceitar este veículo:
+                </Text>
+                <View style={styles.listaAviso}>
+                  <Text style={styles.itemAviso}>
+                    • Um novo período de posse será iniciado para você
+                  </Text>
+                  <Text style={styles.itemAviso}>
+                    • O período do proprietário atual será encerrado
+                  </Text>
+                  <Text style={styles.itemAviso}>
+                    • O histórico técnico (manutenções, KM) será preservado
+                  </Text>
+                  <Text style={styles.itemAviso}>
+                    • Valores e observações do período anterior não serão visíveis
+                  </Text>
+                  <Text style={styles.itemAviso}>
+                    • Você começará com um período limpo de gastos
+                  </Text>
+                </View>
+                <Text style={styles.avisoAceiteFinal}>
+                  Esta ação não pode ser desfeita.
+                </Text>
+              </View>
+
+              <View style={styles.modalButtons}>
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.modalButtonCancel]}
+                  onPress={() => setMostrarModalAceitar(false)}
+                  disabled={aceitando}
+                >
+                  <Text style={styles.modalButtonCancelText}>Cancelar</Text>
+                </TouchableOpacity>
+                <ActionButton
+                  onPress={handleAceitarVeiculo}
+                  label="Confirmar Aceite"
+                  icon="checkmark-circle"
+                  color="#4CAF50"
+                  loading={aceitando}
+                  disabled={aceitando}
+                  style={styles.modalButtonConfirm}
+                />
+              </View>
+            </ScrollView>
+          </View>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
