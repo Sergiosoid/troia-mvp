@@ -30,6 +30,7 @@ import RegisterScreen from './screens/RegisterScreen';
 import RegistrarAbastecimentoScreen from './screens/RegistrarAbastecimentoScreen';
 import SobreScreen from './screens/SobreScreen';
 import VeiculoHistoricoScreen from './screens/VeiculoHistoricoScreen';
+import PublicVehicleScreen from './screens/PublicVehicleScreen';
 
 const Stack = createNativeStackNavigator();
 

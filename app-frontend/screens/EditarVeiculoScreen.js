@@ -21,6 +21,7 @@ import {
     adicionarHistoricoProprietario,
     atualizarVeiculo,
     buscarVeiculoPorId,
+    compartilharVeiculo,
     listarHistoricoProprietarios,
     removerHistoricoProprietario,
 } from '../services/api';
@@ -67,6 +68,11 @@ export default function EditarVeiculoScreen({ route, navigation }) {
   const [mostrarDatePickerAquisicao, setMostrarDatePickerAquisicao] = useState(false);
   const [mostrarDatePickerVenda, setMostrarDatePickerVenda] = useState(false);
   const [salvandoProprietario, setSalvandoProprietario] = useState(false);
+
+  // Modal de compartilhamento
+  const [mostrarModalCompartilhar, setMostrarModalCompartilhar] = useState(false);
+  const [linkCompartilhamento, setLinkCompartilhamento] = useState('');
+  const [gerandoLink, setGerandoLink] = useState(false);
 
   useEffect(() => {
     if (veiculoId) {
@@ -341,6 +347,16 @@ export default function EditarVeiculoScreen({ route, navigation }) {
                 <Ionicons name="chevron-down" size={20} color="#666" />
               </TouchableOpacity>
             </View>
+
+            <ActionButton
+              onPress={handleCompartilhar}
+              label="Compartilhar Veículo"
+              icon="share-outline"
+              color="#2196F3"
+              loading={gerandoLink}
+              disabled={gerandoLink}
+              style={styles.compartilharButton}
+            />
 
             <ActionButton
               onPress={handleSalvar}
@@ -1055,6 +1071,80 @@ const styles = StyleSheet.create({
     marginTop: 8,
     paddingHorizontal: 16,
     lineHeight: 20,
+  },
+  compartilharButton: {
+    backgroundColor: '#2196F3',
+    marginBottom: 12,
+  },
+  compartilharInfo: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 20,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  linkContainer: {
+    marginBottom: 20,
+  },
+  linkLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 8,
+  },
+  linkBox: {
+    backgroundColor: '#f5f5f5',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#ddd',
+  },
+  linkText: {
+    fontSize: 12,
+    color: '#333',
+    fontFamily: 'monospace',
+  },
+  copiarButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#4CAF50',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+  },
+  copiarButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 8,
+  },
+  qrCodeContainer: {
+    marginTop: 20,
+  },
+  qrCodeLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  qrCodePlaceholder: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f9f9f9',
+    padding: 40,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: '#e0e0e0',
+    borderStyle: 'dashed',
+  },
+  qrCodeText: {
+    fontSize: 12,
+    color: '#999',
+    marginTop: 12,
+    textAlign: 'center',
   },
 });
 

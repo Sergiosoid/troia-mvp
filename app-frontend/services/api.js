@@ -621,6 +621,80 @@ export const listarHistoricoKm = async (veiculoId) => {
   }
 };
 
+/**
+ * Compartilhar veículo gerando link público
+ * @param {number} veiculoId - ID do veículo
+ * @param {string} expira_em - Data de expiração opcional (YYYY-MM-DD)
+ * @returns {Promise<Object>} Objeto com { success, token, link, expira_em }
+ */
+export const compartilharVeiculo = async (veiculoId, expira_em = null) => {
+  try {
+    const token = await getToken();
+    if (!token) {
+      throw new Error('Usuário não autenticado');
+    }
+
+    const headers = {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    };
+
+    const body = {};
+    if (expira_em) {
+      body.expira_em = expira_em;
+    }
+
+    const res = await fetchWithTimeout(
+      `${API_URL}/veiculos/${veiculoId}/compartilhar`,
+      {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(body),
+      },
+      30000
+    );
+
+    if (res && res.success) {
+      return {
+        success: true,
+        token: res.token,
+        link: res.link,
+        expira_em: res.expira_em,
+      };
+    }
+
+    throw new Error(res.error || 'Erro ao criar link de compartilhamento');
+  } catch (error) {
+    console.error('[compartilharVeiculo] Erro:', error);
+    throw error;
+  }
+};
+
+/**
+ * Buscar dados públicos de veículo compartilhado
+ * @param {string} token - Token de compartilhamento
+ * @returns {Promise<Object>} Dados públicos do veículo
+ */
+export const buscarVeiculoCompartilhado = async (token) => {
+  try {
+    const res = await fetchWithTimeout(
+      `${API_URL}/compartilhamento/${token}`,
+      {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      },
+      30000
+    );
+
+    return res;
+  } catch (error) {
+    console.error('[buscarVeiculoCompartilhado] Erro:', error);
+    throw error;
+  }
+};
+
 export const listarHistoricoVeiculo = async (veiculoId) => {
   try {
     const token = await getToken();
