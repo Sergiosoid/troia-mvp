@@ -23,7 +23,9 @@ import {
     buscarVeiculoPorId,
     compartilharVeiculo,
     listarHistoricoProprietarios,
+    listarUsuarios,
     removerHistoricoProprietario,
+    transferirVeiculo,
 } from '../services/api';
 import { getErrorMessage, getSuccessMessage } from '../utils/errorMessages';
 
@@ -73,6 +75,14 @@ export default function EditarVeiculoScreen({ route, navigation }) {
   const [mostrarModalCompartilhar, setMostrarModalCompartilhar] = useState(false);
   const [linkCompartilhamento, setLinkCompartilhamento] = useState('');
   const [gerandoLink, setGerandoLink] = useState(false);
+
+  // Modal de transferência
+  const [mostrarModalTransferir, setMostrarModalTransferir] = useState(false);
+  const [usuarios, setUsuarios] = useState([]);
+  const [usuarioSelecionado, setUsuarioSelecionado] = useState(null);
+  const [kmTransferencia, setKmTransferencia] = useState('');
+  const [transferindo, setTransferindo] = useState(false);
+  const [carregandoUsuarios, setCarregandoUsuarios] = useState(false);
 
   useEffect(() => {
     if (veiculoId) {

@@ -695,6 +695,86 @@ export const buscarVeiculoCompartilhado = async (token) => {
   }
 };
 
+/**
+ * Transferir veículo para outro usuário
+ * @param {number} veiculoId - ID do veículo
+ * @param {number} novoUsuarioId - ID do novo proprietário
+ * @param {number} kmAtual - KM atual do veículo (opcional)
+ * @returns {Promise<Object>} Resultado da transferência
+ */
+export const transferirVeiculo = async (veiculoId, novoUsuarioId, kmAtual = null) => {
+  try {
+    const token = await getToken();
+    if (!token) {
+      throw new Error('Usuário não autenticado');
+    }
+
+    const headers = {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    };
+
+    const body = {
+      novo_usuario_id: novoUsuarioId,
+    };
+
+    if (kmAtual !== null && kmAtual !== undefined) {
+      body.km_atual = kmAtual;
+    }
+
+    const res = await fetchWithTimeout(
+      `${API_URL}/veiculos/${veiculoId}/transferir`,
+      {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(body),
+      },
+      30000
+    );
+
+    if (res && res.success) {
+      return res;
+    }
+
+    throw new Error(res.error || 'Erro ao transferir veículo');
+  } catch (error) {
+    console.error('[transferirVeiculo] Erro:', error);
+    throw error;
+  }
+};
+
+/**
+ * Buscar usuários para transferência (lista de usuários do sistema)
+ * @returns {Promise<Array>} Lista de usuários
+ */
+export const listarUsuarios = async () => {
+  try {
+    const token = await getToken();
+    if (!token) {
+      throw new Error('Usuário não autenticado');
+    }
+
+    const headers = {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    };
+
+    const res = await fetchWithTimeout(
+      `${API_URL}/usuarios`,
+      {
+        method: 'GET',
+        headers,
+      },
+      30000
+    );
+
+    return Array.isArray(res) ? res : [];
+  } catch (error) {
+    console.error('[listarUsuarios] Erro:', error);
+    throw error;
+  }
+};
+
 export const listarHistoricoVeiculo = async (veiculoId) => {
   try {
     const token = await getToken();

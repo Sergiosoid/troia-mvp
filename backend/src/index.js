@@ -20,6 +20,7 @@ import dashboardRouter from './routes/dashboard.js';
 import estatisticasRouter from './routes/estatisticas.js';
 import healthRouter from './routes/health.js';
 import compartilhamentoRouter from './routes/compartilhamento.js';
+import usuariosRouter from './routes/usuarios.js';
 
 // Carregar variáveis de ambiente
 dotenv.config();
@@ -107,6 +108,7 @@ app.use('/compartilhamento', compartilhamentoRouter);
 app.use('/dashboard', dashboardRouter);
 app.use('/alertas', alertasRouter);
 app.use('/auth', authRouter);
+app.use('/usuarios', usuariosRouter);
 app.use('/buscar', buscarRouter);
 app.use('/estatisticas', estatisticasRouter);
 app.use('/proprietarios', proprietariosRouter);
