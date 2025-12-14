@@ -38,10 +38,59 @@ const Stack = createNativeStackNavigator();
 function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [initialRoute, setInitialRoute] = useState(null);
+  const [initialParams, setInitialParams] = useState(null);
 
   useEffect(() => {
     checkLoginStatus();
+    handleInitialURL();
+    
+    // Listener para deep links quando o app já está aberto
+    const subscription = Linking.addEventListener('url', handleDeepLink);
+    
+    return () => {
+      subscription?.remove();
+    };
   }, []);
+
+  const handleInitialURL = async () => {
+    try {
+      const url = await Linking.getInitialURL();
+      if (url) {
+        handleDeepLink({ url });
+      }
+    } catch (error) {
+      console.error('Erro ao processar URL inicial:', error);
+    }
+  };
+
+  const handleDeepLink = ({ url }) => {
+    try {
+      console.log('[DEEP LINK] URL recebida:', url);
+      const parsed = Linking.parse(url);
+      console.log('[DEEP LINK] Parsed:', parsed);
+      
+      // Verificar se é um link de compartilhamento
+      // Formato esperado: https://troia-mvp.onrender.com/compartilhamento/:token
+      // ou troia://compartilhamento/:token
+      if (parsed.path) {
+        const pathParts = parsed.path.split('/').filter(Boolean);
+        console.log('[DEEP LINK] Path parts:', pathParts);
+        
+        if (pathParts[0] === 'compartilhamento' && pathParts[1]) {
+          const token = pathParts[1];
+          console.log('[DEEP LINK] Token encontrado:', token);
+          setInitialRoute('PublicVehicle');
+          setInitialParams({ token });
+          
+          // Se não estiver logado, não precisa logar para ver compartilhamento
+          // A tela PublicVehicleScreen não requer autenticação
+        }
+      }
+    } catch (error) {
+      console.error('Erro ao processar deep link:', error);
+    }
+  };
 
   const checkLoginStatus = async () => {
     try {
