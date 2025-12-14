@@ -286,6 +286,11 @@ function App() {
           component={BuscarScreen}
           options={{ headerShown: false }}
         />
+        <Stack.Screen 
+          name="PublicVehicle" 
+          component={PublicVehicleScreen}
+          options={{ headerShown: false }}
+        />
       </Stack.Navigator>
     </NavigationContainer>
   );
