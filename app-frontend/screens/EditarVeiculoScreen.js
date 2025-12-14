@@ -1310,5 +1310,93 @@ const styles = StyleSheet.create({
     marginTop: 12,
     textAlign: 'center',
   },
+  transferirButton: {
+    marginBottom: 12,
+  },
+  avisoTransferencia: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff3cd',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+    borderLeftWidth: 4,
+    borderLeftColor: '#FF9800',
+  },
+  avisoTransferenciaText: {
+    fontSize: 14,
+    color: '#856404',
+    marginLeft: 10,
+    flex: 1,
+    fontWeight: '600',
+  },
+  transferenciaInfo: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 20,
+    lineHeight: 20,
+    textAlign: 'center',
+  },
+  usuariosList: {
+    maxHeight: 200,
+    marginBottom: 16,
+  },
+  usuarioItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 12,
+    backgroundColor: '#f5f5f5',
+    borderRadius: 8,
+    marginBottom: 8,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  usuarioItemSelected: {
+    backgroundColor: '#e8f5e9',
+    borderColor: '#4CAF50',
+  },
+  usuarioItemLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  usuarioItemInfo: {
+    marginLeft: 12,
+    flex: 1,
+  },
+  usuarioItemNome: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+  },
+  usuarioItemEmail: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 2,
+  },
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  loadingText: {
+    marginLeft: 10,
+    fontSize: 14,
+    color: '#666',
+  },
+  emptyContainer: {
+    padding: 20,
+    alignItems: 'center',
+  },
+  emptyText: {
+    fontSize: 14,
+    color: '#999',
+    textAlign: 'center',
+  },
+  transferirConfirmButton: {
+    marginTop: 20,
+  },
 });
 
