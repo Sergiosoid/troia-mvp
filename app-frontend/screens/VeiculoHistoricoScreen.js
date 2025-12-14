@@ -16,13 +16,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ActionButton from '../components/ActionButton';
 import HeaderBar from '../components/HeaderBar';
 import { commonStyles } from '../constants/styles';
-import { API_URL, buscarVeiculoPorId, excluirManutencao, listarHistoricoVeiculo } from '../services/api';
+import { API_URL, buscarResumoPeriodo, buscarVeiculoPorId, excluirManutencao, listarHistoricoVeiculo } from '../services/api';
 import { getErrorMessage, getSuccessMessage } from '../utils/errorMessages';
 
 export default function VeiculoHistoricoScreen({ navigation, route }) {
   const { veiculoId } = route?.params || {};
   const [veiculo, setVeiculo] = useState(null);
   const [manutencoes, setManutencoes] = useState([]);
+  const [resumoPeriodo, setResumoPeriodo] = useState(null);
   const [loading, setLoading] = useState(true);
   const [excluindoId, setExcluindoId] = useState(null);
   const [modalExcluir, setModalExcluir] = useState({ visivel: false, manutencao: null });
@@ -68,6 +69,26 @@ export default function VeiculoHistoricoScreen({ navigation, route }) {
           Alert.alert('Erro', err.message || 'Não foi possível buscar o veículo');
         }
       }
+
+      // Buscar resumo do período do proprietário atual (com fallback)
+      try {
+        const resumo = await buscarResumoPeriodo(veiculoId);
+        // Garantir que resumo seja um objeto válido
+        if (resumo && typeof resumo === 'object') {
+          setResumoPeriodo(resumo);
+        } else {
+          setResumoPeriodo(null);
+        }
+      } catch (err) {
+        // Se erro 404 ou não encontrado, apenas não exibir resumo (não é crítico)
+        if (err.message?.includes('404') || err.message?.includes('não encontrado')) {
+          setResumoPeriodo(null);
+        } else {
+          // Outros erros: log mas não bloquear
+          console.error('Erro ao buscar resumo do período:', err);
+          setResumoPeriodo(null);
+        }
+      }
     } catch (error) {
       console.error('Erro ao carregar histórico:', error);
       Alert.alert('Ops!', getErrorMessage(error));
@@ -102,6 +123,11 @@ export default function VeiculoHistoricoScreen({ navigation, route }) {
     } catch {
       return data;
     }
+  };
+
+  const formatarKm = (km) => {
+    if (!km && km !== 0) return '0';
+    return parseInt(km).toLocaleString('pt-BR');
   };
 
   const handleExcluirManutencao = async () => {
@@ -153,13 +179,19 @@ export default function VeiculoHistoricoScreen({ navigation, route }) {
   const rightComponent = (
     <View style={styles.headerButtons}>
       <TouchableOpacity
+        onPress={() => navigation.navigate('TimelineVeiculo', { veiculoId })}
+        style={styles.headerButton}
+      >
+        <Ionicons name="time-outline" size={24} color="#FF9800" />
+      </TouchableOpacity>
+      <TouchableOpacity
         onPress={() => navigation.navigate('HistoricoKm', { veiculoId })}
         style={styles.headerButton}
       >
         <Ionicons name="speedometer-outline" size={24} color="#2196F3" />
       </TouchableOpacity>
       <TouchableOpacity
-        onPress={() => navigation.navigate('Estatisticas', { veiculoId })}
+        onPress={() => navigation.navigate('EstatisticasScreen', { veiculoId })}
         style={styles.headerButton}
       >
         <Ionicons name="stats-chart-outline" size={24} color="#4CAF50" />
@@ -191,6 +223,67 @@ export default function VeiculoHistoricoScreen({ navigation, route }) {
             {veiculo.renavam && (
               <Text style={styles.veiculoRenavam}>Renavam: {veiculo.renavam}</Text>
             )}
+          </View>
+        )}
+
+        {/* Card: Seu período de uso */}
+        {resumoPeriodo && (
+          <View style={styles.resumoPeriodoCard}>
+            <View style={styles.resumoPeriodoHeader}>
+              <Ionicons name="calendar-outline" size={20} color="#4CAF50" />
+              <Text style={styles.resumoPeriodoTitulo}>Seu período de uso</Text>
+            </View>
+            
+            <View style={styles.resumoPeriodoContent}>
+              {/* KM rodado no período */}
+              <View style={styles.resumoPeriodoItem}>
+                <View style={styles.resumoPeriodoItemLeft}>
+                  <Ionicons name="speedometer-outline" size={18} color="#4CAF50" />
+                  <Text style={styles.resumoPeriodoLabel}>Você rodou</Text>
+                </View>
+                <Text style={styles.resumoPeriodoValorVerde}>
+                  {formatarKm(resumoPeriodo.km_rodado_no_periodo)} km
+                </Text>
+              </View>
+
+              {/* Data de aquisição */}
+              {resumoPeriodo.data_aquisicao && (
+                <View style={styles.resumoPeriodoItem}>
+                  <View style={styles.resumoPeriodoItemLeft}>
+                    <Ionicons name="calendar-outline" size={18} color="#666" />
+                    <Text style={styles.resumoPeriodoLabel}>Desde</Text>
+                  </View>
+                  <Text style={styles.resumoPeriodoValor}>
+                    {formatarData(resumoPeriodo.data_aquisicao)}
+                  </Text>
+                </View>
+              )}
+
+              {/* KM atual do veículo */}
+              <View style={styles.resumoPeriodoItem}>
+                <View style={styles.resumoPeriodoItemLeft}>
+                  <Ionicons name="car-outline" size={18} color="#4CAF50" />
+                  <Text style={styles.resumoPeriodoLabel}>KM atual do veículo</Text>
+                </View>
+                <Text style={styles.resumoPeriodoValorVerde}>
+                  {formatarKm(resumoPeriodo.km_atual)} km
+                </Text>
+              </View>
+
+              {/* Separador visual */}
+              <View style={styles.resumoPeriodoDivider} />
+
+              {/* KM total do veículo (cinza) */}
+              <View style={styles.resumoPeriodoItem}>
+                <View style={styles.resumoPeriodoItemLeft}>
+                  <Ionicons name="time-outline" size={18} color="#999" />
+                  <Text style={styles.resumoPeriodoLabelCinza}>Total do veículo</Text>
+                </View>
+                <Text style={styles.resumoPeriodoValorCinza}>
+                  {formatarKm(resumoPeriodo.km_atual - resumoPeriodo.km_total_veiculo)} km
+                </Text>
+              </View>
+            </View>
           </View>
         )}
 
@@ -642,6 +735,76 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     marginLeft: 8,
+  },
+  resumoPeriodoCard: {
+    backgroundColor: '#fff',
+    marginHorizontal: 15,
+    marginBottom: 15,
+    padding: 16,
+    borderRadius: 12,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    borderLeftWidth: 4,
+    borderLeftColor: '#4CAF50',
+  },
+  resumoPeriodoHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+    gap: 8,
+  },
+  resumoPeriodoTitulo: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  resumoPeriodoContent: {
+    gap: 12,
+  },
+  resumoPeriodoItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  resumoPeriodoItemLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+  },
+  resumoPeriodoLabel: {
+    fontSize: 14,
+    color: '#666',
+    fontWeight: '500',
+  },
+  resumoPeriodoLabelCinza: {
+    fontSize: 14,
+    color: '#999',
+    fontWeight: '500',
+  },
+  resumoPeriodoValor: {
+    fontSize: 16,
+    color: '#333',
+    fontWeight: '600',
+  },
+  resumoPeriodoValorVerde: {
+    fontSize: 18,
+    color: '#4CAF50',
+    fontWeight: 'bold',
+  },
+  resumoPeriodoValorCinza: {
+    fontSize: 16,
+    color: '#999',
+    fontWeight: '600',
+  },
+  resumoPeriodoDivider: {
+    height: 1,
+    backgroundColor: '#e0e0e0',
+    marginVertical: 8,
   },
 });
 

@@ -27,12 +27,23 @@ const fetchWithTimeout = async (url, options = {}, timeout = 15000) => {
     // Verificar se a resposta é ok
     if (!response.ok) {
       let errorMessage = `Erro HTTP ${response.status}: ${response.statusText}`;
+      let errorData = null;
       try {
-        const errorData = await response.json();
-        errorMessage = errorData.error || errorData.message || errorMessage;
+        errorData = await response.json();
+        errorMessage = errorData.error || errorData.mensagem || errorData.message || errorMessage;
       } catch (e) {
         // Se não conseguir parsear JSON, usar mensagem padrão
       }
+      
+      // Para erro 409 (Conflict), preservar dados completos do erro
+      if (response.status === 409 && errorData) {
+        const conflictError = new Error(errorData.mensagem || errorData.message || errorMessage);
+        conflictError.codigo = errorData.codigo;
+        conflictError.veiculo_id = errorData.veiculo_id;
+        conflictError.proprietario_atual_id = errorData.proprietario_atual_id;
+        throw conflictError;
+      }
+      
       throw new Error(errorMessage);
     }
 
@@ -256,7 +267,9 @@ export const cadastrarVeiculo = async (data) => {
     
     throw new Error('Resposta inválida do servidor');
   } catch (error) {
-    if (error.message.includes('502') || error.message.includes('500')) {
+    // Erro 409 já é tratado pelo fetchWithTimeout e preserva codigo, veiculo_id, etc.
+    // Apenas tratar outros erros
+    if (error.message?.includes('502') || error.message?.includes('500')) {
       throw new Error('Servidor temporariamente indisponível. Tente novamente em alguns instantes.');
     }
     throw error;
@@ -597,6 +610,10 @@ export const calcularTotalGeral = async () => {
  */
 export const listarHistoricoKm = async (veiculoId) => {
   try {
+    if (!veiculoId) {
+      return [];
+    }
+
     const token = await getToken();
     const headers = {
       'Content-Type': 'application/json',
@@ -616,6 +633,11 @@ export const listarHistoricoKm = async (veiculoId) => {
 
     return Array.isArray(res) ? res : [];
   } catch (error) {
+    // Se erro 404 ou não encontrado, retornar array vazio (não é crítico)
+    if (error.message?.includes('404') || error.message?.includes('não encontrado')) {
+      return [];
+    }
+    // Outros erros: log e lançar
     console.error('[listarHistoricoKm] Erro:', error);
     throw error;
   }
@@ -1086,6 +1108,56 @@ export const buscarVeiculoPorId = async (veiculoId) => {
 };
 
 /**
+ * Busca resumo do período do proprietário atual
+ * @param {number} veiculoId - ID do veículo
+ * @returns {Promise<Object>} Resumo do período
+ */
+export const buscarResumoPeriodo = async (veiculoId) => {
+  try {
+    if (!veiculoId) {
+      return null;
+    }
+
+    const headers = await getHeaders();
+    const res = await fetchWithTimeout(`${API_URL}/veiculos/${veiculoId}/resumo-periodo`, {
+      headers,
+    });
+    
+    // Garantir que res seja um objeto válido
+    if (res && typeof res === 'object') {
+      return res;
+    }
+    return null;
+  } catch (error) {
+    // Se erro 404 ou não encontrado, retornar null (não é crítico)
+    if (error.message?.includes('404') || error.message?.includes('não encontrado')) {
+      return null;
+    }
+    // Outros erros: log e lançar
+    console.error('[buscarResumoPeriodo] Erro:', error);
+    throw error;
+  }
+};
+
+/**
+ * Busca timeline unificada de eventos do veículo
+ * @param {number} veiculoId - ID do veículo
+ * @returns {Promise<Array>} Array de eventos ordenados por data
+ */
+export const buscarTimeline = async (veiculoId) => {
+  try {
+    const headers = await getHeaders();
+    const res = await fetchWithTimeout(`${API_URL}/veiculos/${veiculoId}/timeline`, {
+      headers,
+    });
+    return Array.isArray(res) ? res : [];
+  } catch (error) {
+    console.error('[buscarTimeline] Erro:', error);
+    throw error;
+  }
+};
+
+/**
  * Processa OCR de KM a partir de uma imagem do painel
  * @param {FormData} formData - FormData contendo a imagem do painel
  * @returns {Promise<Object>} Objeto com { success: boolean, km: number }
@@ -1144,7 +1216,7 @@ export const processarOcrKm = async (formData) => {
  * @param {number} km - Novo valor de KM
  * @returns {Promise<Object>} Objeto com { success: boolean, mensagem: string }
  */
-export const atualizarKm = async (veiculoId, km) => {
+export const atualizarKm = async (veiculoId, km, origem = 'manual') => {
   try {
     if (!veiculoId) {
       throw new Error('ID do veículo não fornecido');
@@ -1154,6 +1226,10 @@ export const atualizarKm = async (veiculoId, km) => {
     if (!kmNum || kmNum <= 0) {
       throw new Error('KM inválido');
     }
+
+    // Validar origem
+    const origensValidas = ['manual', 'ocr', 'abastecimento'];
+    const origemFinal = origensValidas.includes(origem) ? origem : 'manual';
 
     // Criar headers diretamente
     const token = await getToken();
@@ -1169,7 +1245,7 @@ export const atualizarKm = async (veiculoId, km) => {
       {
         method: 'PUT',
         headers,
-        body: JSON.stringify({ km_atual: kmNum }),
+        body: JSON.stringify({ km_atual: kmNum, origem: origemFinal }),
       },
       30000
     );

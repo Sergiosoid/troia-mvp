@@ -33,18 +33,35 @@ export default function HistoricoKmScreen({ navigation, route }) {
     try {
       setLoading(true);
 
-      // Buscar dados do veículo
-      const veiculoData = await buscarVeiculoPorId(veiculoId);
-      if (veiculoData) {
-        setVeiculo(veiculoData);
+      // Buscar dados do veículo (com fallback)
+      try {
+        const veiculoData = await buscarVeiculoPorId(veiculoId);
+        if (veiculoData) {
+          setVeiculo(veiculoData);
+        }
+      } catch (veiculoError) {
+        // Não bloquear a tela se falhar buscar veículo
+        console.error('Erro ao buscar veículo:', veiculoError);
       }
 
-      // Buscar histórico de KM
-      const historicoData = await listarHistoricoKm(veiculoId);
-      setHistorico(Array.isArray(historicoData) ? historicoData : []);
+      // Buscar histórico de KM (com fallback)
+      try {
+        const historicoData = await listarHistoricoKm(veiculoId);
+        setHistorico(Array.isArray(historicoData) ? historicoData : []);
+      } catch (historicoError) {
+        // Se erro 404 ou array vazio, apenas definir array vazio
+        if (historicoError.message?.includes('404') || historicoError.message?.includes('não encontrado')) {
+          setHistorico([]);
+        } else {
+          // Outros erros: mostrar mensagem mas não quebrar
+          console.error('Erro ao carregar histórico de KM:', historicoError);
+          setHistorico([]);
+        }
+      }
     } catch (error) {
-      console.error('Erro ao carregar histórico de KM:', error);
-      Alert.alert('Ops!', getErrorMessage(error));
+      console.error('Erro geral ao carregar dados:', error);
+      // Não mostrar alerta genérico, apenas definir estados vazios
+      setHistorico([]);
     } finally {
       setLoading(false);
     }

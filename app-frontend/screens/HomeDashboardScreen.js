@@ -39,28 +39,45 @@ export default function HomeDashboardScreen({ navigation, route }) {
         setLoadingResumo(true);
       }
       
-      // Carregar dados em paralelo
-      const [veiculosData, total, resumo, alertasData] = await Promise.all([
+      // Carregar dados em paralelo com fallback individual
+      const resultados = await Promise.allSettled([
         listarVeiculosComTotais(),
         calcularTotalGeral(),
         buscarResumoDashboard(),
         buscarAlertas(),
       ]);
       
+      // Processar resultados com fallback seguro
+      const veiculosData = resultados[0].status === 'fulfilled' ? resultados[0].value : [];
+      const total = resultados[1].status === 'fulfilled' ? resultados[1].value : 0;
+      const resumo = resultados[2].status === 'fulfilled' ? resultados[2].value : null;
+      const alertasData = resultados[3].status === 'fulfilled' ? resultados[3].value : [];
+      
       setVeiculos(Array.isArray(veiculosData) ? veiculosData : []);
       setTotalGeral(total || 0);
       setResumoDashboard(resumo);
       setAlertas(Array.isArray(alertasData) ? alertasData : []);
+      
+      // Log de erros individuais (sem bloquear)
+      resultados.forEach((resultado, index) => {
+        if (resultado.status === 'rejected') {
+          const nomes = ['veículos', 'total geral', 'resumo dashboard', 'alertas'];
+          console.error(`Erro ao carregar ${nomes[index]}:`, resultado.reason);
+        }
+      });
     } catch (error) {
-      console.error('Erro ao carregar dados:', error);
+      // Erro geral (muito raro com Promise.allSettled)
+      console.error('Erro geral ao carregar dados:', error);
       
       if (!isRefresh) {
         Alert.alert('Ops!', getErrorMessage(error));
       }
       
+      // Fallback seguro
       setVeiculos([]);
       setTotalGeral(0);
       setResumoDashboard(null);
+      setAlertas([]);
     } finally {
       setLoading(false);
       setLoadingResumo(false);

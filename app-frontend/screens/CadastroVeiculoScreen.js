@@ -16,6 +16,7 @@ export default function CadastroVeiculoScreen({ route, navigation }) {
   const [tipoVeiculo, setTipoVeiculo] = useState('');
   const [mostrarTipoVeiculo, setMostrarTipoVeiculo] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [mostrarModalVeiculoExistente, setMostrarModalVeiculoExistente] = useState(false);
 
   const tiposVeiculo = [
     { value: 'carro', label: 'Carro' },
@@ -71,8 +72,13 @@ export default function CadastroVeiculoScreen({ route, navigation }) {
         throw new Error('Resposta inválida do servidor');
       }
     } catch (error) {
-      console.error('Erro ao cadastrar veículo:', error);
-      Alert.alert('Ops!', getErrorMessage(error));
+      // Tratar erro 409 - Veículo já existe
+      if (error.codigo === 'VEICULO_JA_EXISTE') {
+        setMostrarModalVeiculoExistente(true);
+      } else {
+        console.error('Erro ao cadastrar veículo:', error);
+        Alert.alert('Ops!', getErrorMessage(error));
+      }
     } finally {
       setLoading(false);
     }
@@ -255,6 +261,48 @@ export default function CadastroVeiculoScreen({ route, navigation }) {
           </View>
         </Pressable>
         </Modal>
+
+      {/* Modal: Veículo já existe */}
+      <Modal
+        visible={mostrarModalVeiculoExistente}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setMostrarModalVeiculoExistente(false)}
+      >
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => setMostrarModalVeiculoExistente(false)}
+        >
+          <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Veículo já cadastrado</Text>
+              <TouchableOpacity
+                onPress={() => setMostrarModalVeiculoExistente(false)}
+                style={styles.modalCloseButton}
+              >
+                <Ionicons name="close" size={24} color="#666" />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.modalBody}>
+              <View style={styles.modalIconContainer}>
+                <Ionicons name="information-circle" size={64} color="#FF9800" />
+              </View>
+              <Text style={styles.modalText}>
+                Este veículo já existe no sistema TROIA.
+              </Text>
+              <Text style={styles.modalSubtext}>
+                Para acessar o histórico, solicite o link ao proprietário atual.
+              </Text>
+              <TouchableOpacity
+                style={styles.modalButton}
+                onPress={() => setMostrarModalVeiculoExistente(false)}
+              >
+                <Text style={styles.modalButtonText}>OK</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -339,5 +387,39 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#1976d2',
     flex: 1,
+  },
+  modalBody: {
+    padding: 20,
+    alignItems: 'center',
+  },
+  modalIconContainer: {
+    marginBottom: 16,
+  },
+  modalText: {
+    fontSize: 16,
+    color: '#333',
+    textAlign: 'center',
+    marginBottom: 12,
+    fontWeight: '500',
+  },
+  modalSubtext: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 24,
+    lineHeight: 20,
+  },
+  modalButton: {
+    backgroundColor: '#4CAF50',
+    paddingVertical: 12,
+    paddingHorizontal: 32,
+    borderRadius: 8,
+    minWidth: 120,
+  },
+  modalButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+    textAlign: 'center',
   },
 });

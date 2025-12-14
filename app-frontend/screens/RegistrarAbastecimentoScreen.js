@@ -259,6 +259,17 @@ export default function RegistrarAbastecimentoScreen({ route, navigation }) {
 
       await registrar(dados, imagem?.uri);
 
+      // Se houver km_depois, atualizar KM via endpoint correto com origem 'abastecimento'
+      if (kmDepois && veiculoId) {
+        try {
+          const { atualizarKm } = await import('../services/api');
+          await atualizarKm(veiculoId, parseInt(kmDepois), 'abastecimento');
+        } catch (kmError) {
+          console.warn('Erro ao atualizar KM após abastecimento:', kmError);
+          // Não bloquear o sucesso do abastecimento se falhar atualização de KM
+        }
+      }
+
       Alert.alert(
         'Sucesso',
         getSuccessMessage('abastecimento'),

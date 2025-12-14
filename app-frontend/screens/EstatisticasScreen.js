@@ -16,6 +16,7 @@ import {
     Text,
     View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BarChart, LineChart, PieChart } from 'react-native-chart-kit';
 import HeaderBar from '../components/HeaderBar';
 import { commonStyles } from '../constants/styles';
@@ -61,6 +62,7 @@ export default function EstatisticasScreen({ route, navigation }) {
   const carregarEstatisticas = async (isRefresh = false) => {
     if (!veiculoId) {
       setLoading(false);
+      setEstatisticas(null);
       return;
     }
 
@@ -69,12 +71,24 @@ export default function EstatisticasScreen({ route, navigation }) {
         setLoading(true);
       }
       const dados = await buscarEstatisticas(veiculoId);
-      setEstatisticas(dados);
+      // Garantir que dados seja um objeto válido
+      if (dados && typeof dados === 'object') {
+        setEstatisticas(dados);
+      } else {
+        setEstatisticas(null);
+      }
     } catch (error) {
-      console.error('Erro ao carregar estatísticas:', error);
-      setEstatisticas(null);
-      if (!isRefresh) {
-        Alert.alert('Ops!', getErrorMessage(error));
+      // Se erro 404 ou não encontrado, apenas não exibir estatísticas (não é crítico)
+      if (error.message?.includes('404') || error.message?.includes('não encontrado')) {
+        setEstatisticas(null);
+      } else {
+        // Outros erros: log e definir null
+        console.error('Erro ao carregar estatísticas:', error);
+        setEstatisticas(null);
+        // Só mostrar alerta se não for refresh (para não incomodar usuário)
+        if (!isRefresh) {
+          Alert.alert('Ops!', getErrorMessage(error));
+        }
       }
     } finally {
       setLoading(false);

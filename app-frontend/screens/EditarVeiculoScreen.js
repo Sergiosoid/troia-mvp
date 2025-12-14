@@ -166,6 +166,78 @@ export default function EditarVeiculoScreen({ route, navigation }) {
     }
   };
 
+  const handleCompartilhar = async () => {
+    if (!veiculoId) {
+      Alert.alert('Erro', 'ID do veículo não encontrado');
+      return;
+    }
+
+    setGerandoLink(true);
+    try {
+      const resultado = await compartilharVeiculo(veiculoId);
+      
+      if (resultado && resultado.link) {
+        setLinkCompartilhamento(resultado.link);
+        setMostrarModalCompartilhar(true);
+      } else {
+        throw new Error('Não foi possível gerar o link de compartilhamento');
+      }
+    } catch (error) {
+      console.error('Erro ao compartilhar veículo:', error);
+      Alert.alert('Ops!', getErrorMessage(error));
+    } finally {
+      setGerandoLink(false);
+    }
+  };
+
+  const copiarLink = async () => {
+    if (!linkCompartilhamento) {
+      Alert.alert('Erro', 'Link não disponível');
+      return;
+    }
+
+    try {
+      // Tentar usar Clipboard do Expo primeiro
+      try {
+        const { Clipboard } = await import('expo-clipboard');
+        if (Clipboard && Clipboard.setStringAsync) {
+          await Clipboard.setStringAsync(linkCompartilhamento);
+          Alert.alert('Sucesso', 'Link copiado para a área de transferência!');
+          return;
+        }
+      } catch (expoError) {
+        // Se Expo Clipboard não disponível, tentar React Native Clipboard
+      }
+
+      // Fallback: React Native Clipboard
+      try {
+        const Clipboard = require('@react-native-clipboard/clipboard');
+        if (Clipboard && Clipboard.setString) {
+          await Clipboard.setString(linkCompartilhamento);
+          Alert.alert('Sucesso', 'Link copiado para a área de transferência!');
+          return;
+        }
+      } catch (clipboardError) {
+        // Se não disponível, continuar para fallback manual
+      }
+      
+      // Fallback final: mostrar link para o usuário copiar manualmente
+      Alert.alert(
+        'Copiar Link',
+        `Link: ${linkCompartilhamento}\n\nCopie o link acima manualmente.`,
+        [{ text: 'OK' }]
+      );
+    } catch (error) {
+      console.error('Erro ao copiar link:', error);
+      // Fallback: mostrar link para o usuário copiar manualmente
+      Alert.alert(
+        'Copiar Link',
+        `Link: ${linkCompartilhamento}\n\nCopie o link acima manualmente.`,
+        [{ text: 'OK' }]
+      );
+    }
+  };
+
   const handleAdicionarProprietario = async () => {
     if (!nomeProprietario.trim()) {
       Alert.alert('Atenção', 'Nome do proprietário é obrigatório');
@@ -233,6 +305,77 @@ export default function EditarVeiculoScreen({ route, navigation }) {
     setDataVenda(null);
     setKmAquisicao('');
     setKmVenda('');
+  };
+
+  // Carregar usuários quando modal de transferência abrir
+  useEffect(() => {
+    if (mostrarModalTransferir && usuarios.length === 0 && !carregandoUsuarios) {
+      const carregarUsuarios = async () => {
+        try {
+          setCarregandoUsuarios(true);
+          const listaUsuarios = await listarUsuarios();
+          setUsuarios(Array.isArray(listaUsuarios) ? listaUsuarios : []);
+        } catch (error) {
+          console.error('Erro ao carregar usuários:', error);
+          Alert.alert('Ops!', 'Não foi possível carregar a lista de usuários.');
+          setUsuarios([]);
+        } finally {
+          setCarregandoUsuarios(false);
+        }
+      };
+      carregarUsuarios();
+    }
+  }, [mostrarModalTransferir]);
+
+  const handleTransferir = async () => {
+    if (!veiculoId) {
+      Alert.alert('Erro', 'ID do veículo não encontrado');
+      return;
+    }
+
+    if (!usuarioSelecionado || !usuarioSelecionado.id) {
+      Alert.alert('Atenção', 'Selecione um usuário para transferir o veículo');
+      return;
+    }
+
+    // Confirmar transferência
+    Alert.alert(
+      'Confirmar Transferência',
+      `Tem certeza que deseja transferir este veículo para ${usuarioSelecionado.nome || usuarioSelecionado.email}?\n\nEsta ação é IRREVERSÍVEL.`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Confirmar',
+          style: 'destructive',
+          onPress: async () => {
+            setTransferindo(true);
+            try {
+              const kmAtual = kmTransferencia ? parseInt(kmTransferencia.replace(/\D/g, '')) : null;
+              await transferirVeiculo(veiculoId, usuarioSelecionado.id, kmAtual);
+              
+              Alert.alert(
+                'Sucesso',
+                'Veículo transferido com sucesso!',
+                [
+                  {
+                    text: 'OK',
+                    onPress: () => {
+                      setMostrarModalTransferir(false);
+                      navigation.replace('HomeDashboard', { refresh: true });
+                    },
+                  },
+                ]
+              );
+            } catch (error) {
+              console.error('Erro ao transferir veículo:', error);
+              Alert.alert('Ops!', getErrorMessage(error));
+            } finally {
+              setTransferindo(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
   const formatarData = (date) => {

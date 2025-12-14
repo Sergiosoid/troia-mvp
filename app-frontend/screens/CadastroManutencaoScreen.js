@@ -24,7 +24,31 @@ import { getErrorMessage, getSuccessMessage } from '../utils/errorMessages';
 
 export default function CadastroManutencaoScreen({ route, navigation }) {
   const { veiculoId: veiculoIdParam, dadosPreenchidos, imageUri } = route?.params || {};
-  const [veiculoId, setVeiculoId] = useState(veiculoIdParam || null);
+  
+  // Validação obrigatória: veiculoId deve vir via route.params
+  const veiculoId = veiculoIdParam;
+  
+  // Se não tiver veiculoId, redirecionar para seleção (após renderização)
+  React.useEffect(() => {
+    if (!veiculoId) {
+      // Usar setTimeout para evitar problemas com Alert durante renderização
+      const timer = setTimeout(() => {
+        Alert.alert(
+          'Veículo necessário',
+          'Selecione um veículo para cadastrar a manutenção.',
+          [
+            {
+              text: 'Selecionar Veículo',
+              onPress: () => navigation.replace('EscolherVeiculoParaManutencao')
+            }
+          ]
+        );
+      }, 100);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [veiculoId, navigation]);
+  
   const [proprietarios, setProprietarios] = useState([]);
   const [proprietarioSelecionado, setProprietarioSelecionado] = useState(null);
   const [veiculos, setVeiculos] = useState([]);
@@ -73,9 +97,7 @@ export default function CadastroManutencaoScreen({ route, navigation }) {
           setTipoManutencao('corretiva');
         }
       }
-      if (dadosPreenchidos.veiculoId) {
-        setVeiculoId(dadosPreenchidos.veiculoId);
-      }
+      // veiculoId já vem de route.params, não alterar aqui
       if (dadosPreenchidos.proprietarioId) {
         setProprietarioSelecionado(dadosPreenchidos.proprietarioId);
       }
@@ -116,12 +138,7 @@ export default function CadastroManutencaoScreen({ route, navigation }) {
     carregarVeiculos();
   }, [proprietarioSelecionado]);
 
-  // Atualizar veiculoId quando veiculoSelecionado mudar
-  useEffect(() => {
-    if (veiculoSelecionado) {
-      setVeiculoId(veiculoSelecionado);
-    }
-  }, [veiculoSelecionado]);
+  // veiculoId vem apenas de route.params, não atualizar via seleção
 
   const formatarData = (date) => {
     const dia = String(date.getDate()).padStart(2, '0');
@@ -172,11 +189,88 @@ export default function CadastroManutencaoScreen({ route, navigation }) {
   };
 
   const enviarManutencao = async () => {
-    const veiculoIdFinal = veiculoId || veiculoSelecionado || dadosPreenchidos?.veiculoId;
-    if (!veiculoIdFinal) {
-      Alert.alert('Atenção', 'Selecione um veículo para continuar');
+    // Validação obrigatória: veiculoId deve vir de route.params
+    if (!veiculoId) {
+      Alert.alert(
+        'Veículo necessário',
+        'Selecione um veículo para continuar.',
+        [
+          {
+            text: 'Selecionar Veículo',
+            onPress: () => navigation.replace('EscolherVeiculoParaManutencao')
+          },
+          { text: 'Cancelar', style: 'cancel' }
+        ]
+      );
       return;
     }
+    
+    // Buscar veículo antes de cadastrar para validar acesso
+    try {
+      const { buscarVeiculoPorId } = await import('../services/api');
+      const { getUserId } = await import('../utils/authStorage');
+      
+      const veiculo = await buscarVeiculoPorId(veiculoId);
+      
+      if (!veiculo) {
+        Alert.alert(
+          'Erro',
+          'Veículo não encontrado. Por favor, selecione outro veículo.',
+          [
+            {
+              text: 'Selecionar Veículo',
+              onPress: () => navigation.replace('EscolherVeiculoParaManutencao')
+            },
+            { text: 'Cancelar', style: 'cancel' }
+          ]
+        );
+        return;
+      }
+
+      // Validar se o veículo pertence ao usuário atual
+      const userId = await getUserId();
+      if (veiculo.usuario_id && userId && String(veiculo.usuario_id) !== String(userId)) {
+        Alert.alert(
+          'Acesso Negado',
+          'Você não tem permissão para cadastrar manutenção neste veículo.',
+          [
+            {
+              text: 'Selecionar Outro Veículo',
+              onPress: () => navigation.replace('EscolherVeiculoParaManutencao')
+            },
+            { text: 'Cancelar', style: 'cancel' }
+          ]
+        );
+        return;
+      }
+    } catch (error) {
+      // Se erro 404 ou não encontrado, tratar como veículo não encontrado
+      if (error.message?.includes('404') || error.message?.includes('não encontrado')) {
+        Alert.alert(
+          'Erro',
+          'Veículo não encontrado. Por favor, selecione outro veículo.',
+          [
+            {
+              text: 'Selecionar Veículo',
+              onPress: () => navigation.replace('EscolherVeiculoParaManutencao')
+            },
+            { text: 'Cancelar', style: 'cancel' }
+          ]
+        );
+      } else {
+        // Outros erros: mostrar mensagem genérica
+        console.error('Erro ao validar acesso ao veículo:', error);
+        Alert.alert(
+          'Erro',
+          'Não foi possível validar o acesso ao veículo. Tente novamente.',
+          [{ text: 'OK' }]
+        );
+      }
+      return;
+    }
+    
+    // Garantir que veiculoIdFinal seja definido (já validado acima)
+    const veiculoIdFinal = veiculoId;
 
     if (!tipoManutencao) {
       Alert.alert('Atenção', 'Selecione o tipo de manutenção');
@@ -258,8 +352,30 @@ export default function CadastroManutencaoScreen({ route, navigation }) {
       >
         <View style={commonStyles.card}>
 
-          {/* Seleção de veículo - apenas se não vier veiculoId como parâmetro */}
-          {!veiculoIdParam && (
+          {/* Seleção de veículo - NÃO permitir se não vier veiculoId */}
+          {!veiculoId && (
+            <View style={styles.warningBox}>
+              <Ionicons name="warning-outline" size={20} color="#f44336" />
+              <Text style={styles.warningText}>
+                É necessário selecionar um veículo para cadastrar a manutenção.
+              </Text>
+              <TouchableOpacity
+                style={[commonStyles.button, { marginTop: 10 }]}
+                onPress={() => navigation.replace('EscolherVeiculoParaManutencao')}
+              >
+                <Text 
+                  style={commonStyles.buttonText}
+                  numberOfLines={1}
+                  allowFontScaling={false}
+                >
+                  Selecionar Veículo
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
+          
+          {/* Seleção de veículo via proprietário - REMOVIDO: sempre usar veiculoId de route.params */}
+          {false && !veiculoId && (
             <>
               <Text style={commonStyles.label}>Proprietário *</Text>
               <View style={styles.pickerContainer}>
@@ -498,9 +614,9 @@ export default function CadastroManutencaoScreen({ route, navigation }) {
 
           {/* Botão Cadastrar */}
           <TouchableOpacity
-            style={[commonStyles.button, loading && commonStyles.buttonDisabled, styles.submitButton]}
+            style={[commonStyles.button, (loading || !veiculoId) && commonStyles.buttonDisabled, styles.submitButton]}
             onPress={enviarManutencao}
-            disabled={loading}
+            disabled={loading || !veiculoId}
           >
             {loading ? (
               <ActivityIndicator color="#fff" />
@@ -713,6 +829,23 @@ const styles = StyleSheet.create({
     marginLeft: 10,
     fontSize: 14,
     color: '#4CAF50',
+    flex: 1,
+  },
+  warningBox: {
+    flexDirection: 'column',
+    alignItems: 'center',
+    backgroundColor: '#ffebee',
+    padding: 16,
+    borderRadius: 8,
+    marginBottom: 15,
+    borderWidth: 1,
+    borderColor: '#f44336',
+  },
+  warningText: {
+    marginTop: 10,
+    fontSize: 14,
+    color: '#d32f2f',
+    textAlign: 'center',
     flex: 1,
   },
   submitButton: {

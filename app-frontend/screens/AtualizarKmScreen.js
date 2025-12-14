@@ -37,6 +37,7 @@ export default function AtualizarKmScreen({ navigation, route }) {
   const [mostrarModalImagem, setMostrarModalImagem] = useState(false);
   const [loading, setLoading] = useState(false);
   const [carregandoVeiculo, setCarregandoVeiculo] = useState(false);
+  const [kmVeioDoOcr, setKmVeioDoOcr] = useState(false);
 
   useEffect(() => {
     if (veiculoId) {
@@ -83,6 +84,7 @@ export default function AtualizarKmScreen({ navigation, route }) {
 
       if (res && res.success && res.km) {
         setKmAtual(res.km.toString());
+        setKmVeioDoOcr(true); // Marcar que o KM veio do OCR
         Alert.alert('Sucesso', `KM detectado: ${res.km}`);
       } else {
         Alert.alert(
@@ -186,7 +188,12 @@ export default function AtualizarKmScreen({ navigation, route }) {
 
     setLoading(true);
     try {
-      const res = await atualizarKm(veiculoId, km);
+      // Usar origem 'ocr' se o KM veio do OCR, senão 'manual'
+      const origem = kmVeioDoOcr ? 'ocr' : 'manual';
+      const res = await atualizarKm(veiculoId, km, origem);
+      
+      // Resetar flag após salvar
+      setKmVeioDoOcr(false);
 
       if (res && res.success) {
         Alert.alert('Sucesso', res.mensagem || 'KM atualizado com sucesso!', [
