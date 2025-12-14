@@ -215,39 +215,61 @@ export default function VeiculoHistoricoScreen({ navigation, route }) {
             </TouchableOpacity>
           </View>
         ) : (
-          manutencoes.map((manutencao) => (
-            <View key={manutencao.id} style={commonStyles.card}>
-              <TouchableOpacity
-                onPress={() => Alert.alert('Detalhes', `ID: ${manutencao.id}\nDescrição: ${manutencao.descricao || 'N/A'}`)}
-              >
-                <View style={styles.manutencaoCardHeader}>
-                  <View style={styles.manutencaoCardHeaderLeft}>
-                    <View>
-                      <Text style={styles.manutencaoData}>
-                        {formatarData(manutencao.data)}
-                      </Text>
-                      <Text style={styles.manutencaoValor}>
-                        {formatarMoeda(parseFloat(manutencao.valor) || 0)}
-                      </Text>
-                    </View>
-                    {manutencao.tipo && (
-                      <View style={styles.tipoBadge}>
-                        <Text style={styles.tipoText}>{manutencao.tipo}</Text>
+          manutencoes.map((manutencao) => {
+            // Verificar se é manutenção herdada (sem valor ou não pertence ao proprietário atual)
+            const isHerdada = !manutencao.isProprietarioAtual || manutencao.valor === null || manutencao.valor === undefined;
+            const isProprietarioAnterior = manutencao.isProprietarioAnterior === true;
+
+            return (
+              <View key={manutencao.id} style={[commonStyles.card, isHerdada && styles.cardHerdada]}>
+                <TouchableOpacity
+                  onPress={() => Alert.alert('Detalhes', `ID: ${manutencao.id}\nDescrição: ${manutencao.descricao || 'N/A'}`)}
+                >
+                  <View style={styles.manutencaoCardHeader}>
+                    <View style={styles.manutencaoCardHeaderLeft}>
+                      <View style={{ flex: 1 }}>
+                        {isHerdada && (
+                          <View style={styles.herdadaBadge}>
+                            <Ionicons name="time-outline" size={12} color="#666" />
+                            <Text style={styles.herdadaText}>
+                              {isProprietarioAnterior ? 'Proprietário anterior' : 'Manutenção herdada'}
+                            </Text>
+                          </View>
+                        )}
+                        <Text style={styles.manutencaoData}>
+                          {formatarData(manutencao.data)}
+                        </Text>
+                        {isHerdada ? (
+                          <Text style={styles.manutencaoValorOculto}>
+                            Valor não disponível
+                          </Text>
+                        ) : (
+                          <Text style={styles.manutencaoValor}>
+                            {formatarMoeda(parseFloat(manutencao.valor) || 0)}
+                          </Text>
+                        )}
                       </View>
+                      {manutencao.tipo && (
+                        <View style={styles.tipoBadge}>
+                          <Text style={styles.tipoText}>{manutencao.tipo}</Text>
+                        </View>
+                      )}
+                    </View>
+                    {/* Só permitir excluir se for do proprietário atual */}
+                    {!isHerdada && (
+                      <TouchableOpacity
+                        onPress={() => abrirModalExcluir(manutencao)}
+                        style={styles.excluirButton}
+                        disabled={excluindoId === manutencao.id}
+                      >
+                        {excluindoId === manutencao.id ? (
+                          <ActivityIndicator size="small" color="#dc3545" />
+                        ) : (
+                          <Ionicons name="trash-outline" size={20} color="#dc3545" />
+                        )}
+                      </TouchableOpacity>
                     )}
                   </View>
-                  <TouchableOpacity
-                    onPress={() => abrirModalExcluir(manutencao)}
-                    style={styles.excluirButton}
-                    disabled={excluindoId === manutencao.id}
-                  >
-                    {excluindoId === manutencao.id ? (
-                      <ActivityIndicator size="small" color="#dc3545" />
-                    ) : (
-                      <Ionicons name="trash-outline" size={20} color="#dc3545" />
-                    )}
-                  </TouchableOpacity>
-                </View>
 
                 {manutencao.descricao && (
                   <Text style={styles.manutencaoDescricao} numberOfLines={2}>
@@ -266,7 +288,8 @@ export default function VeiculoHistoricoScreen({ navigation, route }) {
                 )}
               </TouchableOpacity>
             </View>
-          ))
+            );
+          })
         )}
       </ScrollView>
 
@@ -313,7 +336,9 @@ export default function VeiculoHistoricoScreen({ navigation, route }) {
                   Data: {formatarData(modalExcluir.manutencao.data)}
                 </Text>
                 <Text style={styles.modalInfoText}>
-                  Valor: {formatarMoeda(parseFloat(modalExcluir.manutencao.valor) || 0)}
+                  {modalExcluir.manutencao.valor !== null && modalExcluir.manutencao.valor !== undefined 
+                    ? `Valor: ${formatarMoeda(parseFloat(modalExcluir.manutencao.valor) || 0)}`
+                    : 'Valor: Não disponível'}
                 </Text>
               </View>
             )}
@@ -426,6 +451,33 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
     color: '#4CAF50',
+  },
+  manutencaoValorOculto: {
+    fontSize: 14,
+    fontStyle: 'italic',
+    color: '#999',
+    marginTop: 4,
+  },
+  cardHerdada: {
+    opacity: 0.85,
+    borderLeftWidth: 3,
+    borderLeftColor: '#ffa726',
+  },
+  herdadaBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff3e0',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+    marginBottom: 4,
+    alignSelf: 'flex-start',
+  },
+  herdadaText: {
+    fontSize: 11,
+    color: '#666',
+    marginLeft: 4,
+    fontWeight: '500',
   },
   tipoBadge: {
     backgroundColor: '#e3f2fd',
