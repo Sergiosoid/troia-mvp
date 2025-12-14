@@ -498,6 +498,41 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: 16,
   },
+  headerInfo: {
+    backgroundColor: '#fff',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  headerTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  headerSubtitle: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  confidenceBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#e8f5e9',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#c8e6c9',
+  },
+  confidenceBadgeText: {
+    fontSize: 13,
+    color: '#2e7d32',
+    fontWeight: '500',
+    marginLeft: 8,
+  },
   publicBadge: {
     flexDirection: 'row',
     alignItems: 'center',
