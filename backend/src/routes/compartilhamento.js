@@ -53,7 +53,7 @@ router.get('/:token', async (req, res) => {
       return res.status(404).json({ error: 'Veículo não encontrado' });
     }
 
-    // Buscar histórico de manutenções (sem valores privados)
+    // Buscar histórico completo de manutenções (sem valores privados)
     const manutencoes = await queryAll(
       `SELECT 
         id,
@@ -65,14 +65,15 @@ router.get('/:token', async (req, res) => {
         tipo_manutencao,
         area_manutencao,
         descricao,
-        imagem_url
+        imagem_url,
+        imagem
       FROM manutencoes
       WHERE veiculo_id = ?
       ORDER BY data DESC, id DESC`,
       [veiculoId]
     );
 
-    // Processar manutenções: remover valores privados
+    // Processar manutenções: remover valores privados, todas são "herdadas" em visualização pública
     const manutencoesPublicas = manutencoes.map(man => ({
       id: man.id,
       veiculo_id: man.veiculo_id,
@@ -84,10 +85,13 @@ router.get('/:token', async (req, res) => {
       area_manutencao: man.area_manutencao,
       descricao: man.descricao,
       imagem_url: man.imagem_url,
+      imagem: man.imagem,
       // NÃO incluir: valor, observacoes
+      // Todas são consideradas "herdadas" em visualização pública
+      isHerdada: true,
     }));
 
-    // Buscar histórico de KM (público)
+    // Buscar histórico completo de KM (público, ordenado cronologicamente)
     const kmHistorico = await queryAll(
       `SELECT 
         id,
@@ -98,7 +102,7 @@ router.get('/:token', async (req, res) => {
         criado_em
       FROM km_historico
       WHERE veiculo_id = ?
-      ORDER BY data_registro DESC, criado_em DESC`,
+      ORDER BY COALESCE(data_registro, criado_em) DESC, criado_em DESC`,
       [veiculoId]
     );
 

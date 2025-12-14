@@ -16,6 +16,8 @@ import { commonStyles } from '../constants/styles';
 import { buscarVeiculoCompartilhado } from '../services/api';
 import { getErrorMessage } from '../utils/errorMessages';
 
+const API_URL = 'https://troia-mvp.onrender.com';
+
 export default function PublicVehicleScreen({ navigation, route }) {
   const { token } = route?.params || {};
   const [dados, setDados] = useState(null);
@@ -62,12 +64,20 @@ export default function PublicVehicleScreen({ navigation, route }) {
     }
   };
 
-  const formatarMoeda = (valor) => {
-    if (!valor || valor === null || valor === undefined) return 'Valor não disponível';
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL',
-    }).format(valor);
+  const formatarDataHora = (data) => {
+    if (!data) return 'Data não informada';
+    try {
+      const date = new Date(data);
+      return date.toLocaleDateString('pt-BR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+    } catch {
+      return data;
+    }
   };
 
   const formatarKm = (km) => {
@@ -82,6 +92,24 @@ export default function PublicVehicleScreen({ navigation, route }) {
       abastecimento: 'Abastecimento',
     };
     return labels[origem] || origem || 'Manual';
+  };
+
+  const getOrigemIcon = (origem) => {
+    const icons = {
+      manual: 'create-outline',
+      ocr: 'camera-outline',
+      abastecimento: 'water-outline',
+    };
+    return icons[origem] || 'create-outline';
+  };
+
+  const getOrigemColor = (origem) => {
+    const colors = {
+      manual: '#4CAF50',
+      ocr: '#2196F3',
+      abastecimento: '#FF9800',
+    };
+    return colors[origem] || '#666';
   };
 
   if (loading) {
@@ -147,32 +175,69 @@ export default function PublicVehicleScreen({ navigation, route }) {
           </View>
         </View>
 
-        {/* Histórico de KM */}
+        {/* Linha do Tempo de KM */}
         {km_historico.length > 0 && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Histórico de KM</Text>
-            {km_historico.slice(0, 10).map((registro) => (
-              <View key={registro.id} style={commonStyles.card}>
-                <View style={styles.kmRegistroHeader}>
-                  <View style={styles.kmRegistroLeft}>
-                    <Text style={styles.kmRegistroData}>
-                      {formatarData(registro.data_registro || registro.criado_em)}
-                    </Text>
-                    <Text style={styles.kmRegistroOrigem}>
-                      {getOrigemLabel(registro.origem)}
-                    </Text>
+            <Text style={styles.sectionTitle}>
+              Linha do Tempo de KM ({km_historico.length} {km_historico.length === 1 ? 'registro' : 'registros'})
+            </Text>
+            <View style={styles.timelineContainer}>
+              {km_historico.map((registro, index) => {
+                const kmAnterior = index < km_historico.length - 1 
+                  ? parseInt(km_historico[index + 1].km) 
+                  : null;
+                const kmAtual = parseInt(registro.km) || 0;
+                const kmRodado = kmAnterior ? kmAtual - kmAnterior : null;
+                const isLast = index === 0;
+
+                return (
+                  <View key={registro.id} style={styles.timelineItem}>
+                    {/* Linha conectora */}
+                    {!isLast && <View style={styles.timelineLine} />}
+                    
+                    {/* Ponto na linha do tempo */}
+                    <View style={[styles.timelineDot, { backgroundColor: getOrigemColor(registro.origem) }]}>
+                      <Ionicons 
+                        name={getOrigemIcon(registro.origem)} 
+                        size={12} 
+                        color="#fff" 
+                      />
+                    </View>
+
+                    {/* Conteúdo do registro */}
+                    <View style={[commonStyles.card, styles.timelineCard]}>
+                      <View style={styles.kmRegistroHeader}>
+                        <View style={styles.kmRegistroLeft}>
+                          <View style={[styles.origemBadge, { backgroundColor: `${getOrigemColor(registro.origem)}20` }]}>
+                            <Ionicons 
+                              name={getOrigemIcon(registro.origem)} 
+                              size={14} 
+                              color={getOrigemColor(registro.origem)} 
+                            />
+                            <Text style={[styles.origemText, { color: getOrigemColor(registro.origem) }]}>
+                              {getOrigemLabel(registro.origem)}
+                            </Text>
+                          </View>
+                          <Text style={styles.kmRegistroData}>
+                            {formatarDataHora(registro.data_registro || registro.criado_em)}
+                          </Text>
+                        </View>
+                        <View style={styles.kmRegistroRight}>
+                          <Text style={styles.kmRegistroKm}>
+                            {formatarKm(registro.km)} km
+                          </Text>
+                          {kmRodado !== null && kmRodado > 0 && (
+                            <Text style={styles.kmRegistroRodado}>
+                              +{formatarKm(kmRodado)} km
+                            </Text>
+                          )}
+                        </View>
+                      </View>
+                    </View>
                   </View>
-                  <Text style={styles.kmRegistroKm}>
-                    {formatarKm(registro.km)} km
-                  </Text>
-                </View>
-              </View>
-            ))}
-            {km_historico.length > 10 && (
-              <Text style={styles.moreText}>
-                +{km_historico.length - 10} registros anteriores
-              </Text>
-            )}
+                );
+              })}
+            </View>
           </View>
         )}
 
@@ -188,58 +253,82 @@ export default function PublicVehicleScreen({ navigation, route }) {
               <Text style={styles.emptyTitle}>Nenhuma manutenção registrada</Text>
             </View>
           ) : (
-            manutencoes.map((manutencao) => (
-              <View key={manutencao.id} style={commonStyles.card}>
-                <View style={styles.manutencaoHeader}>
-                  <View style={styles.manutencaoLeft}>
-                    <Text style={styles.manutencaoData}>
-                      {formatarData(manutencao.data)}
-                    </Text>
-                    {manutencao.tipo && (
-                      <View style={styles.tipoBadge}>
-                        <Text style={styles.tipoText}>{manutencao.tipo}</Text>
+            manutencoes.map((manutencao, index) => {
+              // Todas as manutenções em visualização pública são consideradas "herdadas" 
+              // pois não mostram valores privados
+              const isHerdada = true; // Sempre true em visualização pública
+
+              return (
+                <View 
+                  key={manutencao.id} 
+                  style={[commonStyles.card, isHerdada && styles.cardHerdada]}
+                >
+                  <View style={styles.manutencaoHeader}>
+                    <View style={styles.manutencaoLeft}>
+                      {/* Badge de manutenção herdada */}
+                      {isHerdada && (
+                        <View style={styles.herdadaBadge}>
+                          <Ionicons name="time-outline" size={12} color="#666" />
+                          <Text style={styles.herdadaText}>
+                            Manutenção herdada
+                          </Text>
+                        </View>
+                      )}
+                      <Text style={styles.manutencaoData}>
+                        {formatarData(manutencao.data)}
+                      </Text>
+                      {manutencao.tipo && (
+                        <View style={styles.tipoBadge}>
+                          <Text style={styles.tipoText}>{manutencao.tipo}</Text>
+                        </View>
+                      )}
+                    </View>
+                  </View>
+
+                  {manutencao.descricao && (
+                    <Text style={styles.manutencaoDescricao}>{manutencao.descricao}</Text>
+                  )}
+
+                  <View style={styles.manutencaoDetails}>
+                    {manutencao.km_antes && (
+                      <View style={styles.manutencaoKmContainer}>
+                        <Ionicons name="speedometer-outline" size={16} color="#666" />
+                        <Text style={styles.manutencaoKm}>
+                          KM: {formatarKm(manutencao.km_antes)}
+                          {manutencao.km_depois && ` → ${formatarKm(manutencao.km_depois)}`}
+                        </Text>
+                      </View>
+                    )}
+                    {manutencao.tipo_manutencao && (
+                      <View style={styles.manutencaoTipoContainer}>
+                        <Ionicons name="construct-outline" size={16} color="#666" />
+                        <Text style={styles.manutencaoTipo}>
+                          {manutencao.tipo_manutencao}
+                          {manutencao.area_manutencao && ` - ${manutencao.area_manutencao}`}
+                        </Text>
                       </View>
                     )}
                   </View>
-                </View>
 
-                {manutencao.descricao && (
-                  <Text style={styles.manutencaoDescricao}>{manutencao.descricao}</Text>
-                )}
-
-                <View style={styles.manutencaoDetails}>
-                  {manutencao.km_antes && (
-                    <Text style={styles.manutencaoKm}>
-                      KM: {formatarKm(manutencao.km_antes)}
-                      {manutencao.km_depois && ` → ${formatarKm(manutencao.km_depois)}`}
-                    </Text>
+                  {manutencao.imagem_url && (
+                    <View style={styles.imagemContainer}>
+                      <Image
+                        source={{ uri: manutencao.imagem_url.includes('http') ? manutencao.imagem_url : `${API_URL}/uploads/${manutencao.imagem_url}` }}
+                        style={styles.imagem}
+                        resizeMode="cover"
+                      />
+                    </View>
                   )}
-                  {manutencao.tipo_manutencao && (
-                    <Text style={styles.manutencaoTipo}>
-                      {manutencao.tipo_manutencao}
-                      {manutencao.area_manutencao && ` - ${manutencao.area_manutencao}`}
-                    </Text>
-                  )}
-                </View>
 
-                {manutencao.imagem_url && (
-                  <View style={styles.imagemContainer}>
-                    <Image
-                      source={{ uri: manutencao.imagem_url }}
-                      style={styles.imagem}
-                      resizeMode="cover"
-                    />
+                  <View style={styles.privacidadeBadge}>
+                    <Ionicons name="lock-closed-outline" size={12} color="#999" />
+                    <Text style={styles.privacidadeText}>
+                      Valores e observações não são exibidos nesta visualização pública
+                    </Text>
                   </View>
-                )}
-
-                <View style={styles.privacidadeBadge}>
-                  <Ionicons name="lock-closed-outline" size={12} color="#999" />
-                  <Text style={styles.privacidadeText}>
-                    Valores e observações não são exibidos nesta visualização pública
-                  </Text>
                 </View>
-              </View>
-            ))
+              );
+            })
           )}
         </View>
       </ScrollView>
@@ -312,6 +401,45 @@ const styles = StyleSheet.create({
     color: '#333',
     marginBottom: 12,
   },
+  timelineContainer: {
+    position: 'relative',
+    paddingLeft: 20,
+  },
+  timelineItem: {
+    position: 'relative',
+    marginBottom: 16,
+  },
+  timelineLine: {
+    position: 'absolute',
+    left: 9,
+    top: 24,
+    width: 2,
+    height: '100%',
+    backgroundColor: '#e0e0e0',
+    zIndex: 0,
+  },
+  timelineDot: {
+    position: 'absolute',
+    left: 0,
+    top: 8,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1,
+    borderWidth: 2,
+    borderColor: '#fff',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+  },
+  timelineCard: {
+    marginLeft: 30,
+    marginTop: 0,
+  },
   kmRegistroHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -320,19 +448,37 @@ const styles = StyleSheet.create({
   kmRegistroLeft: {
     flex: 1,
   },
-  kmRegistroData: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 4,
+  kmRegistroRight: {
+    alignItems: 'flex-end',
   },
-  kmRegistroOrigem: {
-    fontSize: 12,
-    color: '#999',
+  kmRegistroData: {
+    fontSize: 13,
+    color: '#666',
+    marginTop: 6,
   },
   kmRegistroKm: {
     fontSize: 18,
     fontWeight: 'bold',
     color: '#333',
+  },
+  kmRegistroRodado: {
+    fontSize: 12,
+    color: '#4CAF50',
+    marginTop: 4,
+    fontWeight: '500',
+  },
+  origemBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    alignSelf: 'flex-start',
+  },
+  origemText: {
+    fontSize: 11,
+    fontWeight: '600',
+    marginLeft: 4,
   },
   manutencaoHeader: {
     flexDirection: 'row',
@@ -357,15 +503,46 @@ const styles = StyleSheet.create({
   },
   manutencaoDetails: {
     marginBottom: 8,
+    gap: 8,
+  },
+  manutencaoKmContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   manutencaoKm: {
     fontSize: 14,
     color: '#666',
-    marginBottom: 4,
+  },
+  manutencaoTipoContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   manutencaoTipo: {
     fontSize: 14,
     color: '#666',
+  },
+  cardHerdada: {
+    borderLeftWidth: 4,
+    borderLeftColor: '#ffa726',
+    opacity: 0.95,
+  },
+  herdadaBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fffbe6',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 10,
+    marginBottom: 6,
+    alignSelf: 'flex-start',
+  },
+  herdadaText: {
+    fontSize: 10,
+    color: '#666',
+    marginLeft: 4,
+    fontWeight: '500',
   },
   tipoBadge: {
     backgroundColor: '#e3f2fd',
