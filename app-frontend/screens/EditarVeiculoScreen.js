@@ -878,7 +878,7 @@ export default function EditarVeiculoScreen({ route, navigation }) {
                       size={200}
                       color="#333"
                       backgroundColor="#fff"
-                      logo={require('../assets/icon.png')}
+                      logo={require('../assets/images/icon.png')}
                       logoSize={40}
                       logoBackgroundColor="#fff"
                       logoMargin={4}

@@ -22,6 +22,7 @@ import EscolherVeiculoParaManutencaoScreen from './screens/EscolherVeiculoParaMa
 import AtualizarKmScreen from './screens/AtualizarKmScreen';
 import GerenciarProprietariosScreen from './screens/GerenciarProprietariosScreen';
 import GerenciarVeiculosScreen from './screens/GerenciarVeiculosScreen';
+import HistoricoKmScreen from './screens/HistoricoKmScreen';
 import HomeDashboardScreen from './screens/HomeDashboardScreen';
 import ListaManutencoesScreen from './screens/ListaManutencoesScreen';
 import LoginScreen from './screens/LoginScreen';
