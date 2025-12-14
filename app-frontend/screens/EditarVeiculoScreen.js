@@ -876,6 +876,109 @@ export default function EditarVeiculoScreen({ route, navigation }) {
           </View>
         </View>
       </Modal>
+
+      {/* Modal de Transferência */}
+      <Modal
+        visible={mostrarModalTransferir}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setMostrarModalTransferir(false)}
+      >
+        <View style={styles.modalOverlayProprietario}>
+          <View style={styles.modalContentProprietario}>
+            <View style={styles.modalHeaderProprietario}>
+              <Text style={styles.modalTitleProprietario}>Transferir Veículo</Text>
+              <TouchableOpacity
+                onPress={() => setMostrarModalTransferir(false)}
+                disabled={transferindo}
+              >
+                <Ionicons name="close" size={24} color="#666" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.modalScroll}>
+              <View style={styles.avisoTransferencia}>
+                <Ionicons name="warning-outline" size={24} color="#FF9800" />
+                <Text style={styles.avisoTransferenciaText}>
+                  Esta ação é IRREVERSÍVEL. O veículo será transferido para outro usuário.
+                </Text>
+              </View>
+
+              <Text style={styles.transferenciaInfo}>
+                O histórico técnico do veículo permanecerá visível, mas você perderá acesso e o novo proprietário começará com período limpo de gastos.
+              </Text>
+
+              <Text style={styles.label}>Selecione o novo proprietário:</Text>
+              {carregandoUsuarios ? (
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator size="small" color="#4CAF50" />
+                  <Text style={styles.loadingText}>Carregando usuários...</Text>
+                </View>
+              ) : usuarios.length === 0 ? (
+                <View style={styles.emptyContainer}>
+                  <Text style={styles.emptyText}>Nenhum usuário disponível para transferência</Text>
+                </View>
+              ) : (
+                <ScrollView style={styles.usuariosList} nestedScrollEnabled>
+                  {usuarios.map((usuario) => (
+                    <TouchableOpacity
+                      key={usuario.id}
+                      style={[
+                        styles.usuarioItem,
+                        usuarioSelecionado?.id === usuario.id && styles.usuarioItemSelected,
+                      ]}
+                      onPress={() => setUsuarioSelecionado(usuario)}
+                    >
+                      <View style={styles.usuarioItemLeft}>
+                        <Ionicons
+                          name="person-circle-outline"
+                          size={24}
+                          color={usuarioSelecionado?.id === usuario.id ? '#4CAF50' : '#666'}
+                        />
+                        <View style={styles.usuarioItemInfo}>
+                          <Text style={styles.usuarioItemNome}>
+                            {usuario.nome || usuario.email || `Usuário #${usuario.id}`}
+                          </Text>
+                          {usuario.email && usuario.nome && (
+                            <Text style={styles.usuarioItemEmail}>{usuario.email}</Text>
+                          )}
+                        </View>
+                      </View>
+                      {usuarioSelecionado?.id === usuario.id && (
+                        <Ionicons name="checkmark-circle" size={24} color="#4CAF50" />
+                      )}
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              )}
+
+              <Text style={styles.label}>KM atual do veículo (opcional):</Text>
+              <View style={commonStyles.inputContainer}>
+                <Ionicons name="speedometer-outline" size={20} color="#666" style={commonStyles.inputIcon} />
+                <TextInput
+                  style={commonStyles.input}
+                  placeholder="Ex: 50000"
+                  placeholderTextColor="#999"
+                  value={kmTransferencia}
+                  onChangeText={(text) => setKmTransferencia(text.replace(/\D/g, ''))}
+                  keyboardType="numeric"
+                  editable={!transferindo}
+                />
+              </View>
+
+              <ActionButton
+                onPress={handleTransferir}
+                label="Confirmar Transferência"
+                icon="swap-horizontal"
+                color="#FF9800"
+                loading={transferindo}
+                disabled={!usuarioSelecionado || transferindo || carregandoUsuarios}
+                style={styles.transferirConfirmButton}
+              />
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
