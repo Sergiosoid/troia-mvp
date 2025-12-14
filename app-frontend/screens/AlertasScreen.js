@@ -16,6 +16,7 @@ import {
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { buscarAlertas } from '../services/api';
 import { commonStyles } from '../constants/styles';
 import HeaderBar from '../components/HeaderBar';

@@ -84,6 +84,26 @@ export default function PreviewParsedScreen({ route, navigation }) {
       return;
     }
     
+    // Validar veiculoId obrigatório
+    if (!veiculoId) {
+      Alert.alert(
+        'Veículo necessário',
+        'Selecione um veículo para cadastrar a manutenção.',
+        [
+          {
+            text: 'Selecionar Veículo',
+            onPress: () => navigation.replace('EscolherVeiculoParaManutencao', {
+              imageUri,
+              fileName,
+              fileType,
+              dadosPreenchidos: dadosExtraidos
+            })
+          }
+        ]
+      );
+      return;
+    }
+    
     // Preparar dados para CadastroManutencaoScreen
     const dadosParaEnvio = {
       ...dadosExtraidos,
@@ -101,6 +121,25 @@ export default function PreviewParsedScreen({ route, navigation }) {
   };
 
   const handleEditarManual = () => {
+    // Validar veiculoId obrigatório
+    if (!veiculoId) {
+      Alert.alert(
+        'Veículo necessário',
+        'Selecione um veículo para cadastrar a manutenção.',
+        [
+          {
+            text: 'Selecionar Veículo',
+            onPress: () => navigation.replace('EscolherVeiculoParaManutencao', {
+              imageUri,
+              fileName,
+              fileType
+            })
+          }
+        ]
+      );
+      return;
+    }
+    
     // Navegar para CadastroManutencaoScreen sem dados (modo manual)
     navigation.navigate('CadastroManutencao', {
       imageUri: imageUri,

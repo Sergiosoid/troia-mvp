@@ -18,6 +18,7 @@ import {
   RefreshControl,
   Image,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { buscarGlobal } from '../services/api';
 import { commonStyles } from '../constants/styles';
 import HeaderBar from '../components/HeaderBar';

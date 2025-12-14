@@ -1,6 +1,6 @@
 import express from 'express';
 import { authRequired, requireRole } from '../middleware/auth.js';
-import { query, queryOne, queryAll } from '../database/db-adapter.js';
+import { query, queryOne, queryAll, isPostgres } from '../database/db-adapter.js';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
@@ -50,6 +50,30 @@ router.post('/', authRequired, async (req, res) => {
 
     if (!ano || !ano.trim()) {
       return res.status(400).json({ error: 'Ano é obrigatório' });
+    }
+
+    // Verificar unicidade por RENAVAM (se fornecido)
+    if (renavam && renavam.trim()) {
+      const renavamLimpo = renavam.trim();
+      
+      // Buscar veículo existente com o mesmo RENAVAM
+      const veiculoExistente = await queryOne(
+        'SELECT id, usuario_id FROM veiculos WHERE renavam = ?',
+        [renavamLimpo]
+      );
+
+      if (veiculoExistente) {
+        // Buscar proprietário atual do veículo existente
+        const { getProprietarioAtual } = await import('../utils/proprietarioAtual.js');
+        const proprietarioAtual = await getProprietarioAtual(veiculoExistente.id);
+        
+        return res.status(409).json({
+          codigo: 'VEICULO_JA_EXISTE',
+          mensagem: 'Este veículo já existe no sistema.',
+          veiculo_id: veiculoExistente.id,
+          proprietario_atual_id: proprietarioAtual?.id || null
+        });
+      }
     }
 
     // Inserir veículo (proprietario_id pode ser null)
@@ -262,23 +286,28 @@ router.put('/:id/km', authRequired, async (req, res) => {
       });
     }
 
-    // Salvar no histórico de KM (sempre criar novo registro)
+    // GARANTIA DE CONSISTÊNCIA: Sempre salvar no histórico ANTES de atualizar veiculos.km_atual
+    // Se falhar salvar no histórico, NÃO atualizar km_atual (garantir integridade)
     try {
+      const timestampFunc = isPostgres() ? 'CURRENT_TIMESTAMP' : "datetime('now')";
       await query(
         `INSERT INTO km_historico (veiculo_id, usuario_id, km, origem, data_registro, criado_em) 
-         VALUES (?, ?, ?, ?, datetime('now'), datetime('now'))`,
+         VALUES (?, ?, ?, ?, ${timestampFunc}, ${timestampFunc})`,
         [id, userId, kmNum, origemFinal]
       );
+      
+      // Só atualizar km_atual se o histórico foi salvo com sucesso
+      await query(
+        'UPDATE veiculos SET km_atual = ? WHERE id = ? AND usuario_id = ?',
+        [kmNum, id, userId]
+      );
     } catch (histError) {
-      // Se a tabela não existir ou erro, apenas logar (não é crítico para atualização)
-      console.warn('[AVISO] Erro ao salvar no histórico de KM:', histError.message);
+      // Se falhar ao salvar no histórico, NÃO atualizar km_atual e retornar erro
+      console.error('[ERRO CRÍTICO] Falha ao salvar no histórico de KM:', histError.message);
+      return res.status(500).json({ 
+        error: 'Erro ao salvar histórico de KM. A atualização foi cancelada para manter a integridade dos dados.' 
+      });
     }
-
-    // Atualizar KM atual do veículo
-    await query(
-      'UPDATE veiculos SET km_atual = ? WHERE id = ? AND usuario_id = ?',
-      [kmNum, id, userId]
-    );
 
     res.json({ 
       success: true,
@@ -388,23 +417,25 @@ router.post('/:id/transferir', authRequired, async (req, res) => {
         [id, novoUsuarioIdNum, novoUsuario.nome || novoUsuario.email || 'Novo Proprietário', hoje, kmAtualNum]
       );
 
-      // 3. Atualizar veiculo.usuario_id para o novo proprietário
+      // 3. Registrar KM no histórico PRIMEIRO (garantir consistência)
+      try {
+        const timestampFunc = isPostgres() ? 'CURRENT_TIMESTAMP' : "datetime('now')";
+        await query(
+          `INSERT INTO km_historico (veiculo_id, usuario_id, km, origem, data_registro, criado_em) 
+           VALUES (?, ?, ?, ?, ${timestampFunc}, ${timestampFunc})`,
+          [id, novoUsuarioIdNum, kmAtualNum, 'manual']
+        );
+      } catch (histError) {
+        // Se falhar ao salvar no histórico, não continuar com a transferência
+        console.error('[ERRO CRÍTICO] Falha ao salvar KM no histórico durante transferência:', histError.message);
+        throw new Error('Erro ao salvar histórico de KM. A transferência foi cancelada.');
+      }
+
+      // 4. Atualizar veiculo.usuario_id e km_atual APÓS salvar no histórico
       await query(
         'UPDATE veiculos SET usuario_id = ?, km_atual = ? WHERE id = ?',
         [novoUsuarioIdNum, kmAtualNum, id]
       );
-
-      // 4. Registrar KM no histórico (origem: 'manual')
-      try {
-        await query(
-          `INSERT INTO km_historico (veiculo_id, usuario_id, km, origem, data_registro, criado_em) 
-           VALUES (?, ?, ?, ?, datetime('now'), datetime('now'))`,
-          [id, novoUsuarioIdNum, kmAtualNum, 'manual']
-        );
-      } catch (histError) {
-        // Não crítico, apenas logar
-        console.warn('[AVISO] Erro ao salvar KM no histórico durante transferência:', histError.message);
-      }
 
       res.json({
         success: true,
@@ -448,10 +479,16 @@ router.get('/:id/km-historico', authRequired, async (req, res) => {
     // Importar helper de proprietário atual
     const { getPeriodoProprietarioAtual } = await import('../utils/proprietarioAtual.js');
 
-    // Obter período do proprietário atual
-    const periodo = await getPeriodoProprietarioAtual(id);
+    // Obter período do proprietário atual (não bloquear se não existir)
+    let periodo = null;
+    try {
+      periodo = await getPeriodoProprietarioAtual(id);
+    } catch (periodoError) {
+      console.warn('[km-historico] Erro ao buscar período do proprietário atual:', periodoError);
+      // Continuar sem filtrar por período
+    }
     
-    // Buscar histórico de KM
+    // Buscar histórico de KM com COALESCE para garantir data_registro sempre exista
     let querySql = `
       SELECT 
         id,
@@ -459,27 +496,29 @@ router.get('/:id/km-historico', authRequired, async (req, res) => {
         usuario_id,
         km,
         origem,
-        data_registro,
+        COALESCE(data_registro, criado_em) as data_registro,
         criado_em
       FROM km_historico
       WHERE veiculo_id = ?
     `;
     const params = [id];
 
-    // Filtrar por período do proprietário atual se existir
+    // Filtrar por período do proprietário atual APENAS se existir e tiver dataInicio
     if (periodo && periodo.dataInicio) {
-      querySql += ` AND data_registro >= ?`;
+      querySql += ` AND COALESCE(data_registro, criado_em) >= ?`;
       params.push(periodo.dataInicio);
     }
 
-    querySql += ` ORDER BY data_registro DESC, criado_em DESC`;
+    querySql += ` ORDER BY COALESCE(data_registro, criado_em) DESC, criado_em DESC`;
 
     const historico = await queryAll(querySql, params);
 
-    res.json(historico || []);
+    // Sempre retornar array, nunca erro
+    res.json(Array.isArray(historico) ? historico : []);
   } catch (error) {
     console.error('Erro ao buscar histórico de KM:', error);
-    res.status(500).json({ error: 'Erro ao buscar histórico de KM' });
+    // Retornar array vazio ao invés de erro
+    res.json([]);
   }
 });
 
@@ -502,13 +541,35 @@ router.get('/:id/historico', authRequired, async (req, res) => {
     // Importar helper de proprietário atual
     const { getProprietarioAtual, manutencaoPertenceAoProprietarioAtual } = await import('../utils/proprietarioAtual.js');
 
-    // Buscar todas as manutenções do veículo (herdáveis)
+    // Buscar todas as manutenções do veículo (herdáveis) com KM derivado de km_historico
     // IMPORTANTE: Remover filtro por usuario_id para mostrar manutenções de todos os proprietários
     const rows = await queryAll(
-      `SELECT m.*, v.placa, v.renavam, p.nome as proprietarioNome
+      `SELECT 
+        m.*, 
+        v.placa, 
+        v.renavam, 
+        p.nome as proprietarioNome,
+        km_antes.km AS km_antes,
+        km_depois.km AS km_depois
        FROM manutencoes m
        LEFT JOIN veiculos v ON m.veiculo_id = v.id
        LEFT JOIN proprietarios p ON v.proprietario_id = p.id
+       LEFT JOIN LATERAL (
+         SELECT km
+         FROM km_historico
+         WHERE veiculo_id = m.veiculo_id
+           AND COALESCE(data_registro, criado_em) <= m.data
+         ORDER BY COALESCE(data_registro, criado_em) DESC
+         LIMIT 1
+       ) km_antes ON true
+       LEFT JOIN LATERAL (
+         SELECT km
+         FROM km_historico
+         WHERE veiculo_id = m.veiculo_id
+           AND COALESCE(data_registro, criado_em) >= m.data
+         ORDER BY COALESCE(data_registro, criado_em) ASC
+         LIMIT 1
+       ) km_depois ON true
        WHERE m.veiculo_id = ?
        ORDER BY m.data DESC, m.id DESC`,
       [id]
@@ -690,6 +751,264 @@ router.delete('/:veiculoId/proprietarios-historico/:historicoId', authRequired, 
   }
 });
 
+// Timeline unificada de eventos do veículo (DEVE VIR ANTES DE /:id)
+router.get('/:id/timeline', authRequired, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.userId;
+
+    // Verificar se veículo pertence ao usuário
+    const veiculo = await queryOne(
+      'SELECT id FROM veiculos WHERE id = ? AND usuario_id = ?',
+      [id, userId]
+    );
+
+    if (!veiculo) {
+      return res.status(404).json({ error: 'Veículo não encontrado' });
+    }
+
+    // Importar helpers
+    const { getProprietarioAtual, manutencaoPertenceAoProprietarioAtual } = await import('../utils/proprietarioAtual.js');
+    
+    // Buscar proprietário atual (não bloquear se não existir)
+    let proprietarioAtual = null;
+    try {
+      proprietarioAtual = await getProprietarioAtual(id);
+    } catch (proprietarioError) {
+      console.warn('[timeline] Erro ao buscar proprietário atual:', proprietarioError);
+      // Continuar sem proprietário atual
+    }
+
+    const eventos = [];
+
+    // 1. Buscar eventos de KM
+    const kmHistorico = await queryAll(
+      `SELECT 
+        id,
+        km,
+        origem,
+        data_registro,
+        criado_em
+      FROM km_historico
+      WHERE veiculo_id = ?
+      ORDER BY data_registro ASC, criado_em ASC`,
+      [id]
+    );
+
+    if (kmHistorico && kmHistorico.length > 0) {
+      for (const kmEvent of kmHistorico) {
+        eventos.push({
+          tipo: 'km',
+          id: `km_${kmEvent.id}`,
+          data: kmEvent.data_registro || kmEvent.criado_em,
+          descricao: `KM atualizado: ${parseInt(kmEvent.km || 0).toLocaleString('pt-BR')} km`,
+          km_relacionado: parseInt(kmEvent.km || 0),
+          origem: kmEvent.origem || 'manual',
+          isHerdado: false, // KM sempre é do período atual quando registrado
+        });
+      }
+    }
+
+    // 2. Buscar manutenções com KM derivado de km_historico
+    const manutencoes = await queryAll(
+      `SELECT 
+        m.id,
+        m.data,
+        m.descricao,
+        km_antes.km AS km_antes,
+        km_depois.km AS km_depois,
+        m.tipo,
+        m.tipo_manutencao,
+        m.valor,
+        m.imagem as imagem_url
+      FROM manutencoes m
+      LEFT JOIN LATERAL (
+        SELECT km
+        FROM km_historico
+        WHERE veiculo_id = m.veiculo_id
+          AND COALESCE(data_registro, criado_em) <= m.data
+        ORDER BY COALESCE(data_registro, criado_em) DESC
+        LIMIT 1
+      ) km_antes ON true
+      LEFT JOIN LATERAL (
+        SELECT km
+        FROM km_historico
+        WHERE veiculo_id = m.veiculo_id
+          AND COALESCE(data_registro, criado_em) >= m.data
+        ORDER BY COALESCE(data_registro, criado_em) ASC
+        LIMIT 1
+      ) km_depois ON true
+      WHERE m.veiculo_id = ?
+      ORDER BY m.data ASC, m.id ASC`,
+      [id]
+    );
+
+    if (manutencoes && manutencoes.length > 0) {
+      for (const man of manutencoes) {
+        const pertenceAoProprietarioAtual = await manutencaoPertenceAoProprietarioAtual(
+          id,
+          man.data || new Date().toISOString().split('T')[0]
+        );
+
+        const isHerdado = !pertenceAoProprietarioAtual;
+        const isProprietarioAnterior = proprietarioAtual && man.data && man.data < proprietarioAtual.data_aquisicao;
+
+        let descricao = man.descricao || 'Manutenção';
+        if (man.tipo_manutencao) {
+          descricao = `${man.tipo_manutencao}: ${descricao}`;
+        } else if (man.tipo) {
+          descricao = `${man.tipo}: ${descricao}`;
+        }
+
+        eventos.push({
+          tipo: 'manutencao',
+          id: `man_${man.id}`,
+          data: man.data,
+          descricao: descricao,
+          km_relacionado: man.km_depois || man.km_antes || null,
+          valor: pertenceAoProprietarioAtual ? man.valor : null,
+          isHerdado: isHerdado,
+          isProprietarioAnterior: isProprietarioAnterior,
+          origem: null,
+        });
+      }
+    }
+
+    // 3. Buscar transferências (proprietarios_historico)
+    const transferencias = await queryAll(
+      `SELECT 
+        id,
+        nome,
+        data_aquisicao,
+        data_venda,
+        km_aquisicao,
+        km_venda
+      FROM proprietarios_historico
+      WHERE veiculo_id = ?
+      ORDER BY data_aquisicao ASC, id ASC`,
+      [id]
+    );
+
+    if (transferencias && transferencias.length > 0) {
+      for (const transf of transferencias) {
+        // Evento de aquisição
+        if (transf.data_aquisicao) {
+          eventos.push({
+            tipo: 'transferencia',
+            id: `transf_aquisicao_${transf.id}`,
+            data: transf.data_aquisicao,
+            descricao: `Veículo adquirido por ${transf.nome || 'Proprietário'}`,
+            km_relacionado: transf.km_aquisicao || null,
+            isHerdado: false,
+            origem: 'aquisicao',
+          });
+        }
+
+        // Evento de venda (se houver)
+        if (transf.data_venda) {
+          eventos.push({
+            tipo: 'transferencia',
+            id: `transf_venda_${transf.id}`,
+            data: transf.data_venda,
+            descricao: `Veículo vendido por ${transf.nome || 'Proprietário'}`,
+            km_relacionado: transf.km_venda || null,
+            isHerdado: false,
+            origem: 'venda',
+          });
+        }
+      }
+    }
+
+    // Ordenar eventos por data (mais antigo primeiro)
+    eventos.sort((a, b) => {
+      const dataA = new Date(a.data || 0);
+      const dataB = new Date(b.data || 0);
+      if (dataA.getTime() !== dataB.getTime()) {
+        return dataA.getTime() - dataB.getTime();
+      }
+      // Se mesma data, ordenar por tipo: transferencia > manutencao > km
+      const ordemTipo = { transferencia: 0, manutencao: 1, km: 2 };
+      return (ordemTipo[a.tipo] || 99) - (ordemTipo[b.tipo] || 99);
+    });
+
+    // Sempre retornar array, nunca erro
+    res.json(Array.isArray(eventos) ? eventos : []);
+  } catch (err) {
+    console.error('Erro ao buscar timeline:', err);
+    // Retornar array vazio ao invés de erro
+    res.json([]);
+  }
+});
+
+// Resumo do período do proprietário atual (DEVE VIR ANTES DE /:id)
+router.get('/:id/resumo-periodo', authRequired, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.userId;
+
+    // Verificar se veículo pertence ao usuário
+    const veiculo = await queryOne(
+      'SELECT id FROM veiculos WHERE id = ? AND usuario_id = ?',
+      [id, userId]
+    );
+
+    if (!veiculo) {
+      return res.status(404).json({ error: 'Veículo não encontrado' });
+    }
+
+    // Importar helper
+    const { getResumoPeriodoProprietarioAtual } = await import('../utils/proprietarioAtual.js');
+    
+    const resumo = await getResumoPeriodoProprietarioAtual(id);
+    
+    // Se não houver resumo, retornar estrutura padrão ao invés de erro
+    if (!resumo) {
+      // Buscar km_atual do veículo para estrutura padrão
+      const veiculoKm = await queryOne(
+        'SELECT km_atual FROM veiculos WHERE id = ?',
+        [id]
+      );
+      const kmAtual = veiculoKm ? (parseInt(veiculoKm.km_atual) || 0) : 0;
+      
+      return res.json({
+        km_total_veiculo: kmAtual,
+        km_inicio_periodo: kmAtual,
+        km_atual: kmAtual,
+        km_rodado_no_periodo: 0,
+        data_aquisicao: null,
+      });
+    }
+
+    res.json(resumo);
+  } catch (err) {
+    console.error('Erro ao buscar resumo do período:', err);
+    // Retornar estrutura padrão ao invés de erro
+    try {
+      const veiculoKm = await queryOne(
+        'SELECT km_atual FROM veiculos WHERE id = ?',
+        [id]
+      );
+      const kmAtual = veiculoKm ? (parseInt(veiculoKm.km_atual) || 0) : 0;
+      return res.json({
+        km_total_veiculo: kmAtual,
+        km_inicio_periodo: kmAtual,
+        km_atual: kmAtual,
+        km_rodado_no_periodo: 0,
+        data_aquisicao: null,
+      });
+    } catch (fallbackError) {
+      // Último fallback
+      return res.json({
+        km_total_veiculo: 0,
+        km_inicio_periodo: 0,
+        km_atual: 0,
+        km_rodado_no_periodo: 0,
+        data_aquisicao: null,
+      });
+    }
+  }
+});
+
 // Buscar veículo por ID (DEVE VIR POR ÚLTIMO)
 // SEGURANÇA: Filtra obrigatoriamente por usuario_id para prevenir acesso não autorizado
 router.get('/:id', authRequired, async (req, res) => {
@@ -792,23 +1111,28 @@ router.post('/:id/atualizar-km', authRequired, upload.single('painel'), async (r
       return res.status(400).json({ error: "KM detectado é menor que o atual. Confirme manualmente." });
     }
 
-    // Salvar no histórico de KM (sempre criar novo registro)
+    // GARANTIA DE CONSISTÊNCIA: Sempre salvar no histórico ANTES de atualizar veiculos.km_atual
+    // Se falhar salvar no histórico, NÃO atualizar km_atual (garantir integridade)
     try {
+      const timestampFunc = isPostgres() ? 'CURRENT_TIMESTAMP' : "datetime('now')";
       await query(
         `INSERT INTO km_historico (veiculo_id, usuario_id, km, origem, data_registro, criado_em) 
-         VALUES (?, ?, ?, ?, datetime('now'), datetime('now'))`,
+         VALUES (?, ?, ?, ?, ${timestampFunc}, ${timestampFunc})`,
         [veiculoId, userId, kmExtraido, 'ocr']
       );
+      
+      // Só atualizar km_atual se o histórico foi salvo com sucesso
+      await query(
+        "UPDATE veiculos SET km_atual = ? WHERE id = ? AND usuario_id = ?",
+        [kmExtraido, veiculoId, userId]
+      );
     } catch (histError) {
-      // Se a tabela não existir ou erro, apenas logar (não é crítico)
-      console.warn('[AVISO] Erro ao salvar no histórico de KM:', histError.message);
+      // Se falhar ao salvar no histórico, NÃO atualizar km_atual e retornar erro
+      console.error('[ERRO CRÍTICO] Falha ao salvar no histórico de KM:', histError.message);
+      return res.status(500).json({ 
+        error: 'Erro ao salvar histórico de KM. A atualização foi cancelada para manter a integridade dos dados.' 
+      });
     }
-
-    // Atualizar KM atual do veículo
-    await query(
-      "UPDATE veiculos SET km_atual = ? WHERE id = ? AND usuario_id = ?",
-      [kmExtraido, veiculoId, userId]
-    );
 
     res.json({
       sucesso: true,

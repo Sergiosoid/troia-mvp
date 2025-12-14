@@ -54,12 +54,26 @@ export default function EscolherVeiculoParaManutencaoScreen({ navigation, route 
 
   const handleTirarFoto = () => {
     setModalVisible(false);
-    navigation.navigate('CameraCapture', { veiculoId: veiculoSelecionado.id });
+    // Passar veiculoId e veiculo completo
+    navigation.navigate('CameraCapture', { 
+      veiculoId: veiculoSelecionado.id,
+      veiculo: veiculoSelecionado
+    });
   };
 
   const handleInserirManual = () => {
     setModalVisible(false);
-    navigation.navigate('CadastroManutencao', { veiculoId: veiculoSelecionado.id });
+    // Passar veiculoId e veiculo completo para garantir validação
+    // Também passar dados de PreviewParsedScreen se existirem
+    const { imageUri, fileName, fileType, dadosPreenchidos } = route?.params || {};
+    navigation.navigate('CadastroManutencao', { 
+      veiculoId: veiculoSelecionado.id,
+      veiculo: veiculoSelecionado,
+      ...(imageUri && { imageUri }),
+      ...(fileName && { fileName }),
+      ...(fileType && { fileType }),
+      ...(dadosPreenchidos && { dadosPreenchidos })
+    });
   };
 
   if (loading) {

@@ -225,6 +225,14 @@ export default function PublicVehicleScreen({ navigation, route }) {
         </Text>
       </View>
 
+      {/* Microcopy de Confiança */}
+      <View style={styles.confiancaBanner}>
+        <Ionicons name="shield-checkmark-outline" size={16} color="#666" />
+        <Text style={styles.confiancaText}>
+          Registros técnicos são preservados e não podem ser alterados após criação.
+        </Text>
+      </View>
+
       {/* Botão de aceitar veículo (se logado e não for proprietário) */}
       {isLoggedIn && dados?.veiculo && (
         <View style={styles.aceitarContainer}>
@@ -913,6 +921,22 @@ const styles = StyleSheet.create({
   },
   modalButtonConfirm: {
     flex: 1,
+  },
+  confiancaBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f5f5f5',
+    padding: 12,
+    borderRadius: 8,
+    marginHorizontal: 16,
+    marginBottom: 16,
+    gap: 8,
+  },
+  confiancaText: {
+    fontSize: 12,
+    color: '#666',
+    flex: 1,
+    lineHeight: 16,
   },
 });
 

@@ -32,6 +32,7 @@ import RegisterScreen from './screens/RegisterScreen';
 import RegistrarAbastecimentoScreen from './screens/RegistrarAbastecimentoScreen';
 import SobreScreen from './screens/SobreScreen';
 import VeiculoHistoricoScreen from './screens/VeiculoHistoricoScreen';
+import TimelineVeiculoScreen from './screens/TimelineVeiculoScreen';
 import PublicVehicleScreen from './screens/PublicVehicleScreen';
 import OnboardingContextualScreen from './screens/OnboardingContextualScreen';
 
@@ -184,6 +185,11 @@ function App() {
         <Stack.Screen 
           name="VeiculoHistorico" 
           component={VeiculoHistoricoScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen 
+          name="TimelineVeiculo" 
+          component={TimelineVeiculoScreen}
           options={{ headerShown: false }}
         />
         <Stack.Screen 

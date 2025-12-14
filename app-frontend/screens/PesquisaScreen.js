@@ -197,7 +197,7 @@ export default function PesquisaScreen({ navigation, route }) {
         },
         {
           text: 'Inserir Manualmente',
-          onPress: () => navigation.navigate('CadastroManutencao'),
+          onPress: () => navigation.navigate('EscolherVeiculoParaManutencao'),
         },
         {
           text: 'Cancelar',
