@@ -134,6 +134,32 @@ export default function PublicVehicleScreen({ navigation, route }) {
     return colors[origem] || '#666';
   };
 
+  const handleAceitarVeiculo = async () => {
+    if (!token) {
+      Alert.alert('Erro', 'Token de compartilhamento inválido');
+      return;
+    }
+
+    try {
+      setAceitando(true);
+      const resultado = await aceitarVeiculoCompartilhado(token);
+      
+      // Salvar contexto para onboarding
+      await AsyncStorage.setItem('onboarding_context', 'veiculo_aceito');
+      
+      // Navegar para onboarding contextual
+      navigation.replace('OnboardingContextual', {
+        contexto: 'veiculo_aceito',
+        veiculoId: resultado.veiculo?.id || dados?.veiculo?.id,
+      });
+    } catch (error) {
+      console.error('Erro ao aceitar veículo:', error);
+      Alert.alert('Erro', getErrorMessage(error));
+    } finally {
+      setAceitando(false);
+    }
+  };
+
   if (loading) {
     return (
       <View style={commonStyles.container}>

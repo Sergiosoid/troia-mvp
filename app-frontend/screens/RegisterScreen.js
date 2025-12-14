@@ -59,13 +59,28 @@ export default function RegisterScreen({ navigation }) {
           email: response.email || '',
         });
 
-        // Navegar diretamente para dashboard (melhor UX)
-        Alert.alert('Sucesso', 'Conta criada com sucesso!', [
-          {
-            text: 'OK',
-            onPress: () => navigation.replace('HomeDashboard'),
-          },
-        ]);
+        // Verificar se usuário tem veículos
+        const { listarVeiculosComTotais } = await import('../services/api');
+        const veiculos = await listarVeiculosComTotais().catch(() => []);
+        
+        // Se não tem veículos, mostrar onboarding contextual
+        if (!veiculos || veiculos.length === 0) {
+          // Salvar contexto para onboarding
+          const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
+          await AsyncStorage.setItem('onboarding_context', 'conta_sem_veiculo');
+          
+          navigation.replace('OnboardingContextual', {
+            contexto: 'conta_sem_veiculo',
+          });
+        } else {
+          // Se já tem veículos, ir direto para dashboard
+          Alert.alert('Sucesso', 'Conta criada com sucesso!', [
+            {
+              text: 'OK',
+              onPress: () => navigation.replace('HomeDashboard'),
+            },
+          ]);
+        }
       } else if (response && response.success) {
         // Se apenas sucesso (sem login automático), redirecionar para login
         Alert.alert('Sucesso', response.message || 'Conta criada com sucesso! Faça login para continuar.', [

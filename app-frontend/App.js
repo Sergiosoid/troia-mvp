@@ -32,6 +32,7 @@ import RegistrarAbastecimentoScreen from './screens/RegistrarAbastecimentoScreen
 import SobreScreen from './screens/SobreScreen';
 import VeiculoHistoricoScreen from './screens/VeiculoHistoricoScreen';
 import PublicVehicleScreen from './screens/PublicVehicleScreen';
+import OnboardingContextualScreen from './screens/OnboardingContextualScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -289,6 +290,11 @@ function App() {
         <Stack.Screen 
           name="PublicVehicle" 
           component={PublicVehicleScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen 
+          name="OnboardingContextual" 
+          component={OnboardingContextualScreen}
           options={{ headerShown: false }}
         />
       </Stack.Navigator>
