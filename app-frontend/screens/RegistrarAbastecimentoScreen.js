@@ -23,8 +23,9 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import ActionButton from '../components/ActionButton';
 import CameraButton from '../components/CameraButton';
 import HeaderBar from '../components/HeaderBar';
+import ModalPeriodoPosseInvalido from '../components/ModalPeriodoPosseInvalido';
 import { commonStyles } from '../constants/styles';
-import { buscarVeiculoPorId, listarVeiculosComTotais } from '../services/api';
+import { buscarVeiculoPorId, listarVeiculosComTotais, buscarDiagnosticoVeiculo } from '../services/api';
 import { useAbastecimentoApi } from '../services/useAbastecimentoApi';
 import { getErrorMessage, getSuccessMessage } from '../utils/errorMessages';
 
@@ -52,6 +53,7 @@ export default function RegistrarAbastecimentoScreen({ route, navigation }) {
   const [mostrarModalImagem, setMostrarModalImagem] = useState(false);
   const [processandoOcr, setProcessandoOcr] = useState(false);
   const [dadosOcrExtraidos, setDadosOcrExtraidos] = useState(false);
+  const [mostrarModalPeriodoInvalido, setMostrarModalPeriodoInvalido] = useState(false);
   
   const { loading, error, processarOcr, registrar } = useAbastecimentoApi();
 
@@ -85,6 +87,8 @@ export default function RegistrarAbastecimentoScreen({ route, navigation }) {
           const veiculo = await buscarVeiculoPorId(veiculoId);
           if (veiculo) {
             setVeiculoSelecionado(veiculo);
+            // Verificar período válido após carregar veículo
+            verificarPeriodoValido();
             if (veiculo.km_atual) {
               setKmAntes(veiculo.km_atual.toString());
             }
@@ -94,8 +98,24 @@ export default function RegistrarAbastecimentoScreen({ route, navigation }) {
         }
       }
     };
-    carregarVeiculo();
+    if (veiculoId) {
+      carregarVeiculo();
+    }
   }, [veiculoId]);
+
+  const verificarPeriodoValido = async () => {
+    if (!veiculoId) return;
+    
+    try {
+      const diagnostico = await buscarDiagnosticoVeiculo(veiculoId);
+      if (!diagnostico?.periodo_valido) {
+        setMostrarModalPeriodoInvalido(true);
+      }
+    } catch (error) {
+      // Se não conseguir verificar, não bloquear (deixar backend validar)
+      console.warn('[RegistrarAbastecimento] Erro ao verificar período:', error.message);
+    }
+  };
 
   // Processar OCR quando imagem for selecionada
   useEffect(() => {
@@ -282,6 +302,13 @@ export default function RegistrarAbastecimentoScreen({ route, navigation }) {
       );
     } catch (error) {
       console.error('Erro ao registrar abastecimento:', error);
+      
+      // Verificar se é erro de período de posse inválido
+      if (error.code === 'PERIODO_POSSE_INVALIDO' || error.message?.includes('período de posse')) {
+        setMostrarModalPeriodoInvalido(true);
+        return;
+      }
+      
       Alert.alert('Ops!', getErrorMessage(error));
     }
   };
@@ -586,6 +613,17 @@ export default function RegistrarAbastecimentoScreen({ route, navigation }) {
           <Image source={imagem} style={styles.imageModal} resizeMode="contain" />
         </View>
       </Modal>
+
+      {/* Modal bloqueante para período de posse inválido */}
+      <ModalPeriodoPosseInvalido
+        visible={mostrarModalPeriodoInvalido}
+        veiculoId={veiculoId}
+        onConfigurar={() => {
+          setMostrarModalPeriodoInvalido(false);
+          navigation.navigate('EditarVeiculo', { veiculoId });
+        }}
+        onClose={() => {}} // Não permite fechar
+      />
     </View>
   );
 }

@@ -23,8 +23,9 @@ import {
 import ActionButton from '../components/ActionButton';
 import CameraButton from '../components/CameraButton';
 import HeaderBar from '../components/HeaderBar';
+import ModalPeriodoPosseInvalido from '../components/ModalPeriodoPosseInvalido';
 import { commonStyles } from '../constants/styles';
-import { buscarVeiculoPorId, processarOcrKm, atualizarKm } from '../services/api';
+import { buscarVeiculoPorId, processarOcrKm, atualizarKm, buscarDiagnosticoVeiculo } from '../services/api';
 import { getErrorMessage, getSuccessMessage } from '../utils/errorMessages';
 
 export default function AtualizarKmScreen({ navigation, route }) {
@@ -38,6 +39,7 @@ export default function AtualizarKmScreen({ navigation, route }) {
   const [loading, setLoading] = useState(false);
   const [carregandoVeiculo, setCarregandoVeiculo] = useState(false);
   const [kmVeioDoOcr, setKmVeioDoOcr] = useState(false);
+  const [mostrarModalPeriodoInvalido, setMostrarModalPeriodoInvalido] = useState(false);
 
   useEffect(() => {
     if (veiculoId) {
@@ -207,6 +209,13 @@ export default function AtualizarKmScreen({ navigation, route }) {
       }
     } catch (error) {
       console.error('Erro ao atualizar KM:', error);
+      
+      // Verificar se é erro de período de posse inválido
+      if (error.code === 'PERIODO_POSSE_INVALIDO' || error.message?.includes('período de posse')) {
+        setMostrarModalPeriodoInvalido(true);
+        return;
+      }
+      
       Alert.alert('Erro', getErrorMessage(error));
     } finally {
       setLoading(false);
@@ -230,6 +239,7 @@ export default function AtualizarKmScreen({ navigation, route }) {
       </View>
     );
   }
+
 
   if (carregandoVeiculo) {
     return (
@@ -370,6 +380,17 @@ export default function AtualizarKmScreen({ navigation, route }) {
           </View>
         </Modal>
       )}
+
+      {/* Modal bloqueante para período de posse inválido */}
+      <ModalPeriodoPosseInvalido
+        visible={mostrarModalPeriodoInvalido}
+        veiculoId={veiculoId}
+        onConfigurar={() => {
+          setMostrarModalPeriodoInvalido(false);
+          navigation.navigate('EditarVeiculo', { veiculoId });
+        }}
+        onClose={() => {}} // Não permite fechar
+      />
     </KeyboardAvoidingView>
   );
 }

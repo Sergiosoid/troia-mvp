@@ -16,10 +16,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 // DateTimePicker será usado via Modal nativo se disponível
-import { cadastrarManutencao, listarProprietarios, listarVeiculosPorProprietario } from '../services/api';
+import { cadastrarManutencao, listarProprietarios, listarVeiculosPorProprietario, buscarDiagnosticoVeiculo } from '../services/api';
 import { commonStyles } from '../constants/styles';
 import HeaderBar from '../components/HeaderBar';
 import CameraButton from '../components/CameraButton';
+import ModalPeriodoPosseInvalido from '../components/ModalPeriodoPosseInvalido';
 import { getErrorMessage, getSuccessMessage } from '../utils/errorMessages';
 
 export default function CadastroManutencaoScreen({ route, navigation }) {
@@ -65,6 +66,7 @@ export default function CadastroManutencaoScreen({ route, navigation }) {
   const [mostrarTipoManutencao, setMostrarTipoManutencao] = useState(false);
   const [mostrarAreaManutencao, setMostrarAreaManutencao] = useState(false);
   const [mostrarModalImagem, setMostrarModalImagem] = useState(false);
+  const [mostrarModalPeriodoInvalido, setMostrarModalPeriodoInvalido] = useState(false);
 
   const tiposManutencao = [
     { label: 'Preventiva', value: 'preventiva' },
@@ -257,6 +259,10 @@ export default function CadastroManutencaoScreen({ route, navigation }) {
             { text: 'Cancelar', style: 'cancel' }
           ]
         );
+      } else if (error.code === 'PERIODO_POSSE_INVALIDO' || error.message?.includes('período de posse')) {
+        // Erro de período de posse inválido - mostrar modal bloqueante
+        setMostrarModalPeriodoInvalido(true);
+        return;
       } else {
         // Outros erros: mostrar mensagem genérica
         console.error('Erro ao validar acesso ao veículo:', error);
@@ -323,6 +329,13 @@ export default function CadastroManutencaoScreen({ route, navigation }) {
       }
     } catch (error) {
       console.error('Erro ao cadastrar manutenção:', error);
+      
+      // Verificar se é erro de período de posse inválido
+      if (error.code === 'PERIODO_POSSE_INVALIDO' || error.message?.includes('período de posse')) {
+        setMostrarModalPeriodoInvalido(true);
+        return;
+      }
+      
       Alert.alert('Ops!', getErrorMessage(error));
     } finally {
       setLoading(false);
@@ -758,6 +771,17 @@ export default function CadastroManutencaoScreen({ route, navigation }) {
           </View>
         </View>
       </Modal>
+
+      {/* Modal bloqueante para período de posse inválido */}
+      <ModalPeriodoPosseInvalido
+        visible={mostrarModalPeriodoInvalido}
+        veiculoId={veiculoId}
+        onConfigurar={() => {
+          setMostrarModalPeriodoInvalido(false);
+          navigation.navigate('EditarVeiculo', { veiculoId });
+        }}
+        onClose={() => {}} // Não permite fechar
+      />
     </View>
   );
 }
