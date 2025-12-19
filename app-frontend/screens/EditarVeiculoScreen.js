@@ -5,6 +5,7 @@ import {
     Alert,
     Dimensions,
     Modal,
+    Platform,
     Pressable,
     ScrollView,
     StyleSheet,
@@ -13,6 +14,7 @@ import {
     TouchableOpacity,
     View
 } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import QRCode from 'react-native-qrcode-svg';
 import ActionButton from '../components/ActionButton';
@@ -60,6 +62,15 @@ export default function EditarVeiculoScreen({ route, navigation }) {
   // Histórico de proprietários
   const [historico, setHistorico] = useState([]);
   const [loadingHistorico, setLoadingHistorico] = useState(false);
+  
+  // Dados da Aquisição (proprietário atual)
+  const [proprietarioAtual, setProprietarioAtual] = useState(null);
+  const [origemPosse, setOrigemPosse] = useState('');
+  const [dataAquisicaoEdit, setDataAquisicaoEdit] = useState(null); // Date object
+  const [dataAquisicaoFormatada, setDataAquisicaoFormatada] = useState(''); // DD/MM/YYYY para exibição
+  const [mostrarDatePickerEdit, setMostrarDatePickerEdit] = useState(false);
+  const [kmInicioEdit, setKmInicioEdit] = useState('');
+  const [podeEditarKmInicio, setPodeEditarKmInicio] = useState(true);
 
   // Modal de adicionar proprietário
   const [mostrarModalProprietario, setMostrarModalProprietario] = useState(false);
@@ -89,6 +100,7 @@ export default function EditarVeiculoScreen({ route, navigation }) {
     if (veiculoId) {
       carregarVeiculo();
       carregarHistorico();
+      carregarDadosAquisicao();
     }
   }, [veiculoId]);
 
@@ -127,6 +139,56 @@ export default function EditarVeiculoScreen({ route, navigation }) {
       setHistorico([]);
     } finally {
       setLoadingHistorico(false);
+    }
+  };
+
+  const carregarDadosAquisicao = async () => {
+    try {
+      const { buscarResumoPeriodo } = await import('../services/api');
+      const resumo = await buscarResumoPeriodo(veiculoId);
+      
+      if (resumo && resumo.data_aquisicao) {
+        // Buscar o primeiro registro do histórico (proprietário atual)
+        const historicoData = await listarHistoricoProprietarios(veiculoId);
+        const proprietarioAtualData = Array.isArray(historicoData) && historicoData.length > 0 
+          ? historicoData.find(p => !p.data_venda) || historicoData[0]
+          : null;
+        
+        if (proprietarioAtualData) {
+          setProprietarioAtual(proprietarioAtualData);
+          setOrigemPosse(proprietarioAtualData.origem_posse || 'usado');
+          
+          // Converter string de data para Date object
+          const dataStr = proprietarioAtualData.data_aquisicao || proprietarioAtualData.data_inicio || '';
+          if (dataStr) {
+            const dataObj = new Date(dataStr);
+            if (!isNaN(dataObj.getTime())) {
+              setDataAquisicaoEdit(dataObj);
+              // Formatar para DD/MM/YYYY
+              const day = String(dataObj.getDate()).padStart(2, '0');
+              const month = String(dataObj.getMonth() + 1).padStart(2, '0');
+              const year = dataObj.getFullYear();
+              setDataAquisicaoFormatada(`${day}/${month}/${year}`);
+            }
+          }
+          
+          setKmInicioEdit(proprietarioAtualData.km_inicio?.toString() || proprietarioAtualData.km_aquisicao?.toString() || '');
+          
+          // Verificar se pode editar KM inicial (não pode se houver histórico posterior)
+          const { listarHistoricoKm } = await import('../services/api');
+          const kmHistorico = await listarHistoricoKm(veiculoId);
+          const temHistoricoPosterior = Array.isArray(kmHistorico) && kmHistorico.length > 0 
+            && kmHistorico.some(km => {
+              const kmData = new Date(km.data_registro || km.criado_em);
+              const aquisicaoData = new Date(proprietarioAtualData.data_inicio || proprietarioAtualData.data_aquisicao);
+              return kmData > aquisicaoData;
+            });
+          setPodeEditarKmInicio(!temHistoricoPosterior);
+        }
+      }
+    } catch (error) {
+      console.error('Erro ao carregar dados de aquisição:', error);
+      // Não bloquear se falhar
     }
   };
 
@@ -523,6 +585,121 @@ export default function EditarVeiculoScreen({ route, navigation }) {
             />
           </View>
         </View>
+
+        {/* Seção: Dados da Aquisição */}
+        {proprietarioAtual && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>
+              Dados da Aquisição
+            </Text>
+            <Text style={styles.sectionSubtitle}>
+              Informações do período de posse atual
+            </Text>
+
+            <View style={commonStyles.card}>
+              <Text style={commonStyles.label}>Tipo de Aquisição</Text>
+              <View style={styles.pickerContainer}>
+                <TouchableOpacity
+                  style={[commonStyles.inputContainer, styles.pickerButton, styles.inputDisabled]}
+                  disabled={true}
+                >
+                  <Ionicons name="document-text-outline" size={20} color="#999" style={commonStyles.inputIcon} />
+                  <Text style={[styles.pickerText, { color: '#999' }]}>
+                    {origemPosse === 'zero_km' ? 'Zero KM' : origemPosse === 'usado' ? 'Usado' : origemPosse === 'transferencia' ? 'Transferência' : 'Não informado'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+              <Text style={styles.hintText}>
+                Tipo de aquisição não pode ser alterado após o cadastro
+              </Text>
+
+              <Text style={commonStyles.label}>Data de Aquisição</Text>
+              <TouchableOpacity
+                style={commonStyles.inputContainer}
+                onPress={() => setMostrarDatePickerEdit(true)}
+              >
+                <Ionicons name="calendar-outline" size={20} color="#666" style={commonStyles.inputIcon} />
+                <Text style={[commonStyles.input, { color: dataAquisicaoFormatada ? '#333' : '#999', paddingVertical: 12 }]}>
+                  {dataAquisicaoFormatada || 'Selecione a data de aquisição'}
+                </Text>
+              </TouchableOpacity>
+              
+              {/* DatePicker nativo */}
+              {mostrarDatePickerEdit && (
+                <DateTimePicker
+                  value={dataAquisicaoEdit || new Date()}
+                  mode="date"
+                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                  maximumDate={new Date()}
+                  onChange={(event, selectedDate) => {
+                    setMostrarDatePickerEdit(Platform.OS === 'ios');
+                    if (event.type === 'set' && selectedDate) {
+                      setDataAquisicaoEdit(selectedDate);
+                      // Formatar para DD/MM/YYYY para exibição
+                      const day = String(selectedDate.getDate()).padStart(2, '0');
+                      const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
+                      const year = selectedDate.getFullYear();
+                      setDataAquisicaoFormatada(`${day}/${month}/${year}`);
+                    }
+                  }}
+                />
+              )}
+
+              <Text style={commonStyles.label}>KM Inicial</Text>
+              <View style={[commonStyles.inputContainer, !podeEditarKmInicio && styles.inputDisabled]}>
+                <Ionicons name="speedometer-outline" size={20} color={podeEditarKmInicio ? "#666" : "#999"} style={commonStyles.inputIcon} />
+                <TextInput
+                  style={[commonStyles.input, !podeEditarKmInicio && styles.inputDisabledText]}
+                  placeholder="KM no momento da aquisição"
+                  placeholderTextColor="#999"
+                  value={kmInicioEdit}
+                  onChangeText={setKmInicioEdit}
+                  keyboardType="numeric"
+                  editable={podeEditarKmInicio}
+                />
+              </View>
+              {!podeEditarKmInicio && (
+                <Text style={styles.hintText}>
+                  O KM inicial não pode ser alterado após o início do uso do veículo.
+                </Text>
+              )}
+
+              <ActionButton
+                  onPress={async () => {
+                    if (!dataAquisicaoEdit) {
+                      Alert.alert('Atenção', 'Data de aquisição é obrigatória');
+                      return;
+                    }
+                    if (podeEditarKmInicio && (!kmInicioEdit || parseInt(kmInicioEdit) < 0)) {
+                      Alert.alert('Atenção', 'KM inicial inválido');
+                      return;
+                    }
+                    
+                    try {
+                      setSaving(true);
+                      // TODO: Implementar endpoint PUT /veiculos/:id/aquisicao para atualizar dados de aquisição
+                      // Por enquanto, apenas mostrar mensagem (endpoint específico pode ser criado depois)
+                      Alert.alert(
+                        'Atenção',
+                        'A atualização dos dados de aquisição será implementada em breve. Por enquanto, essas informações são apenas para visualização.',
+                        [{ text: 'OK' }]
+                      );
+                    } catch (error) {
+                      Alert.alert('Erro', getErrorMessage(error));
+                    } finally {
+                      setSaving(false);
+                    }
+                  }}
+                label="Salvar Dados de Aquisição"
+                icon="save-outline"
+                color="#4CAF50"
+                loading={saving}
+                disabled={saving}
+                style={styles.saveButton}
+              />
+            </View>
+          </View>
+        )}
 
         {/* Seção: Histórico de Proprietários */}
         <View style={styles.section}>
@@ -1446,6 +1623,20 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     marginLeft: 8,
+  },
+  inputDisabled: {
+    backgroundColor: '#f5f5f5',
+    opacity: 0.7,
+  },
+  inputDisabledText: {
+    color: '#999',
+  },
+  hintText: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 4,
+    marginBottom: 12,
+    fontStyle: 'italic',
   },
   qrCodeContainer: {
     marginTop: 20,

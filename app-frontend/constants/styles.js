@@ -56,20 +56,23 @@ export const commonStyles = StyleSheet.create({
     shadowRadius: 2,
   },
   
-  // Inputs
+  // Inputs (PADRONIZADOS - UX profissional)
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#e0e0e0',
-    borderRadius: 12,
+    borderRadius: 10,
     paddingHorizontal: 15,
+    paddingVertical: 12,
+    minHeight: 48,
     marginBottom: 15,
     backgroundColor: '#f9f9f9',
   },
   input: {
     flex: 1,
-    height: 50,
+    minHeight: 48,
+    paddingVertical: 12,
     fontSize: 16,
     color: '#333',
   },
