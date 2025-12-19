@@ -35,6 +35,7 @@ import VeiculoHistoricoScreen from './screens/VeiculoHistoricoScreen';
 import TimelineVeiculoScreen from './screens/TimelineVeiculoScreen';
 import PublicVehicleScreen from './screens/PublicVehicleScreen';
 import OnboardingContextualScreen from './screens/OnboardingContextualScreen';
+import DiagnosticoVeiculoScreen from './screens/DiagnosticoVeiculoScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -302,6 +303,11 @@ function App() {
         <Stack.Screen 
           name="OnboardingContextual" 
           component={OnboardingContextualScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen 
+          name="DiagnosticoVeiculo" 
+          component={DiagnosticoVeiculoScreen}
           options={{ headerShown: false }}
         />
       </Stack.Navigator>

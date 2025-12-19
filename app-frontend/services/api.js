@@ -44,7 +44,21 @@ const fetchWithTimeout = async (url, options = {}, timeout = 15000) => {
         throw conflictError;
       }
       
-      throw new Error(errorMessage);
+      // Para erro 400 com código específico, preservar código
+      if (response.status === 400 && errorData && errorData.code) {
+        const customError = new Error(errorData.error || errorData.mensagem || errorMessage);
+        customError.code = errorData.code;
+        customError.status = response.status;
+        throw customError;
+      }
+      
+      // Criar erro com status e código preservados
+      const error = new Error(errorMessage);
+      error.status = response.status;
+      if (errorData && errorData.code) {
+        error.code = errorData.code;
+      }
+      throw error;
     }
 
     // Sempre retornar JSON parseado
@@ -250,13 +264,22 @@ export const cadastrarVeiculo = async (data) => {
       method: 'POST',
       headers,
       body: JSON.stringify({ 
-        placa: data.placa?.trim().toUpperCase(),
+        placa: data.placa?.trim().toUpperCase() || null,
         renavam: data.renavam?.trim() || null,
+        chassi: data.chassi?.trim().toUpperCase() || null,
         marca: data.marca?.trim() || null,
         modelo: data.modelo?.trim() || null,
         ano: data.ano?.trim() || null,
         tipo_veiculo: data.tipo_veiculo || null,
-        proprietario_id: data.proprietario_id || null
+        proprietario_id: data.proprietario_id || null,
+        origem_posse: data.origem_posse || null,
+        data_aquisicao: data.data_aquisicao || null,
+        km_aquisicao: data.km_aquisicao !== undefined ? parseInt(data.km_aquisicao) : null,
+        // Dados mestres
+        fabricante_id: data.fabricante_id || null,
+        modelo_id: data.modelo_id || null,
+        ano_modelo: data.ano_modelo || null,
+        dados_nao_padronizados: data.dados_nao_padronizados || false
       }),
     });
     
@@ -1144,6 +1167,103 @@ export const buscarResumoPeriodo = async (veiculoId) => {
  * @param {number} veiculoId - ID do veículo
  * @returns {Promise<Array>} Array de eventos ordenados por data
  */
+/**
+ * Busca diagnóstico de um veículo
+ * @param {number} veiculoId - ID do veículo
+ * @returns {Promise<Object>} Dados de diagnóstico
+ */
+export const buscarDiagnosticoVeiculo = async (veiculoId) => {
+  try {
+    if (!veiculoId) {
+      throw new Error('ID do veículo não fornecido');
+    }
+    
+    const headers = await getHeaders();
+    const res = await fetchWithTimeout(`${API_URL}/veiculos/${veiculoId}/diagnostico`, {
+      headers,
+    });
+    
+    return res;
+  } catch (error) {
+    console.error('[buscarDiagnosticoVeiculo] Erro:', error);
+    throw error;
+  }
+};
+
+/**
+ * Lista todos os fabricantes ativos
+ */
+export const listarFabricantes = async () => {
+  try {
+    const headers = await getHeaders();
+    const res = await fetchWithTimeout(`${API_URL}/fabricantes`, {
+      headers,
+    });
+    return Array.isArray(res) ? res : [];
+  } catch (error) {
+    console.error('[listarFabricantes] Erro:', error);
+    return [];
+  }
+};
+
+/**
+ * Lista modelos de um fabricante específico
+ */
+export const listarModelos = async (fabricanteId) => {
+  try {
+    if (!fabricanteId) return [];
+    const headers = await getHeaders();
+    const res = await fetchWithTimeout(`${API_URL}/fabricantes/${fabricanteId}/modelos`, {
+      headers,
+    });
+    return Array.isArray(res) ? res : [];
+  } catch (error) {
+    console.error('[listarModelos] Erro:', error);
+    return [];
+  }
+};
+
+/**
+ * Retorna intervalo de anos válidos para um modelo
+ */
+export const buscarAnosModelo = async (modeloId) => {
+  try {
+    if (!modeloId) return [];
+    const headers = await getHeaders();
+    const res = await fetchWithTimeout(`${API_URL}/modelos/${modeloId}/anos`, {
+      headers,
+    });
+    return Array.isArray(res) ? res : [];
+  } catch (error) {
+    console.error('[buscarAnosModelo] Erro:', error);
+    return [];
+  }
+};
+
+/**
+ * TODO: OCR de documento do veículo (CRLV)
+ * Processa imagem e extrai: placa, renavam, fabricante, modelo, ano
+ * 
+ * @param {FormData} formData - FormData com imagem
+ * @returns {Promise<Object>} Dados extraídos do documento
+ */
+export const processarOcrDocumento = async (formData) => {
+  // TODO: Implementar quando integração com OCR estiver pronta
+  throw new Error('OCR de documento ainda não implementado');
+};
+
+/**
+ * TODO: OCR de CNH
+ * Processa imagem da CNH e extrai dados do proprietário
+ * 
+ * @param {FormData} formData - FormData com imagem
+ * @returns {Promise<Object>} Dados extraídos da CNH
+ */
+export const processarOcrCnh = async (formData) => {
+  // TODO: Implementar quando necessário
+  throw new Error('OCR de CNH ainda não implementado');
+};
+
 export const buscarTimeline = async (veiculoId) => {
   try {
     const headers = await getHeaders();
