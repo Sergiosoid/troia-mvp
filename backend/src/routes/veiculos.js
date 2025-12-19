@@ -41,58 +41,320 @@ router.get('/', authRequired, async (req, res) => {
 // Criar novo veículo
 router.post('/', authRequired, async (req, res) => {
   try {
-    const { placa, renavam, proprietario_id, marca, modelo, ano, tipo_veiculo } = req.body;
+    const { 
+      placa, 
+      renavam, 
+      chassi: chassiBody,
+      proprietario_id, 
+      marca, 
+      modelo, 
+      ano, 
+      tipo_veiculo,
+      origem_posse, // 'zero_km' ou 'usado'
+      data_aquisicao, // Data de aquisição (obrigatória) - formato YYYY-MM-DD
+      km_aquisicao, // KM inicial (obrigatório) - aceita km_inicio para compatibilidade
+      // Dados mestres (opcionais)
+      fabricante_id,
+      modelo_id,
+      ano_modelo,
+      dados_nao_padronizados,
+      origem_dados // 'manual' | 'ocr'
+    } = req.body;
 
-    // Validações simplificadas: apenas modelo e ano são obrigatórios
-    if (!modelo || !modelo.trim()) {
-      return res.status(400).json({ error: 'Modelo é obrigatório' });
+    // Validações obrigatórias básicas
+    // Modelo pode vir de modelo_id (dados mestres) ou modelo (legado)
+    const temModeloMestre = modelo_id && modelo_id > 0;
+    const temModeloLegado = modelo && modelo.trim();
+    if (!temModeloMestre && !temModeloLegado) {
+      return res.status(400).json({ 
+        error: 'Modelo é obrigatório',
+        code: 'AQUISICAO_OBRIGATORIA'
+      });
     }
 
-    if (!ano || !ano.trim()) {
-      return res.status(400).json({ error: 'Ano é obrigatório' });
+    // Ano pode vir de ano_modelo (dados mestres) ou ano (legado)
+    const temAnoMestre = ano_modelo && ano_modelo > 0;
+    const temAnoLegado = ano && ano.trim();
+    if (!temAnoMestre && !temAnoLegado) {
+      return res.status(400).json({ 
+        error: 'Ano é obrigatório',
+        code: 'AQUISICAO_OBRIGATORIA'
+      });
+    }
+    
+    // Preparar valores finais
+    const modeloFinal = temModeloMestre ? null : (modelo?.trim() || null);
+    const anoFinal = temAnoMestre ? null : (ano?.trim() || null);
+
+    // Validações de aquisição (OBRIGATÓRIAS)
+    if (!origem_posse || !['zero_km', 'usado'].includes(origem_posse)) {
+      return res.status(400).json({ 
+        error: 'Tipo de aquisição é obrigatório. Informe "zero_km" ou "usado"',
+        code: 'AQUISICAO_OBRIGATORIA'
+      });
+    }
+
+    if (!data_aquisicao) {
+      return res.status(400).json({ 
+        error: 'Data de aquisição é obrigatória',
+        code: 'AQUISICAO_OBRIGATORIA'
+      });
+    }
+
+    // Aceitar km_aquisicao ou km_inicio (compatibilidade)
+    const kmAquisicaoRecebido = km_aquisicao !== undefined ? km_aquisicao : req.body.km_inicio;
+    
+    // Se usado, KM inicial é obrigatório
+    if (origem_posse === 'usado' && (kmAquisicaoRecebido === undefined || kmAquisicaoRecebido === null || parseInt(kmAquisicaoRecebido) < 0)) {
+      return res.status(400).json({ 
+        error: 'KM inicial é obrigatório para veículos usados',
+        code: 'AQUISICAO_OBRIGATORIA'
+      });
+    }
+
+    // Se zero km, KM inicial é 0
+    const kmAquisicaoFinal = origem_posse === 'zero_km' ? 0 : parseInt(kmAquisicaoRecebido) || 0;
+
+    // Validar formato da data de aquisição
+    const dataAquisicaoValida = data_aquisicao && /^\d{4}-\d{2}-\d{2}$/.test(data_aquisicao);
+    if (!dataAquisicaoValida) {
+      return res.status(400).json({ 
+        error: 'Data de aquisição inválida. Use o formato YYYY-MM-DD',
+        code: 'AQUISICAO_OBRIGATORIA'
+      });
+    }
+
+    // Verificar se data não é futura
+    const dataAquisicaoDate = new Date(data_aquisicao);
+    if (isNaN(dataAquisicaoDate.getTime()) || dataAquisicaoDate > new Date()) {
+      return res.status(400).json({ 
+        error: 'Data de aquisição inválida ou futura',
+        code: 'AQUISICAO_OBRIGATORIA'
+      });
+    }
+
+    // Verificar unicidade por PLACA (se fornecido)
+    if (placa && placa.trim()) {
+      const placaLimpa = placa.trim().toUpperCase();
+      
+      const veiculoPorPlaca = await queryOne(
+        'SELECT id, usuario_id FROM veiculos WHERE placa = ?',
+        [placaLimpa]
+      );
+
+      if (veiculoPorPlaca) {
+        const { getProprietarioAtual } = await import('../utils/proprietarioAtual.js');
+        const proprietarioAtual = await getProprietarioAtual(veiculoPorPlaca.id);
+        
+        return res.status(409).json({
+          codigo: 'VEICULO_JA_EXISTE',
+          mensagem: 'Este veículo já existe no sistema (placa duplicada).',
+          veiculo_id: veiculoPorPlaca.id,
+          proprietario_atual_id: proprietarioAtual?.id || null
+        });
+      }
     }
 
     // Verificar unicidade por RENAVAM (se fornecido)
     if (renavam && renavam.trim()) {
       const renavamLimpo = renavam.trim();
       
-      // Buscar veículo existente com o mesmo RENAVAM
-      const veiculoExistente = await queryOne(
+      const veiculoPorRenavam = await queryOne(
         'SELECT id, usuario_id FROM veiculos WHERE renavam = ?',
         [renavamLimpo]
       );
 
-      if (veiculoExistente) {
-        // Buscar proprietário atual do veículo existente
+      if (veiculoPorRenavam) {
         const { getProprietarioAtual } = await import('../utils/proprietarioAtual.js');
-        const proprietarioAtual = await getProprietarioAtual(veiculoExistente.id);
+        const proprietarioAtual = await getProprietarioAtual(veiculoPorRenavam.id);
         
         return res.status(409).json({
           codigo: 'VEICULO_JA_EXISTE',
-          mensagem: 'Este veículo já existe no sistema.',
-          veiculo_id: veiculoExistente.id,
+          mensagem: 'Este veículo já existe no sistema (RENAVAM duplicado).',
+          veiculo_id: veiculoPorRenavam.id,
           proprietario_atual_id: proprietarioAtual?.id || null
         });
       }
     }
 
-    // Inserir veículo (proprietario_id pode ser null)
-    const result = await query(
-      `INSERT INTO veiculos (placa, renavam, proprietario_id, marca, modelo, ano, tipo_veiculo, usuario_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        placa ? placa.trim().toUpperCase() : null,
-        renavam ? renavam.trim() : null,
-        proprietario_id || null,
-        marca ? marca.trim() : null,
-        modelo.trim(),
-        ano.trim(),
-        tipo_veiculo || null,
-        req.userId
-      ]
-    );
+    // Verificar unicidade por CHASSI (se coluna existir e chassi fornecido)
+    if (chassiBody && chassiBody.trim()) {
+      try {
+        const chassiLimpo = chassiBody.trim().toUpperCase();
+        const veiculoPorChassi = await queryOne(
+          'SELECT id, usuario_id FROM veiculos WHERE chassi = ?',
+          [chassiLimpo]
+        );
 
-    const id = result.insertId || null;
+        if (veiculoPorChassi) {
+          const { getProprietarioAtual } = await import('../utils/proprietarioAtual.js');
+          const proprietarioAtual = await getProprietarioAtual(veiculoPorChassi.id);
+          
+          return res.status(409).json({
+            codigo: 'VEICULO_JA_EXISTE',
+            mensagem: 'Este veículo já existe no sistema (chassi duplicado).',
+            veiculo_id: veiculoPorChassi.id,
+            proprietario_atual_id: proprietarioAtual?.id || null
+          });
+        }
+      } catch (chassiError) {
+        // Se coluna chassi não existir, ignorar (não é obrigatória)
+        if (!chassiError.message?.includes('column') && !chassiError.message?.includes('does not exist')) {
+          throw chassiError;
+        }
+      }
+    }
+
+    // Buscar dados do usuário para nome do proprietário
+    const usuario = await queryOne(
+      'SELECT nome, email FROM usuarios WHERE id = ?',
+      [req.userId]
+    );
+    const nomeProprietario = usuario?.nome || usuario?.email || 'Proprietário';
+
+    // Inserir veículo com dados mestres (se disponíveis) ou campos legados
+    // Priorizar dados mestres (fabricante_id, modelo_id, ano_modelo) sobre campos legados
+    let result, id;
+    
+    // Construir query dinamicamente baseado nos dados disponíveis
+    const campos = [];
+    const valores = [];
+    
+    // Campos obrigatórios
+    campos.push('usuario_id');
+    valores.push(req.userId);
+    
+    campos.push('km_atual');
+    valores.push(kmAquisicaoFinal);
+    
+    // Dados mestres (prioridade)
+    if (fabricante_id) {
+      campos.push('fabricante_id');
+      valores.push(fabricante_id);
+    }
+    if (modelo_id) {
+      campos.push('modelo_id');
+      valores.push(modelo_id);
+    }
+    if (ano_modelo) {
+      campos.push('ano_modelo');
+      valores.push(ano_modelo);
+    }
+    if (dados_nao_padronizados !== undefined) {
+      campos.push('dados_nao_padronizados');
+      valores.push(dados_nao_padronizados);
+    }
+    
+    // Campos legados (compatibilidade - apenas se dados mestres não estiverem disponíveis)
+    if (!fabricante_id && marca) {
+      campos.push('marca');
+      valores.push(marca.trim());
+    }
+    if (!modelo_id && modeloFinal) {
+      campos.push('modelo');
+      valores.push(modeloFinal);
+    }
+    if (!ano_modelo && anoFinal) {
+      campos.push('ano');
+      valores.push(anoFinal);
+    }
+    
+    // Campos opcionais
+    if (placa) {
+      campos.push('placa');
+      valores.push(placa.trim().toUpperCase());
+    }
+    if (renavam) {
+      campos.push('renavam');
+      valores.push(renavam.trim());
+    }
+    if (chassiBody && chassiBody.trim()) {
+      campos.push('chassi');
+      valores.push(chassiBody.trim().toUpperCase());
+    }
+    if (proprietario_id) {
+      campos.push('proprietario_id');
+      valores.push(proprietario_id);
+    }
+    if (tipo_veiculo) {
+      campos.push('tipo_veiculo');
+      valores.push(tipo_veiculo);
+    }
+    
+    // Construir query
+    const placeholders = campos.map(() => '?').join(', ');
+    const querySQL = `INSERT INTO veiculos (${campos.join(', ')}) VALUES (${placeholders})`;
+    
+    try {
+      result = await query(querySQL, valores);
+      id = result.insertId || (result.rows?.[0]?.id) || null;
+    } catch (insertError) {
+      // Se coluna não existir (ex: chassi, fabricante_id), tentar sem ela
+      if (insertError.message?.includes('column') || insertError.message?.includes('does not exist')) {
+        // Remover coluna problemática e tentar novamente
+        const colunaProblema = insertError.message.match(/column "?(\w+)"?/i)?.[1];
+        if (colunaProblema && campos.includes(colunaProblema)) {
+          const index = campos.indexOf(colunaProblema);
+          campos.splice(index, 1);
+          valores.splice(index, 1);
+          const placeholdersRetry = campos.map(() => '?').join(', ');
+          const querySQLRetry = `INSERT INTO veiculos (${campos.join(', ')}) VALUES (${placeholdersRetry})`;
+          result = await query(querySQLRetry, valores);
+          id = result.insertId || (result.rows?.[0]?.id) || null;
+        } else {
+          throw insertError;
+        }
+      } else {
+        throw insertError;
+      }
+    }
+
+    // Criar registro em proprietarios_historico
+    const { isPostgres } = await import('../database/db-adapter.js');
+    const timestampFunc = isPostgres() ? 'CURRENT_TIMESTAMP' : "datetime('now')";
+    
+    try {
+      await query(
+        `INSERT INTO proprietarios_historico 
+         (veiculo_id, usuario_id, nome, data_aquisicao, km_aquisicao, data_inicio, km_inicio, origem_posse, criado_em)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ${timestampFunc})`,
+        [
+          id,
+          req.userId,
+          nomeProprietario,
+          data_aquisicao,
+          kmAquisicaoFinal,
+          data_aquisicao,
+          kmAquisicaoFinal,
+          origem_posse
+        ]
+      );
+    } catch (histError) {
+      // Se falhar ao criar histórico, reverter criação do veículo
+      await query('DELETE FROM veiculos WHERE id = ?', [id]);
+      console.error('[ERRO CRÍTICO] Falha ao criar histórico de proprietário:', histError.message);
+      return res.status(500).json({ 
+        error: 'Erro ao criar histórico de proprietário. O veículo não foi cadastrado.' 
+      });
+    }
+
+    // Criar registro inicial em km_historico com data_registro = data_aquisicao
+    try {
+      await query(
+        `INSERT INTO km_historico (veiculo_id, usuario_id, km, origem, data_registro, criado_em) 
+         VALUES (?, ?, ?, 'inicio_posse', ?, ${timestampFunc})`,
+        [id, req.userId, kmAquisicaoFinal, data_aquisicao]
+      );
+    } catch (kmError) {
+      // Se falhar ao criar KM histórico, reverter criação do veículo e histórico de proprietário
+      await query('DELETE FROM proprietarios_historico WHERE veiculo_id = ?', [id]);
+      await query('DELETE FROM veiculos WHERE id = ?', [id]);
+      console.error('[ERRO CRÍTICO] Falha ao criar registro inicial de KM:', kmError.message);
+      return res.status(500).json({ 
+        error: 'Erro ao criar histórico de KM. O veículo não foi cadastrado.',
+        code: 'ERRO_CRIACAO_HISTORICO'
+      });
+    }
 
     return res.json({
       success: true,
@@ -232,6 +494,47 @@ router.get('/totais', authRequired, async (req, res) => {
     }
 });
 
+// OCR de documento do veículo (stub/placeholder) - DEVE VIR ANTES DE /:id
+router.post('/ocr-documento', authRequired, upload.single('imagem'), async (req, res) => {
+  try {
+    const file = req.file;
+    
+    if (!file) {
+      return res.status(400).json({ 
+        error: 'Imagem do documento é obrigatória',
+        code: 'IMAGEM_REQUIRED'
+      });
+    }
+
+    // Stub: OCR de documento ainda não implementado
+    // Aceita a requisição mas retorna dados simulados para integração futura
+    // Não bloqueia o fluxo se OCR falhar
+    res.json({
+      success: false,
+      dados: {
+        placa: null,
+        renavam: null,
+        chassi: null,
+        marca: null,
+        modelo: null,
+        ano: null,
+        km_atual: null
+      },
+      mensagem: 'OCR de documento ainda não implementado. Por favor, preencha os dados manualmente.',
+      codigo: 'OCR_NAO_IMPLEMENTADO'
+    });
+  } catch (error) {
+    console.error('Erro no OCR de documento (stub):', error);
+    // Não bloquear fluxo - retornar resposta amigável
+    res.json({
+      success: false,
+      dados: null,
+      mensagem: 'Não foi possível processar o documento. Por favor, preencha os dados manualmente.',
+      codigo: 'OCR_ERRO'
+    });
+  }
+});
+
 // OCR de KM (stub/placeholder) - DEVE VIR ANTES DE /:id
 router.post('/ocr-km', authRequired, upload.single('imagem'), async (req, res) => {
   try {
@@ -279,6 +582,42 @@ router.put('/:id/km', authRequired, async (req, res) => {
       return res.status(403).json({ error: 'Veículo não encontrado ou não pertence ao usuário' });
     }
 
+    // Validar que existe proprietário atual válido
+    // Aceitar data_inicio/km_inicio OU data_aquisicao/km_aquisicao (compatibilidade)
+    const { getProprietarioAtual } = await import('../utils/proprietarioAtual.js');
+    const proprietarioAtual = await getProprietarioAtual(id);
+    
+    if (!proprietarioAtual) {
+      console.error('[PUT /veiculos/:id/km] Veículo sem proprietário atual:', id);
+      return res.status(400).json({ 
+        error: 'Não é possível atualizar KM. O veículo não possui um período de posse válido. Por favor, edite o veículo e configure a data de aquisição e KM inicial.',
+        code: 'PERIODO_POSSE_INVALIDO'
+      });
+    }
+    
+    // Verificar se tem data e KM válidos (aceitar data_inicio/km_inicio OU data_aquisicao/km_aquisicao)
+    const temData = proprietarioAtual.data_inicio || proprietarioAtual.data_aquisicao;
+    const temKm = (proprietarioAtual.km_inicio !== null && proprietarioAtual.km_inicio !== undefined) ||
+                  (proprietarioAtual.km_aquisicao !== null && proprietarioAtual.km_aquisicao !== undefined);
+    
+    if (!temData || !temKm) {
+      console.error('[PUT /veiculos/:id/km] Período de posse incompleto:', {
+        veiculoId: id,
+        temData,
+        temKm,
+        proprietarioAtual: {
+          data_inicio: proprietarioAtual.data_inicio,
+          data_aquisicao: proprietarioAtual.data_aquisicao,
+          km_inicio: proprietarioAtual.km_inicio,
+          km_aquisicao: proprietarioAtual.km_aquisicao
+        }
+      });
+      return res.status(400).json({ 
+        error: 'Não é possível atualizar KM. O veículo não possui um período de posse válido. Por favor, edite o veículo e configure a data de aquisição e KM inicial.',
+        code: 'PERIODO_POSSE_INVALIDO'
+      });
+    }
+
     // Verificar se o KM não é menor que o anterior (opcional, mas recomendado)
     if (veiculo.km_atual && kmNum < parseInt(veiculo.km_atual)) {
       return res.status(400).json({ 
@@ -288,12 +627,13 @@ router.put('/:id/km', authRequired, async (req, res) => {
 
     // GARANTIA DE CONSISTÊNCIA: Sempre salvar no histórico ANTES de atualizar veiculos.km_atual
     // Se falhar salvar no histórico, NÃO atualizar km_atual (garantir integridade)
+    // IMPORTANTE: origem nunca pode ser NULL ou vazio
     try {
       const timestampFunc = isPostgres() ? 'CURRENT_TIMESTAMP' : "datetime('now')";
       await query(
         `INSERT INTO km_historico (veiculo_id, usuario_id, km, origem, data_registro, criado_em) 
          VALUES (?, ?, ?, ?, ${timestampFunc}, ${timestampFunc})`,
-        [id, userId, kmNum, origemFinal]
+        [id, userId, kmNum, origemFinal || 'manual']
       );
       
       // Só atualizar km_atual se o histórico foi salvo com sucesso
@@ -410,20 +750,35 @@ router.post('/:id/transferir', authRequired, async (req, res) => {
       );
 
       // 2. Criar novo registro de proprietário para o novo usuário
-      await query(
-        `INSERT INTO proprietarios_historico 
-         (veiculo_id, usuario_id, nome, data_aquisicao, km_aquisicao, data_venda, km_venda)
-         VALUES (?, ?, ?, ?, ?, NULL, NULL)`,
-        [id, novoUsuarioIdNum, novoUsuario.nome || novoUsuario.email || 'Novo Proprietário', hoje, kmAtualNum]
-      );
+      // Usar data_inicio, km_inicio e origem_posse (se colunas existirem)
+      try {
+        await query(
+          `INSERT INTO proprietarios_historico 
+           (veiculo_id, usuario_id, nome, data_aquisicao, km_aquisicao, data_inicio, km_inicio, origem_posse, data_venda, km_venda)
+           VALUES (?, ?, ?, ?, ?, ?, ?, 'transferencia', NULL, NULL)`,
+          [id, novoUsuarioIdNum, novoUsuario.nome || novoUsuario.email || 'Novo Proprietário', hoje, kmAtualNum, hoje, kmAtualNum]
+        );
+      } catch (insertError) {
+        // Se falhar (colunas novas podem não existir), tentar versão antiga
+        if (insertError.message?.includes('data_inicio') || insertError.message?.includes('km_inicio') || insertError.message?.includes('origem_posse')) {
+          await query(
+            `INSERT INTO proprietarios_historico 
+             (veiculo_id, usuario_id, nome, data_aquisicao, km_aquisicao, data_venda, km_venda)
+             VALUES (?, ?, ?, ?, ?, NULL, NULL)`,
+            [id, novoUsuarioIdNum, novoUsuario.nome || novoUsuario.email || 'Novo Proprietário', hoje, kmAtualNum]
+          );
+        } else {
+          throw insertError;
+        }
+      }
 
       // 3. Registrar KM no histórico PRIMEIRO (garantir consistência)
       try {
         const timestampFunc = isPostgres() ? 'CURRENT_TIMESTAMP' : "datetime('now')";
         await query(
           `INSERT INTO km_historico (veiculo_id, usuario_id, km, origem, data_registro, criado_em) 
-           VALUES (?, ?, ?, ?, ${timestampFunc}, ${timestampFunc})`,
-          [id, novoUsuarioIdNum, kmAtualNum, 'manual']
+           VALUES (?, ?, ?, 'transferencia', ${timestampFunc}, ${timestampFunc})`,
+          [id, novoUsuarioIdNum, kmAtualNum]
         );
       } catch (histError) {
         // Se falhar ao salvar no histórico, não continuar com a transferência
@@ -1113,12 +1468,13 @@ router.post('/:id/atualizar-km', authRequired, upload.single('painel'), async (r
 
     // GARANTIA DE CONSISTÊNCIA: Sempre salvar no histórico ANTES de atualizar veiculos.km_atual
     // Se falhar salvar no histórico, NÃO atualizar km_atual (garantir integridade)
+    // IMPORTANTE: origem nunca pode ser NULL ou vazio
     try {
       const timestampFunc = isPostgres() ? 'CURRENT_TIMESTAMP' : "datetime('now')";
       await query(
         `INSERT INTO km_historico (veiculo_id, usuario_id, km, origem, data_registro, criado_em) 
-         VALUES (?, ?, ?, ?, ${timestampFunc}, ${timestampFunc})`,
-        [veiculoId, userId, kmExtraido, 'ocr']
+         VALUES (?, ?, ?, 'ocr', ${timestampFunc}, ${timestampFunc})`,
+        [veiculoId, userId, kmExtraido]
       );
       
       // Só atualizar km_atual se o histórico foi salvo com sucesso
@@ -1259,5 +1615,101 @@ router.put('/:id', authRequired, async (req, res) => {
     res.status(500).json({ error: 'Erro ao atualizar veículo' });
   }
 });
+
+// ============================================
+// ENDPOINTS DE DADOS MESTRES (Fabricantes/Modelos)
+// ============================================
+
+/**
+ * GET /fabricantes
+ * Lista todos os fabricantes ativos
+ */
+router.get('/fabricantes', authRequired, async (req, res) => {
+  try {
+    const fabricantes = await queryAll(
+      'SELECT id, nome FROM fabricantes WHERE ativo = true ORDER BY nome ASC'
+    );
+    res.json(fabricantes || []);
+  } catch (error) {
+    console.error('Erro ao listar fabricantes:', error);
+    // Se tabela não existir, retornar array vazio (compatibilidade)
+    if (error.message?.includes('does not exist') || error.message?.includes('não existe')) {
+      return res.json([]);
+    }
+    res.status(500).json({ error: 'Erro ao listar fabricantes' });
+  }
+});
+
+/**
+ * GET /fabricantes/:id/modelos
+ * Lista modelos de um fabricante específico
+ */
+router.get('/fabricantes/:id/modelos', authRequired, async (req, res) => {
+  try {
+    const { id: fabricanteId } = req.params;
+    const modelos = await queryAll(
+      'SELECT id, nome, ano_inicio, ano_fim FROM modelos WHERE fabricante_id = ? AND ativo = true ORDER BY nome ASC',
+      [fabricanteId]
+    );
+    res.json(modelos || []);
+  } catch (error) {
+    console.error('Erro ao listar modelos:', error);
+    if (error.message?.includes('does not exist') || error.message?.includes('não existe')) {
+      return res.json([]);
+    }
+    res.status(500).json({ error: 'Erro ao listar modelos' });
+  }
+});
+
+/**
+ * GET /modelos/:id/anos
+ * Retorna intervalo de anos válidos para um modelo
+ */
+router.get('/modelos/:id/anos', authRequired, async (req, res) => {
+  try {
+    const { id: modeloId } = req.params;
+    const modelo = await queryOne(
+      'SELECT ano_inicio, ano_fim FROM modelos WHERE id = ?',
+      [modeloId]
+    );
+    
+    if (!modelo) {
+      return res.status(404).json({ error: 'Modelo não encontrado' });
+    }
+    
+    const anos = [];
+    const inicio = modelo.ano_inicio || 1980;
+    const fim = modelo.ano_fim || new Date().getFullYear() + 1;
+    
+    for (let ano = inicio; ano <= fim; ano++) {
+      anos.push(ano);
+    }
+    
+    res.json(anos);
+  } catch (error) {
+    console.error('Erro ao buscar anos do modelo:', error);
+    res.status(500).json({ error: 'Erro ao buscar anos do modelo' });
+  }
+});
+
+// ============================================
+// TODO: ENDPOINTS PARA OCR E IA (FUTURO)
+// ============================================
+/*
+ * POST /veiculos/ocr-documento
+ * Processa OCR de documento do veículo (CRLV)
+ * Retorna: placa, renavam, fabricante, modelo, ano
+ * 
+ * TODO: Implementar integração com OpenAI Vision API ou serviço similar
+ * TODO: Validar dados extraídos contra dados mestres
+ * TODO: Marcar origem_dados = 'ocr'
+ */
+
+/*
+ * POST /veiculos/ocr-cnh
+ * Processa OCR de CNH para extrair dados do proprietário
+ * 
+ * TODO: Implementar quando necessário
+ */
 
 export default router;
