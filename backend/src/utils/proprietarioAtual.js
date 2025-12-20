@@ -81,9 +81,14 @@ export async function getProprietarioAtual(veiculoId) {
     }
     
     // Data de aquisição: usar criado_em do veículo ou data atual
-    const dataAquisicao = veiculo.criado_em 
-      ? new Date(veiculo.criado_em).toISOString().split('T')[0]
-      : new Date().toISOString().split('T')[0];
+    // Garantir que nunca seja string vazia
+    let dataAquisicao = new Date().toISOString().split('T')[0];
+    if (veiculo.criado_em) {
+      const dataObj = new Date(veiculo.criado_em);
+      if (!isNaN(dataObj.getTime())) {
+        dataAquisicao = dataObj.toISOString().split('T')[0];
+      }
+    }
     
     // Verificar se já existe algum registro (evitar duplicados)
     const existeRegistro = await queryOne(
