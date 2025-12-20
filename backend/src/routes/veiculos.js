@@ -52,13 +52,17 @@ router.post('/', authRequired, async (req, res) => {
       tipo_veiculo,
       origem_posse, // 'zero_km' ou 'usado'
       data_aquisicao, // Data de aquisição (obrigatória) - formato YYYY-MM-DD
-      km_aquisicao, // KM inicial (obrigatório) - aceita km_inicio para compatibilidade
+      km_aquisicao, // KM inicial (obrigatório apenas para métrica km) - aceita km_inicio para compatibilidade
+      km_inicial, // KM inicial (novo formato)
+      horas_inicial, // Horas iniciais (para métrica horas)
       // Dados mestres (opcionais)
       fabricante_id,
       modelo_id,
       ano_modelo,
       dados_nao_padronizados,
-      origem_dados // 'manual' | 'ocr'
+      origem_dados, // 'manual' | 'ocr'
+      documento_url, // URL do documento (PDF/foto)
+      documento_pendente_ocr // Flag indicando se OCR está pendente
     } = req.body;
 
     // Validações obrigatórias básicas
@@ -101,19 +105,56 @@ router.post('/', authRequired, async (req, res) => {
       });
     }
 
-    // Aceitar km_aquisicao ou km_inicio (compatibilidade)
-    const kmAquisicaoRecebido = km_aquisicao !== undefined ? km_aquisicao : req.body.km_inicio;
-    
-    // Se usado, KM inicial é obrigatório
-    if (origem_posse === 'usado' && (kmAquisicaoRecebido === undefined || kmAquisicaoRecebido === null || parseInt(kmAquisicaoRecebido) < 0)) {
-      return res.status(400).json({ 
-        error: 'KM inicial é obrigatório para veículos usados',
-        code: 'AQUISICAO_OBRIGATORIA'
-      });
+    // Determinar valor inicial baseado na métrica
+    let valorInicial = null;
+    let valorInicialParaHistorico = null;
+
+    if (metrica === 'km') {
+      // Aceitar km_aquisicao, km_inicial ou km_inicio (compatibilidade)
+      const kmRecebido = km_inicial !== undefined ? km_inicial : (km_aquisicao !== undefined ? km_aquisicao : req.body.km_inicio);
+      
+      if (origem_posse === 'zero_km') {
+        valorInicial = 0;
+        valorInicialParaHistorico = 0;
+      } else if (origem_posse === 'usado') {
+        if (kmRecebido === undefined || kmRecebido === null || parseInt(kmRecebido) < 0) {
+          return res.status(400).json({ 
+            error: 'Quilometragem inicial é obrigatória para equipamentos usados',
+            code: 'AQUISICAO_OBRIGATORIA'
+          });
+        }
+        valorInicial = parseInt(kmRecebido);
+        valorInicialParaHistorico = valorInicial;
+      }
+    } else if (metrica === 'horas') {
+      // Para horas, aceitar horas_inicial (prioridade) ou km_aquisicao (compatibilidade)
+      if (origem_posse === 'zero_km') {
+        valorInicial = 0;
+        valorInicialParaHistorico = 0;
+      } else if (origem_posse === 'usado') {
+        // Priorizar horas_inicial, mas aceitar km_aquisicao como fallback
+        const horasRecebidas = horas_inicial !== undefined ? horas_inicial : (km_aquisicao !== undefined ? km_aquisicao : null);
+        
+        if (horasRecebidas === undefined || horasRecebidas === null || parseInt(horasRecebidas) < 0) {
+          return res.status(400).json({ 
+            error: 'Horas iniciais são obrigatórias para equipamentos usados',
+            code: 'AQUISICAO_OBRIGATORIA'
+          });
+        }
+        valorInicial = parseInt(horasRecebidas);
+        valorInicialParaHistorico = valorInicial;
+      }
+    } else if (metrica === 'configuravel') {
+      // Para tipo "outro", não exigir valor inicial
+      // Histórico será criado manualmente depois
+      valorInicial = null;
+      valorInicialParaHistorico = null;
     }
 
-    // Se zero km, KM inicial é 0
-    const kmAquisicaoFinal = origem_posse === 'zero_km' ? 0 : parseInt(kmAquisicaoRecebido) || 0;
+    // Para compatibilidade com código existente, manter kmAquisicaoFinal
+    // mas usar valorInicialParaHistorico quando disponível
+    // Para tipo "outro" (configuravel), permitir null
+    const kmAquisicaoFinal = valorInicialParaHistorico !== null ? valorInicialParaHistorico : (origem_posse === 'zero_km' ? 0 : (metrica === 'configuravel' ? null : 0));
 
     // Validar formato da data de aquisição
     const dataAquisicaoValida = data_aquisicao && /^\d{4}-\d{2}-\d{2}$/.test(data_aquisicao);
@@ -133,12 +174,90 @@ router.post('/', authRequired, async (req, res) => {
       });
     }
 
+    // Validações de tipo_equipamento (OBRIGATÓRIAS)
+    if (!tipo_veiculo) {
+      return res.status(400).json({ 
+        error: 'Tipo de equipamento é obrigatório',
+        code: 'TIPO_EQUIPAMENTO_OBRIGATORIO'
+      });
+    }
+
+    // Validar tipo_equipamento válido e determinar métrica
+    const { isTipoValido, getMetricaPorTipo } = await import('../utils/tipoEquipamento.js');
+    if (!isTipoValido(tipo_veiculo)) {
+      return res.status(400).json({ 
+        error: 'Tipo de equipamento inválido',
+        code: 'TIPO_EQUIPAMENTO_INVALIDO'
+      });
+    }
+
+    // Determinar métrica baseada no tipo de equipamento
+    const metrica = getMetricaPorTipo(tipo_veiculo);
+
+    // Se usar dados mestres, validar compatibilidade de tipo
+    if (fabricante_id) {
+      const fabricante = await queryOne(
+        'SELECT id, nome, tipo_equipamento FROM fabricantes WHERE id = $1',
+        [fabricante_id]
+      );
+      
+      if (!fabricante) {
+        return res.status(400).json({ 
+          error: 'Fabricante não encontrado',
+          code: 'FABRICANTE_NAO_ENCONTRADO'
+        });
+      }
+      
+      // Validar compatibilidade: fabricante deve ter o tipo informado
+      if (fabricante.tipo_equipamento && fabricante.tipo_equipamento !== tipo_veiculo) {
+        return res.status(400).json({ 
+          error: 'Fabricante incompatível com o tipo de equipamento informado',
+          fabricante_tipo: fabricante.tipo_equipamento,
+          tipo_solicitado: tipo_veiculo,
+          code: 'FABRICANTE_INCOMPATIVEL'
+        });
+      }
+    }
+
+    // Se usar dados mestres, validar compatibilidade de modelo
+    if (modelo_id) {
+      const modelo = await queryOne(
+        'SELECT id, nome, tipo_equipamento, fabricante_id FROM modelos WHERE id = $1',
+        [modelo_id]
+      );
+      
+      if (!modelo) {
+        return res.status(400).json({ 
+          error: 'Modelo não encontrado',
+          code: 'MODELO_NAO_ENCONTRADO'
+        });
+      }
+      
+      // Validar compatibilidade: modelo deve ter o tipo informado
+      if (modelo.tipo_equipamento && modelo.tipo_equipamento !== tipo_veiculo) {
+        return res.status(400).json({ 
+          error: 'Modelo incompatível com o tipo de equipamento informado',
+          modelo_tipo: modelo.tipo_equipamento,
+          tipo_solicitado: tipo_veiculo,
+          code: 'MODELO_INCOMPATIVEL'
+        });
+      }
+      
+      // Validar que modelo pertence ao fabricante (se ambos foram informados)
+      if (fabricante_id && modelo.fabricante_id !== fabricante_id) {
+        return res.status(400).json({ 
+          error: 'Modelo não pertence ao fabricante informado',
+          code: 'MODELO_FABRICANTE_INCOMPATIVEL'
+        });
+      }
+    }
+
     // Verificar unicidade por PLACA (se fornecido)
     if (placa && placa.trim()) {
       const placaLimpa = placa.trim().toUpperCase();
       
       const veiculoPorPlaca = await queryOne(
-        'SELECT id, usuario_id FROM veiculos WHERE placa = ?',
+        'SELECT id, usuario_id FROM veiculos WHERE placa = $1',
         [placaLimpa]
       );
 
@@ -160,7 +279,7 @@ router.post('/', authRequired, async (req, res) => {
       const renavamLimpo = renavam.trim();
       
       const veiculoPorRenavam = await queryOne(
-        'SELECT id, usuario_id FROM veiculos WHERE renavam = ?',
+        'SELECT id, usuario_id FROM veiculos WHERE renavam = $1',
         [renavamLimpo]
       );
 
@@ -182,7 +301,7 @@ router.post('/', authRequired, async (req, res) => {
       try {
         const chassiLimpo = chassiBody.trim().toUpperCase();
         const veiculoPorChassi = await queryOne(
-          'SELECT id, usuario_id FROM veiculos WHERE chassi = ?',
+          'SELECT id, usuario_id FROM veiculos WHERE chassi = $1',
           [chassiLimpo]
         );
 
@@ -207,7 +326,7 @@ router.post('/', authRequired, async (req, res) => {
 
     // Buscar dados do usuário para nome do proprietário
     const usuario = await queryOne(
-      'SELECT nome, email FROM usuarios WHERE id = ?',
+      'SELECT nome, email FROM usuarios WHERE id = $1',
       [req.userId]
     );
     const nomeProprietario = usuario?.nome || usuario?.email || 'Proprietário';
@@ -280,6 +399,18 @@ router.post('/', authRequired, async (req, res) => {
       campos.push('tipo_veiculo');
       valores.push(tipo_veiculo);
     }
+    if (origem_dados) {
+      campos.push('origem_dados');
+      valores.push(origem_dados);
+    }
+    if (documento_url) {
+      campos.push('documento_url');
+      valores.push(documento_url);
+    }
+    if (documento_pendente_ocr !== undefined) {
+      campos.push('documento_pendente_ocr');
+      valores.push(documento_pendente_ocr);
+    }
     
     // Construir query
     const placeholders = campos.map(() => '?').join(', ');
@@ -314,6 +445,9 @@ router.post('/', authRequired, async (req, res) => {
     const timestampFunc = isPostgres() ? 'CURRENT_TIMESTAMP' : "datetime('now')";
     
     try {
+      // Usar valorInicialParaHistorico (pode ser null para tipo "outro")
+      const valorParaProprietario = valorInicialParaHistorico !== null ? valorInicialParaHistorico : (origem_posse === 'zero_km' ? 0 : null);
+      
       await query(
         `INSERT INTO proprietarios_historico 
          (veiculo_id, usuario_id, nome, data_aquisicao, km_aquisicao, data_inicio, km_inicio, origem_posse, criado_em)
@@ -323,9 +457,9 @@ router.post('/', authRequired, async (req, res) => {
           req.userId,
           nomeProprietario,
           data_aquisicao,
-          kmAquisicaoFinal,
+          valorParaProprietario,
           data_aquisicao,
-          kmAquisicaoFinal,
+          valorParaProprietario,
           origem_posse
         ]
       );
@@ -333,27 +467,36 @@ router.post('/', authRequired, async (req, res) => {
       // Se falhar ao criar histórico, reverter criação do veículo
       await query('DELETE FROM veiculos WHERE id = ?', [id]);
       console.error('[ERRO CRÍTICO] Falha ao criar histórico de proprietário:', histError.message);
+      console.error('[ERRO CRÍTICO] Stack:', histError.stack);
       return res.status(500).json({ 
         error: 'Erro ao criar histórico de proprietário. O veículo não foi cadastrado.' 
       });
     }
 
-    // Criar registro inicial em km_historico com data_registro = data_aquisicao
-    try {
-      await query(
-        `INSERT INTO km_historico (veiculo_id, usuario_id, km, origem, data_registro, criado_em) 
-         VALUES (?, ?, ?, 'inicio_posse', ?, ${timestampFunc})`,
-        [id, req.userId, kmAquisicaoFinal, data_aquisicao]
-      );
-    } catch (kmError) {
-      // Se falhar ao criar KM histórico, reverter criação do veículo e histórico de proprietário
-      await query('DELETE FROM proprietarios_historico WHERE veiculo_id = ?', [id]);
-      await query('DELETE FROM veiculos WHERE id = ?', [id]);
-      console.error('[ERRO CRÍTICO] Falha ao criar registro inicial de KM:', kmError.message);
-      return res.status(500).json({ 
-        error: 'Erro ao criar histórico de KM. O veículo não foi cadastrado.',
-        code: 'ERRO_CRIACAO_HISTORICO'
-      });
+    // Criar registro inicial em km_historico apenas se métrica não for "configuravel"
+    // e se houver valor inicial válido
+    if (metrica !== 'configuravel' && valorInicialParaHistorico !== null) {
+      try {
+        await query(
+          `INSERT INTO km_historico (veiculo_id, usuario_id, km, origem, data_registro, criado_em) 
+           VALUES (?, ?, ?, 'inicio_posse', ?, ${timestampFunc})`,
+          [id, req.userId, valorInicialParaHistorico, data_aquisicao]
+        );
+      } catch (kmError) {
+        // Se falhar ao criar histórico, reverter criação do veículo e histórico de proprietário
+        await query('DELETE FROM proprietarios_historico WHERE veiculo_id = ?', [id]);
+        await query('DELETE FROM veiculos WHERE id = ?', [id]);
+        console.error('[ERRO CRÍTICO] Falha ao criar registro inicial de histórico:', kmError.message);
+        console.error('[ERRO CRÍTICO] Stack:', kmError.stack);
+        return res.status(500).json({ 
+          error: 'Erro ao criar histórico inicial. O veículo não foi cadastrado.',
+          code: 'ERRO_CRIACAO_HISTORICO'
+        });
+      }
+    } else if (metrica === 'configuravel') {
+      // Para tipo "outro", não criar histórico automático
+      // Histórico será criado manualmente pelo usuário depois
+      console.log(`[VEICULO] Tipo "outro" - histórico inicial não será criado automaticamente para veículo ${id}`);
     }
 
     return res.json({
