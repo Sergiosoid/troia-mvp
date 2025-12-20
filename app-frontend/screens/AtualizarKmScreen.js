@@ -25,8 +25,9 @@ import CameraButton from '../components/CameraButton';
 import HeaderBar from '../components/HeaderBar';
 import ModalPeriodoPosseInvalido from '../components/ModalPeriodoPosseInvalido';
 import { commonStyles } from '../constants/styles';
-import { buscarVeiculoPorId, processarOcrKm, atualizarKm, buscarDiagnosticoVeiculo } from '../services/api';
+import { buscarVeiculoPorId, processarOcrKm, atualizarKm, buscarDiagnosticoVeiculo, listarHistoricoKm } from '../services/api';
 import { getErrorMessage, getSuccessMessage } from '../utils/errorMessages';
+import { getMetricaPorTipo, formatarValorComUnidade } from '../utils/tipoEquipamento';
 
 export default function AtualizarKmScreen({ navigation, route }) {
   const { veiculoId: veiculoIdParam } = route?.params || {};
@@ -40,6 +41,9 @@ export default function AtualizarKmScreen({ navigation, route }) {
   const [carregandoVeiculo, setCarregandoVeiculo] = useState(false);
   const [kmVeioDoOcr, setKmVeioDoOcr] = useState(false);
   const [mostrarModalPeriodoInvalido, setMostrarModalPeriodoInvalido] = useState(false);
+  const [ultimoRegistro, setUltimoRegistro] = useState(null);
+  const [dataRegistro, setDataRegistro] = useState(new Date());
+  const [observacao, setObservacao] = useState('');
 
   useEffect(() => {
     if (veiculoId) {
@@ -58,6 +62,23 @@ export default function AtualizarKmScreen({ navigation, route }) {
         if (dados.km_atual) {
           setKmAtual(dados.km_atual.toString());
         }
+      }
+      
+      // Buscar histórico para pegar o último registro
+      try {
+        const historico = await listarHistoricoKm(veiculoId);
+        if (historico && historico.length > 0) {
+          // Ordenar por data_registro (mais recente primeiro)
+          const historicoOrdenado = [...historico].sort((a, b) => {
+            const dataA = new Date(a.data_registro || a.criado_em);
+            const dataB = new Date(b.data_registro || b.criado_em);
+            return dataB - dataA;
+          });
+          setUltimoRegistro(historicoOrdenado[0]);
+        }
+      } catch (histError) {
+        console.warn('Erro ao carregar histórico (não crítico):', histError);
+        // Não bloquear a tela se não conseguir carregar histórico
       }
     } catch (error) {
       console.error('Erro ao carregar veículo:', error);
@@ -86,19 +107,22 @@ export default function AtualizarKmScreen({ navigation, route }) {
 
       if (res && res.success && res.km) {
         setKmAtual(res.km.toString());
-        setKmVeioDoOcr(true); // Marcar que o KM veio do OCR
-        Alert.alert('Sucesso', `KM detectado: ${res.km}`);
+        setKmVeioDoOcr(true); // Marcar que o valor veio do OCR
+        const metrica = getMetricaPorTipo(veiculo?.tipo_veiculo || 'carro');
+        Alert.alert('Sucesso', `${metrica.label} detectado: ${res.km}`);
       } else {
+        const metrica = getMetricaPorTipo(veiculo?.tipo_veiculo || 'carro');
         Alert.alert(
           'Aviso',
-          res?.error || 'Não foi possível detectar o KM na imagem. Você pode inserir manualmente.'
+          res?.error || `Não foi possível detectar o ${metrica.labelLong.toLowerCase()} na imagem. Você pode inserir manualmente.`
         );
       }
     } catch (error) {
       console.error('Erro ao processar OCR:', error);
+      const metrica = getMetricaPorTipo(veiculo?.tipo_veiculo || 'carro');
       Alert.alert(
         'Aviso',
-        'Não foi possível extrair o KM da imagem automaticamente. Você pode preencher manualmente.'
+        `Não foi possível extrair o ${metrica.labelLong.toLowerCase()} da imagem automaticamente. Você pode preencher manualmente.`
       );
     } finally {
       setProcessandoOcr(false);
@@ -182,23 +206,37 @@ export default function AtualizarKmScreen({ navigation, route }) {
       return;
     }
 
-    const km = parseInt(kmAtual.replace(/\D/g, ''));
-    if (!km || km <= 0) {
-      Alert.alert('Atenção', 'Informe um KM válido');
+    const novoValor = parseInt(kmAtual.replace(/\D/g, ''));
+    const metrica = getMetricaPorTipo(veiculo?.tipo_veiculo || 'carro');
+    if (!novoValor || novoValor <= 0) {
+      Alert.alert('Atenção', `Informe um ${metrica.labelLong.toLowerCase()} válido`);
       return;
+    }
+
+    // Validar que novo valor seja maior que o último registro
+    if (ultimoRegistro && ultimoRegistro.km) {
+      const ultimoValor = parseInt(ultimoRegistro.km);
+      if (novoValor <= ultimoValor) {
+        Alert.alert(
+          'Valor inválido',
+          `O novo valor deve ser maior que o último registro (${formatarValorComUnidade(ultimoValor, veiculo?.tipo_veiculo || 'carro')}).`
+        );
+        return;
+      }
     }
 
     setLoading(true);
     try {
       // Usar origem 'ocr' se o KM veio do OCR, senão 'manual'
       const origem = kmVeioDoOcr ? 'ocr' : 'manual';
-      const res = await atualizarKm(veiculoId, km, origem);
+      const res = await atualizarKm(veiculoId, novoValor, origem);
       
       // Resetar flag após salvar
       setKmVeioDoOcr(false);
 
       if (res && res.success) {
-        Alert.alert('Sucesso', res.mensagem || 'KM atualizado com sucesso!', [
+        const metrica = getMetricaPorTipo(veiculo?.tipo_veiculo || 'carro');
+        Alert.alert('Sucesso', res.mensagem || `${metrica.labelLong} atualizado com sucesso!`, [
           {
             text: 'OK',
             onPress: () => navigation.goBack(),
@@ -222,11 +260,17 @@ export default function AtualizarKmScreen({ navigation, route }) {
     }
   };
 
+  // Obter métrica baseada no tipo do equipamento (fallback para 'carro' se não houver tipo)
+  const getMetrica = () => {
+    const tipo = veiculo?.tipo_veiculo || 'carro';
+    return getMetricaPorTipo(tipo);
+  };
+
   // Se não tem veículo selecionado, mostrar tela de escolha
   if (!veiculoId) {
     return (
       <View style={commonStyles.container}>
-        <HeaderBar title="Atualizar KM" navigation={navigation} />
+        <HeaderBar title={`Atualizar ${getMetrica().labelLong}`} navigation={navigation} />
         <ScrollView style={commonStyles.scrollContainer} contentContainerStyle={styles.content}>
           <Text style={commonStyles.label}>Selecione o veículo</Text>
           <ActionButton
@@ -244,7 +288,7 @@ export default function AtualizarKmScreen({ navigation, route }) {
   if (carregandoVeiculo) {
     return (
       <View style={commonStyles.container}>
-        <HeaderBar title="Atualizar KM" navigation={navigation} />
+        <HeaderBar title={`Atualizar ${getMetrica().labelLong}`} navigation={navigation} />
         <View style={commonStyles.loadingContainer}>
           <ActivityIndicator size="large" color="#4CAF50" />
           <Text style={commonStyles.loadingText}>Carregando veículo...</Text>
@@ -258,7 +302,7 @@ export default function AtualizarKmScreen({ navigation, route }) {
       style={commonStyles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <HeaderBar title="Atualizar KM" navigation={navigation} />
+      <HeaderBar title={`Atualizar ${getMetrica().labelLong}`} navigation={navigation} />
       <ScrollView
         style={commonStyles.scrollContainer}
         contentContainerStyle={styles.content}
@@ -271,11 +315,23 @@ export default function AtualizarKmScreen({ navigation, route }) {
             <Text style={styles.veiculoInfo}>
               {veiculo.placa} - {veiculo.modelo || 'Sem modelo'}
             </Text>
-            {veiculo.km_atual && (
-              <Text style={styles.kmAtualInfo}>
-                KM Atual: {veiculo.km_atual.toLocaleString('pt-BR')}
+          </View>
+        )}
+
+        {/* Último Registro do Histórico */}
+        {ultimoRegistro && (
+          <View style={[commonStyles.card, styles.ultimoRegistroCard]}>
+            <Text style={commonStyles.label}>Último registro</Text>
+            <View style={styles.ultimoRegistroInfo}>
+              <Text style={styles.ultimoRegistroText}>
+                • Valor: {formatarValorComUnidade(ultimoRegistro.km, veiculo?.tipo_veiculo || 'carro')}
               </Text>
-            )}
+              {ultimoRegistro.data_registro && (
+                <Text style={styles.ultimoRegistroText}>
+                  • Data: {new Date(ultimoRegistro.data_registro).toLocaleDateString('pt-BR')}
+                </Text>
+              )}
+            </View>
           </View>
         )}
 
@@ -325,14 +381,14 @@ export default function AtualizarKmScreen({ navigation, route }) {
           )}
         </View>
 
-        {/* Seção: KM */}
+        {/* Seção: Valor (KM ou Horas) */}
         <View style={commonStyles.card}>
-          <Text style={commonStyles.label}>Quilometragem *</Text>
+          <Text style={commonStyles.label}>{getMetrica().labelLong} *</Text>
           <View style={commonStyles.inputContainer}>
-            <Ionicons name="speedometer-outline" size={20} color="#666" style={commonStyles.inputIcon} />
+            <Ionicons name={getMetrica().icon} size={20} color="#666" style={commonStyles.inputIcon} />
             <TextInput
               style={commonStyles.input}
-              placeholder="Ex: 50000"
+              placeholder={`Ex: ${getMetrica().key === 'horas' ? '320' : '50000'}`}
               placeholderTextColor="#999"
               value={kmAtual}
               onChangeText={(text) => setKmAtual(text.replace(/\D/g, ''))}
@@ -343,7 +399,7 @@ export default function AtualizarKmScreen({ navigation, route }) {
           <Text style={styles.hint}>
             {processandoOcr
               ? 'Processando imagem...'
-              : 'Insira o KM manualmente ou tire uma foto do painel'}
+              : `Insira o ${getMetrica().labelLong.toLowerCase()} manualmente ou tire uma foto do painel`}
           </Text>
         </View>
 
@@ -463,6 +519,23 @@ const styles = StyleSheet.create({
   },
   confirmButton: {
     marginTop: 24,
+  },
+  ultimoRegistroCard: {
+    backgroundColor: '#f0f7ff',
+    borderLeftWidth: 4,
+    borderLeftColor: '#2196F3',
+  },
+  ultimoRegistroInfo: {
+    marginTop: 8,
+  },
+  ultimoRegistroText: {
+    fontSize: 14,
+    color: commonStyles.textSecondary,
+    marginTop: 4,
+  },
+  textArea: {
+    minHeight: 80,
+    paddingTop: 12,
   },
   modalOverlay: {
     flex: 1,
