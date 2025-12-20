@@ -31,6 +31,7 @@ import {
     transferirVeiculo,
 } from '../services/api';
 import { getErrorMessage, getSuccessMessage } from '../utils/errorMessages';
+import { getMetricaPorTipo } from '../utils/tipoEquipamento';
 
 const tiposVeiculo = [
   { value: 'carro', label: 'Carro' },
@@ -407,7 +408,7 @@ export default function EditarVeiculoScreen({ route, navigation }) {
       [
         { text: 'Cancelar', style: 'cancel' },
         {
-          text: 'Confirmar',
+          text: 'Transferir definitivamente',
           style: 'destructive',
           onPress: async () => {
             setTransferindo(true);
@@ -454,6 +455,12 @@ export default function EditarVeiculoScreen({ route, navigation }) {
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const year = date.getFullYear();
     return `${year}-${month}-${day}`;
+  };
+
+  // Obter métrica baseada no tipo do equipamento (fallback para 'carro' se não houver tipo)
+  const getMetrica = () => {
+    const tipo = veiculo?.tipo_veiculo || tipoVeiculo || 'carro';
+    return getMetricaPorTipo(tipo);
   };
 
   if (loading) {
@@ -586,7 +593,7 @@ export default function EditarVeiculoScreen({ route, navigation }) {
           </View>
         </View>
 
-        {/* Seção: Dados da Aquisição */}
+        {/* Seção: Dados da Aquisição (Somente Leitura) */}
         {proprietarioAtual && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>
@@ -597,106 +604,50 @@ export default function EditarVeiculoScreen({ route, navigation }) {
             </Text>
 
             <View style={commonStyles.card}>
-              <Text style={commonStyles.label}>Tipo de Aquisição</Text>
-              <View style={styles.pickerContainer}>
-                <TouchableOpacity
-                  style={[commonStyles.inputContainer, styles.pickerButton, styles.inputDisabled]}
-                  disabled={true}
-                >
-                  <Ionicons name="document-text-outline" size={20} color="#999" style={commonStyles.inputIcon} />
-                  <Text style={[styles.pickerText, { color: '#999' }]}>
-                    {origemPosse === 'zero_km' ? 'Zero KM' : origemPosse === 'usado' ? 'Usado' : origemPosse === 'transferencia' ? 'Transferência' : 'Não informado'}
-                  </Text>
-                </TouchableOpacity>
+              {/* Texto informativo */}
+              <View style={styles.infoBox}>
+                <Ionicons name="information-circle-outline" size={20} color="#2196F3" />
+                <Text style={styles.infoText}>
+                  Os dados iniciais fazem parte do histórico e não podem ser alterados.
+                </Text>
               </View>
-              <Text style={styles.hintText}>
-                Tipo de aquisição não pode ser alterado após o cadastro
-              </Text>
+
+              <Text style={commonStyles.label}>Tipo de Aquisição</Text>
+              <View style={[commonStyles.inputContainer, styles.inputDisabled]}>
+                <Ionicons name="document-text-outline" size={20} color="#999" style={commonStyles.inputIcon} />
+                <Text style={[commonStyles.input, styles.inputDisabledText]}>
+                  {origemPosse === 'zero_km' 
+                    ? `Zero ${getMetrica().label}` 
+                    : origemPosse === 'usado' 
+                      ? 'Usado' 
+                      : origemPosse === 'transferencia' 
+                        ? 'Transferência' 
+                        : 'Não informado'}
+                </Text>
+              </View>
 
               <Text style={commonStyles.label}>Data de Aquisição</Text>
-              <TouchableOpacity
-                style={commonStyles.inputContainer}
-                onPress={() => setMostrarDatePickerEdit(true)}
-              >
-                <Ionicons name="calendar-outline" size={20} color="#666" style={commonStyles.inputIcon} />
-                <Text style={[commonStyles.input, { color: dataAquisicaoFormatada ? '#333' : '#999', paddingVertical: 12 }]}>
-                  {dataAquisicaoFormatada || 'Selecione a data de aquisição'}
+              <View style={[commonStyles.inputContainer, styles.inputDisabled]}>
+                <Ionicons name="calendar-outline" size={20} color="#999" style={commonStyles.inputIcon} />
+                <Text style={[commonStyles.input, styles.inputDisabledText]}>
+                  {dataAquisicaoFormatada || 'Não informada'}
                 </Text>
-              </TouchableOpacity>
-              
-              {/* DatePicker nativo */}
-              {mostrarDatePickerEdit && (
-                <DateTimePicker
-                  value={dataAquisicaoEdit || new Date()}
-                  mode="date"
-                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                  maximumDate={new Date()}
-                  onChange={(event, selectedDate) => {
-                    setMostrarDatePickerEdit(Platform.OS === 'ios');
-                    if (event.type === 'set' && selectedDate) {
-                      setDataAquisicaoEdit(selectedDate);
-                      // Formatar para DD/MM/YYYY para exibição
-                      const day = String(selectedDate.getDate()).padStart(2, '0');
-                      const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
-                      const year = selectedDate.getFullYear();
-                      setDataAquisicaoFormatada(`${day}/${month}/${year}`);
-                    }
-                  }}
-                />
-              )}
-
-              <Text style={commonStyles.label}>KM Inicial</Text>
-              <View style={[commonStyles.inputContainer, !podeEditarKmInicio && styles.inputDisabled]}>
-                <Ionicons name="speedometer-outline" size={20} color={podeEditarKmInicio ? "#666" : "#999"} style={commonStyles.inputIcon} />
-                <TextInput
-                  style={[commonStyles.input, !podeEditarKmInicio && styles.inputDisabledText]}
-                  placeholder="KM no momento da aquisição"
-                  placeholderTextColor="#999"
-                  value={kmInicioEdit}
-                  onChangeText={setKmInicioEdit}
-                  keyboardType="numeric"
-                  editable={podeEditarKmInicio}
-                />
               </View>
-              {!podeEditarKmInicio && (
-                <Text style={styles.hintText}>
-                  O KM inicial não pode ser alterado após o início do uso do veículo.
-                </Text>
-              )}
 
-              <ActionButton
-                  onPress={async () => {
-                    if (!dataAquisicaoEdit) {
-                      Alert.alert('Atenção', 'Data de aquisição é obrigatória');
-                      return;
-                    }
-                    if (podeEditarKmInicio && (!kmInicioEdit || parseInt(kmInicioEdit) < 0)) {
-                      Alert.alert('Atenção', 'KM inicial inválido');
-                      return;
-                    }
-                    
-                    try {
-                      setSaving(true);
-                      // TODO: Implementar endpoint PUT /veiculos/:id/aquisicao para atualizar dados de aquisição
-                      // Por enquanto, apenas mostrar mensagem (endpoint específico pode ser criado depois)
-                      Alert.alert(
-                        'Atenção',
-                        'A atualização dos dados de aquisição será implementada em breve. Por enquanto, essas informações são apenas para visualização.',
-                        [{ text: 'OK' }]
-                      );
-                    } catch (error) {
-                      Alert.alert('Erro', getErrorMessage(error));
-                    } finally {
-                      setSaving(false);
-                    }
-                  }}
-                label="Salvar Dados de Aquisição"
-                icon="save-outline"
-                color="#4CAF50"
-                loading={saving}
-                disabled={saving}
-                style={styles.saveButton}
-              />
+              <Text style={commonStyles.label}>
+                {getMetrica().labelLong} Inicial
+              </Text>
+              <View style={[commonStyles.inputContainer, styles.inputDisabled]}>
+                <Ionicons 
+                  name={getMetrica().icon} 
+                  size={20} 
+                  color="#999" 
+                  style={commonStyles.inputIcon} 
+                />
+                <Text style={[commonStyles.input, styles.inputDisabledText]}>
+                  {kmInicioEdit || 'Não informado'}
+                </Text>
+              </View>
             </View>
           </View>
         )}
@@ -1237,16 +1188,30 @@ export default function EditarVeiculoScreen({ route, navigation }) {
             </View>
 
             <ScrollView style={styles.modalScroll}>
-              <View style={styles.avisoTransferencia}>
-                <Ionicons name="warning-outline" size={24} color="#FF9800" />
+              {/* Card de aviso destacado sobre transferência */}
+              <View style={styles.avisoTransferenciaCard}>
+                <View style={styles.avisoTransferenciaHeader}>
+                  <Ionicons name="warning" size={24} color="#FF9800" />
+                  <Text style={styles.avisoTransferenciaTitulo}>⚠️ Transferência de posse</Text>
+                </View>
                 <Text style={styles.avisoTransferenciaText}>
-                  Esta ação é IRREVERSÍVEL. O veículo será transferido para outro usuário.
+                  Ao transferir este equipamento:
                 </Text>
+                <View style={styles.avisoTransferenciaLista}>
+                  <Text style={styles.avisoTransferenciaItem}>
+                    • Seu período de uso será encerrado
+                  </Text>
+                  <Text style={styles.avisoTransferenciaItem}>
+                    • Seus custos e dados financeiros NÃO serão visíveis ao próximo proprietário
+                  </Text>
+                  <Text style={styles.avisoTransferenciaItem}>
+                    • O histórico técnico (KM/Horas e manutenções) permanece como registro público
+                  </Text>
+                  <Text style={styles.avisoTransferenciaItem}>
+                    • Esta ação não pode ser desfeita
+                  </Text>
+                </View>
               </View>
-
-              <Text style={styles.transferenciaInfo}>
-                O histórico técnico do veículo permanecerá visível, mas você perderá acesso e o novo proprietário começará com período limpo de gastos.
-              </Text>
 
               <Text style={styles.label}>Selecione o novo proprietário:</Text>
               {carregandoUsuarios ? (
@@ -1308,7 +1273,7 @@ export default function EditarVeiculoScreen({ route, navigation }) {
 
               <ActionButton
                 onPress={handleTransferir}
-                label="Confirmar Transferência"
+                label="Transferir definitivamente"
                 icon="swap-horizontal"
                 color="#FF9800"
                 loading={transferindo}
@@ -1698,12 +1663,40 @@ const styles = StyleSheet.create({
     borderLeftWidth: 4,
     borderLeftColor: '#FF9800',
   },
+  avisoTransferenciaCard: {
+    backgroundColor: '#fff3cd',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 20,
+    borderWidth: 2,
+    borderColor: '#FF9800',
+  },
+  avisoTransferenciaHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  avisoTransferenciaTitulo: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#856404',
+    marginLeft: 8,
+  },
   avisoTransferenciaText: {
     fontSize: 14,
-    color: '#856404',
-    marginLeft: 10,
-    flex: 1,
     fontWeight: '600',
+    color: '#856404',
+    marginBottom: 8,
+  },
+  avisoTransferenciaLista: {
+    marginTop: 8,
+  },
+  avisoTransferenciaItem: {
+    fontSize: 14,
+    color: '#856404',
+    marginBottom: 6,
+    lineHeight: 20,
+    paddingLeft: 4,
   },
   transferenciaInfo: {
     fontSize: 14,
@@ -1772,6 +1765,23 @@ const styles = StyleSheet.create({
   },
   transferirConfirmButton: {
     marginTop: 20,
+  },
+  infoBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: '#E3F2FD',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+    borderLeftWidth: 4,
+    borderLeftColor: '#2196F3',
+  },
+  infoText: {
+    flex: 1,
+    marginLeft: 8,
+    fontSize: 14,
+    color: '#1976D2',
+    lineHeight: 20,
   },
 });
 

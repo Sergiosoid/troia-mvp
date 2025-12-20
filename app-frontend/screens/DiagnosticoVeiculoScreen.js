@@ -101,15 +101,6 @@ export default function DiagnosticoVeiculoScreen({ route, navigation }) {
     <View style={styles.container}>
       <HeaderBar title="Diagnóstico do Veículo" />
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
-        {/* Alerta de período inválido */}
-        {!periodoValido && (
-          <View style={styles.alertBox}>
-            <Ionicons name="warning" size={24} color="#FF9800" />
-            <Text style={styles.alertText}>
-              Período de posse inválido. Edite o veículo e configure a data de aquisição e KM inicial.
-            </Text>
-          </View>
-        )}
 
         {/* Status geral */}
         <View style={styles.section}>
@@ -120,11 +111,10 @@ export default function DiagnosticoVeiculoScreen({ route, navigation }) {
           {renderStatus(diagnostico?.periodo_valido, 'Período válido')}
         </View>
 
-        {/* Dados de aquisição */}
+        {/* Histórico de KM */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Dados de Aquisição</Text>
-          {renderStatus(diagnostico?.data_aquisicao, 'Data de aquisição')}
-          {renderStatus(diagnostico?.km_inicio, 'KM inicial')}
+          <Text style={styles.sectionTitle}>Histórico de KM</Text>
+          {renderStatus(diagnostico?.possui_km_historico, 'Possui histórico de KM')}
           {renderStatus(diagnostico?.km_atual, 'KM atual')}
         </View>
 

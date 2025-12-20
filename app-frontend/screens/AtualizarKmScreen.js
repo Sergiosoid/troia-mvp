@@ -23,9 +23,8 @@ import {
 import ActionButton from '../components/ActionButton';
 import CameraButton from '../components/CameraButton';
 import HeaderBar from '../components/HeaderBar';
-import ModalPeriodoPosseInvalido from '../components/ModalPeriodoPosseInvalido';
 import { commonStyles } from '../constants/styles';
-import { buscarVeiculoPorId, processarOcrKm, atualizarKm, buscarDiagnosticoVeiculo, listarHistoricoKm } from '../services/api';
+import { buscarVeiculoPorId, processarOcrKm, atualizarKm, listarHistoricoKm } from '../services/api';
 import { getErrorMessage, getSuccessMessage } from '../utils/errorMessages';
 import { getMetricaPorTipo, formatarValorComUnidade } from '../utils/tipoEquipamento';
 
@@ -40,7 +39,6 @@ export default function AtualizarKmScreen({ navigation, route }) {
   const [loading, setLoading] = useState(false);
   const [carregandoVeiculo, setCarregandoVeiculo] = useState(false);
   const [kmVeioDoOcr, setKmVeioDoOcr] = useState(false);
-  const [mostrarModalPeriodoInvalido, setMostrarModalPeriodoInvalido] = useState(false);
   const [ultimoRegistro, setUltimoRegistro] = useState(null);
   const [dataRegistro, setDataRegistro] = useState(new Date());
   const [observacao, setObservacao] = useState('');
@@ -249,8 +247,12 @@ export default function AtualizarKmScreen({ navigation, route }) {
       console.error('Erro ao atualizar KM:', error);
       
       // Verificar se é erro de período de posse inválido
-      if (error.code === 'PERIODO_POSSE_INVALIDO' || error.message?.includes('período de posse')) {
-        setMostrarModalPeriodoInvalido(true);
+      // Verificar se é erro de histórico inicial inválido
+      if (error.code === 'HISTORICO_INICIAL_INVALIDO' || error.message?.includes('histórico inicial')) {
+        Alert.alert(
+          'Histórico inválido',
+          'O veículo não possui histórico inicial válido. Entre em contato com o suporte.'
+        );
         return;
       }
       
@@ -437,16 +439,6 @@ export default function AtualizarKmScreen({ navigation, route }) {
         </Modal>
       )}
 
-      {/* Modal bloqueante para período de posse inválido */}
-      <ModalPeriodoPosseInvalido
-        visible={mostrarModalPeriodoInvalido}
-        veiculoId={veiculoId}
-        onConfigurar={() => {
-          setMostrarModalPeriodoInvalido(false);
-          navigation.navigate('EditarVeiculo', { veiculoId });
-        }}
-        onClose={() => {}} // Não permite fechar
-      />
     </KeyboardAvoidingView>
   );
 }
