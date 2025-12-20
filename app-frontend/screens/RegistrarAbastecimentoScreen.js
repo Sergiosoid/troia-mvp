@@ -23,9 +23,8 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import ActionButton from '../components/ActionButton';
 import CameraButton from '../components/CameraButton';
 import HeaderBar from '../components/HeaderBar';
-import ModalPeriodoPosseInvalido from '../components/ModalPeriodoPosseInvalido';
 import { commonStyles } from '../constants/styles';
-import { buscarVeiculoPorId, listarVeiculosComTotais, buscarDiagnosticoVeiculo } from '../services/api';
+import { buscarVeiculoPorId, listarVeiculosComTotais, listarHistoricoKm } from '../services/api';
 import { useAbastecimentoApi } from '../services/useAbastecimentoApi';
 import { getErrorMessage, getSuccessMessage } from '../utils/errorMessages';
 
@@ -53,7 +52,7 @@ export default function RegistrarAbastecimentoScreen({ route, navigation }) {
   const [mostrarModalImagem, setMostrarModalImagem] = useState(false);
   const [processandoOcr, setProcessandoOcr] = useState(false);
   const [dadosOcrExtraidos, setDadosOcrExtraidos] = useState(false);
-  const [mostrarModalPeriodoInvalido, setMostrarModalPeriodoInvalido] = useState(false);
+  const [ultimoKmHistorico, setUltimoKmHistorico] = useState(null);
   
   const { loading, error, processarOcr, registrar } = useAbastecimentoApi();
 
@@ -79,7 +78,7 @@ export default function RegistrarAbastecimentoScreen({ route, navigation }) {
     carregarVeiculos();
   }, []);
 
-  // Carregar dados do veículo selecionado
+  // Carregar dados do veículo selecionado e último KM do histórico
   useEffect(() => {
     const carregarVeiculo = async () => {
       if (veiculoId) {
@@ -87,11 +86,30 @@ export default function RegistrarAbastecimentoScreen({ route, navigation }) {
           const veiculo = await buscarVeiculoPorId(veiculoId);
           if (veiculo) {
             setVeiculoSelecionado(veiculo);
-            // Verificar período válido após carregar veículo
-            verificarPeriodoValido();
-            if (veiculo.km_atual) {
-              setKmAntes(veiculo.km_atual.toString());
+          }
+          
+          // Buscar último KM do histórico (fonte única de verdade)
+          try {
+            const historico = await listarHistoricoKm(veiculoId);
+            if (historico && Array.isArray(historico) && historico.length > 0) {
+              // Ordenar por data (mais recente primeiro) e pegar o primeiro
+              const historicoOrdenado = [...historico].sort((a, b) => {
+                const dataA = new Date(a.data_registro || a.criado_em || 0);
+                const dataB = new Date(b.data_registro || b.criado_em || 0);
+                return dataB - dataA;
+              });
+              
+              const ultimoRegistro = historicoOrdenado[0];
+              if (ultimoRegistro && ultimoRegistro.km !== null && ultimoRegistro.km !== undefined) {
+                const ultimoKm = parseInt(ultimoRegistro.km) || 0;
+                setUltimoKmHistorico(ultimoKm);
+                // Preencher KM antes com o último KM do histórico
+                setKmAntes(ultimoKm.toString());
+              }
             }
+          } catch (historicoError) {
+            console.warn('[RegistrarAbastecimento] Erro ao buscar histórico de KM:', historicoError);
+            // Não bloquear se falhar (backend validará)
           }
         } catch (error) {
           console.error('Erro ao carregar veículo:', error);
@@ -102,20 +120,6 @@ export default function RegistrarAbastecimentoScreen({ route, navigation }) {
       carregarVeiculo();
     }
   }, [veiculoId]);
-
-  const verificarPeriodoValido = async () => {
-    if (!veiculoId) return;
-    
-    try {
-      const diagnostico = await buscarDiagnosticoVeiculo(veiculoId);
-      if (!diagnostico?.periodo_valido) {
-        setMostrarModalPeriodoInvalido(true);
-      }
-    } catch (error) {
-      // Se não conseguir verificar, não bloquear (deixar backend validar)
-      console.warn('[RegistrarAbastecimento] Erro ao verificar período:', error.message);
-    }
-  };
 
   // Processar OCR quando imagem for selecionada
   useEffect(() => {
@@ -254,6 +258,20 @@ export default function RegistrarAbastecimentoScreen({ route, navigation }) {
       Alert.alert('Atenção', 'Informe o valor total do abastecimento');
       return false;
     }
+    
+    // Validar KM: km_depois deve ser >= último KM do histórico
+    if (kmDepois && ultimoKmHistorico !== null) {
+      const kmDepoisNum = parseInt(kmDepois);
+      if (kmDepoisNum < ultimoKmHistorico) {
+        Alert.alert(
+          'KM inválido',
+          `O KM do abastecimento (${kmDepoisNum.toLocaleString('pt-BR')}) deve ser maior ou igual ao último registro (${ultimoKmHistorico.toLocaleString('pt-BR')} km).`
+        );
+        return false;
+      }
+    }
+    
+    // Validar KM: km_depois deve ser >= km_antes
     if (kmAntes && kmDepois && parseFloat(kmDepois) < parseFloat(kmAntes)) {
       Alert.alert('Atenção', 'KM depois não pode ser menor que KM antes');
       return false;
@@ -303,9 +321,12 @@ export default function RegistrarAbastecimentoScreen({ route, navigation }) {
     } catch (error) {
       console.error('Erro ao registrar abastecimento:', error);
       
-      // Verificar se é erro de período de posse inválido
-      if (error.code === 'PERIODO_POSSE_INVALIDO' || error.message?.includes('período de posse')) {
-        setMostrarModalPeriodoInvalido(true);
+      // Verificar se é erro de histórico inicial inválido
+      if (error.code === 'HISTORICO_INICIAL_INVALIDO' || error.message?.includes('histórico inicial')) {
+        Alert.alert(
+          'Histórico inválido',
+          'O veículo não possui histórico inicial válido. Entre em contato com o suporte.'
+        );
         return;
       }
       
@@ -431,6 +452,19 @@ export default function RegistrarAbastecimentoScreen({ route, navigation }) {
               variant="secondary"
               style={styles.imageButton}
             />
+          </View>
+        )}
+
+        {/* Contexto: Último KM registrado */}
+        {veiculoId && ultimoKmHistorico !== null && (
+          <View style={styles.contextCard}>
+            <View style={styles.contextHeader}>
+              <Ionicons name="information-circle-outline" size={20} color="#2196F3" />
+              <Text style={styles.contextTitle}>Último KM registrado</Text>
+            </View>
+            <Text style={styles.contextValue}>
+              {ultimoKmHistorico.toLocaleString('pt-BR')} km
+            </Text>
           </View>
         )}
 
@@ -614,16 +648,6 @@ export default function RegistrarAbastecimentoScreen({ route, navigation }) {
         </View>
       </Modal>
 
-      {/* Modal bloqueante para período de posse inválido */}
-      <ModalPeriodoPosseInvalido
-        visible={mostrarModalPeriodoInvalido}
-        veiculoId={veiculoId}
-        onConfigurar={() => {
-          setMostrarModalPeriodoInvalido(false);
-          navigation.navigate('EditarVeiculo', { veiculoId });
-        }}
-        onClose={() => {}} // Não permite fechar
-      />
     </View>
   );
 }
@@ -798,6 +822,30 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: commonStyles.textPrimary,
     marginBottom: 16,
+  },
+  contextCard: {
+    backgroundColor: '#E3F2FD',
+    borderRadius: 10,
+    padding: 16,
+    marginBottom: 16,
+    borderLeftWidth: 4,
+    borderLeftColor: '#2196F3',
+  },
+  contextHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  contextTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1976D2',
+    marginLeft: 8,
+  },
+  contextValue: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#1976D2',
   },
 });
 
