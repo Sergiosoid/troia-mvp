@@ -537,6 +537,23 @@ const styles = StyleSheet.create({
     minHeight: 80,
     paddingTop: 12,
   },
+  ultimoRegistroCard: {
+    backgroundColor: '#f0f7ff',
+    borderLeftWidth: 4,
+    borderLeftColor: '#2196F3',
+  },
+  ultimoRegistroInfo: {
+    marginTop: 8,
+  },
+  ultimoRegistroText: {
+    fontSize: 14,
+    color: commonStyles.textSecondary,
+    marginTop: 4,
+  },
+  textArea: {
+    minHeight: 80,
+    paddingTop: 12,
+  },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.9)',
