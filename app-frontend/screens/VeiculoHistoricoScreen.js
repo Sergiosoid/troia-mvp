@@ -18,10 +18,12 @@ import HeaderBar from '../components/HeaderBar';
 import { commonStyles } from '../constants/styles';
 import { API_URL, buscarResumoPeriodo, buscarVeiculoPorId, excluirManutencao, listarHistoricoVeiculo } from '../services/api';
 import { getErrorMessage, getSuccessMessage } from '../utils/errorMessages';
+import { getMetricaPorTipo } from '../utils/tipoEquipamento';
 
 export default function VeiculoHistoricoScreen({ navigation, route }) {
   const { veiculoId } = route?.params || {};
   const [veiculo, setVeiculo] = useState(null);
+  const [veiculoCompleto, setVeiculoCompleto] = useState(null); // Para armazenar tipo_veiculo
   const [manutencoes, setManutencoes] = useState([]);
   const [resumoPeriodo, setResumoPeriodo] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -43,31 +45,31 @@ export default function VeiculoHistoricoScreen({ navigation, route }) {
       const historico = await listarHistoricoVeiculo(veiculoId);
       setManutencoes(Array.isArray(historico) ? historico : []);
       
-      // Extrair dados do veículo do primeiro item do histórico
-      if (historico && historico.length > 0) {
+      // Buscar veículo completo para obter tipo_veiculo
+      try {
+        const veiculoData = await buscarVeiculoPorId(veiculoId);
+        if (veiculoData) {
+          setVeiculoCompleto(veiculoData);
+          setVeiculo({
+            placa: veiculoData.placa,
+            renavam: veiculoData.renavam,
+            proprietarioNome: historico && historico.length > 0 
+              ? historico[0].proprietarioNome 
+              : 'Proprietário não informado',
+          });
+        }
+      } catch (err) {
+        console.error('Erro ao buscar veículo:', err);
+        // Não bloquear se falhar
+      }
+      
+      // Extrair dados do veículo do primeiro item do histórico (fallback)
+      if (historico && historico.length > 0 && !veiculo) {
         setVeiculo({
           placa: historico[0].placa,
           renavam: historico[0].renavam,
           proprietarioNome: historico[0].proprietarioNome,
         });
-      } else {
-        // Se não houver histórico, buscar veículo diretamente
-        try {
-          const veiculoData = await buscarVeiculoPorId(veiculoId);
-          if (veiculoData) {
-            setVeiculo({
-              placa: veiculoData.placa,
-              renavam: veiculoData.renavam,
-              proprietarioNome: 'Proprietário não informado',
-            });
-          } else {
-            Alert.alert('Aviso', 'Veículo não encontrado');
-            navigation.goBack();
-          }
-        } catch (err) {
-          console.error('Erro ao buscar veículo:', err);
-          Alert.alert('Erro', err.message || 'Não foi possível buscar o veículo');
-        }
       }
 
       // Buscar resumo do período do proprietário atual (com fallback)
@@ -130,6 +132,12 @@ export default function VeiculoHistoricoScreen({ navigation, route }) {
     return parseInt(km).toLocaleString('pt-BR');
   };
 
+  // Obter métrica baseada no tipo do equipamento (fallback para 'carro' se não houver tipo)
+  const getMetrica = () => {
+    const tipo = veiculoCompleto?.tipo_veiculo || 'carro';
+    return getMetricaPorTipo(tipo);
+  };
+
   const handleExcluirManutencao = async () => {
     const { manutencao } = modalExcluir;
     if (!manutencao) return;
@@ -188,7 +196,11 @@ export default function VeiculoHistoricoScreen({ navigation, route }) {
         onPress={() => navigation.navigate('HistoricoKm', { veiculoId })}
         style={styles.headerButton}
       >
-        <Ionicons name="speedometer-outline" size={24} color="#2196F3" />
+        <Ionicons 
+          name={veiculoCompleto?.tipo_veiculo ? getMetricaPorTipo(veiculoCompleto.tipo_veiculo).icon : 'speedometer-outline'} 
+          size={24} 
+          color="#2196F3" 
+        />
       </TouchableOpacity>
       <TouchableOpacity
         onPress={() => navigation.navigate('EstatisticasScreen', { veiculoId })}
@@ -230,23 +242,28 @@ export default function VeiculoHistoricoScreen({ navigation, route }) {
         {resumoPeriodo && (
           <View style={styles.resumoPeriodoCard}>
             <View style={styles.resumoPeriodoHeader}>
-              <Ionicons name="calendar-outline" size={20} color="#4CAF50" />
-              <Text style={styles.resumoPeriodoTitulo}>Seu período de uso</Text>
+              <Ionicons name="lock-closed-outline" size={20} color="#4CAF50" />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.resumoPeriodoTitulo}>🔒 Seu período de uso</Text>
+                <Text style={styles.resumoPeriodoSubtitle}>
+                  (Dados privados do seu uso do equipamento)
+                </Text>
+              </View>
             </View>
             
             <View style={styles.resumoPeriodoContent}>
-              {/* KM rodado no período */}
+              {/* Valor rodado no período - FONTE: backend */}
               <View style={styles.resumoPeriodoItem}>
                 <View style={styles.resumoPeriodoItemLeft}>
-                  <Ionicons name="speedometer-outline" size={18} color="#4CAF50" />
+                  <Ionicons name={getMetrica().icon} size={18} color="#4CAF50" />
                   <Text style={styles.resumoPeriodoLabel}>Você rodou</Text>
                 </View>
                 <Text style={styles.resumoPeriodoValorVerde}>
-                  {formatarKm(resumoPeriodo.km_rodado_no_periodo)} km
+                  {formatarKm(resumoPeriodo.km_rodado_no_periodo ?? 0)} {getMetrica().label.toLowerCase()}
                 </Text>
               </View>
 
-              {/* Data de aquisição */}
+              {/* Data de início do período - FONTE: backend */}
               {resumoPeriodo.data_aquisicao && (
                 <View style={styles.resumoPeriodoItem}>
                   <View style={styles.resumoPeriodoItemLeft}>
@@ -259,28 +276,41 @@ export default function VeiculoHistoricoScreen({ navigation, route }) {
                 </View>
               )}
 
-              {/* KM atual do veículo */}
+              {/* Valor atual do veículo - FONTE: backend */}
               <View style={styles.resumoPeriodoItem}>
                 <View style={styles.resumoPeriodoItemLeft}>
                   <Ionicons name="car-outline" size={18} color="#4CAF50" />
-                  <Text style={styles.resumoPeriodoLabel}>KM atual do veículo</Text>
+                  <Text style={styles.resumoPeriodoLabel}>{getMetrica().labelLong} atual do veículo</Text>
                 </View>
                 <Text style={styles.resumoPeriodoValorVerde}>
-                  {formatarKm(resumoPeriodo.km_atual)} km
+                  {formatarKm(resumoPeriodo.km_atual ?? 0)} {getMetrica().label.toLowerCase()}
                 </Text>
               </View>
 
-              {/* Separador visual */}
-              <View style={styles.resumoPeriodoDivider} />
+              {/* Separador visual com label */}
+              <View style={styles.resumoPeriodoDividerContainer}>
+                <View style={styles.resumoPeriodoDivider} />
+                <View style={styles.resumoPeriodoSeparatorLabel}>
+                  <Ionicons name="document-text-outline" size={16} color="#999" />
+                  <Text style={styles.resumoPeriodoSeparatorText}>
+                    📜 Histórico anterior
+                  </Text>
+                  <Text style={styles.resumoPeriodoSeparatorSubtext}>
+                    (Registro técnico permanente do equipamento)
+                  </Text>
+                </View>
+                <View style={styles.resumoPeriodoDivider} />
+              </View>
 
-              {/* KM total do veículo (cinza) */}
+              {/* Valor total do veículo (cinza) - FONTE: backend */}
+              {/* Nota: km_total_veiculo já vem calculado do backend como o mínimo do histórico */}
               <View style={styles.resumoPeriodoItem}>
                 <View style={styles.resumoPeriodoItemLeft}>
                   <Ionicons name="time-outline" size={18} color="#999" />
                   <Text style={styles.resumoPeriodoLabelCinza}>Total do veículo</Text>
                 </View>
                 <Text style={styles.resumoPeriodoValorCinza}>
-                  {formatarKm(resumoPeriodo.km_atual - resumoPeriodo.km_total_veiculo)} km
+                  {formatarKm(resumoPeriodo.km_total_veiculo ?? 0)} {getMetrica().label.toLowerCase()}
                 </Text>
               </View>
             </View>
@@ -805,6 +835,32 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: '#e0e0e0',
     marginVertical: 8,
+  },
+  resumoPeriodoSubtitle: {
+    fontSize: 12,
+    color: '#666',
+    marginLeft: 8,
+    marginTop: 2,
+    fontStyle: 'italic',
+  },
+  resumoPeriodoDividerContainer: {
+    marginVertical: 16,
+  },
+  resumoPeriodoSeparatorLabel: {
+    alignItems: 'center',
+    marginVertical: 8,
+  },
+  resumoPeriodoSeparatorText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#999',
+    marginTop: 4,
+  },
+  resumoPeriodoSeparatorSubtext: {
+    fontSize: 11,
+    color: '#999',
+    marginTop: 2,
+    fontStyle: 'italic',
   },
 });
 
