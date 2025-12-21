@@ -1,9 +1,23 @@
 /**
  * Serviço de OCR Local para documentos de veículos
- * Processa imagens localmente sem usar APIs pagas
  * 
- * NOTA: Esta é uma implementação básica que pode ser expandida
- * Para produção, considere usar ML Kit Text Recognition ou similar
+ * ⚠️ STATUS: PONTO DE EXTENSÃO FUTURA
+ * 
+ * Este arquivo contém a estrutura para processamento de OCR local,
+ * mas atualmente não está implementado (retorna string vazia).
+ * 
+ * DECISÃO ARQUITETURAL:
+ * - Estrutura mantida para facilitar implementação futura
+ * - OCR atual é feito via backend (OpenAI GPT-4o Vision API)
+ * - Frontend não processa OCR localmente por enquanto
+ * 
+ * PARA IMPLEMENTAR NO FUTURO:
+ * - Usar ML Kit Text Recognition (React Native)
+ * - Ou Tesseract.js (mais pesado, mas funciona)
+ * - Ou expo-ml-kit (se disponível)
+ * 
+ * NOTA: Esta implementação placeholder não gera expectativas falsas
+ * na UX - o OCR local foi removido da interface do usuário.
  */
 
 import * as ImageManipulator from 'expo-image-manipulator';
@@ -55,19 +69,24 @@ export const processarOcrDocumentoLocal = async (imageUri) => {
 
 /**
  * Extrai texto da imagem
- * PLACEHOLDER: Retorna texto simulado baseado em padrões comuns
  * 
- * TODO: Substituir por biblioteca de OCR real (ML Kit, Tesseract, etc)
+ * ⚠️ IMPLEMENTAÇÃO FUTURA
+ * 
+ * Esta função atualmente retorna string vazia.
+ * Para implementar:
+ * 1. Instalar biblioteca de OCR (ML Kit, Tesseract, etc)
+ * 2. Processar imagem e extrair texto
+ * 3. Retornar texto extraído
+ * 
+ * Exemplo com ML Kit:
+ * ```javascript
+ * const result = await TextRecognition.recognize(imageUri);
+ * return result.text;
+ * ```
  */
 const extrairTextoDaImagem = async (imageUri) => {
-  // Por enquanto, retornamos um placeholder
-  // Em produção, aqui seria a chamada para a biblioteca de OCR
-  // Exemplo com ML Kit:
-  // const result = await TextRecognition.recognize(imageUri);
-  // return result.text;
-  
-  // Por enquanto, retornamos string vazia para forçar entrada manual
-  // Mas a estrutura está pronta para receber OCR real
+  // IMPLEMENTAÇÃO FUTURA: Processar OCR localmente
+  // Por enquanto, retorna string vazia (não usado na UX atual)
   return '';
 };
 

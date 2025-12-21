@@ -15,14 +15,15 @@ import { getMetricaPorTipo } from '../utils/tipoEquipamento';
 export default function CadastroVeiculoScreen({ route, navigation }) {
   const { proprietarioId } = route?.params || {};
   
-  // Estados para OCR Local (movidos para dentro do componente)
+  // Estados para documento do veículo
   const [imagemDocumento, setImagemDocumento] = useState(null);
-  const [processandoOcr, setProcessandoOcr] = useState(false);
-  const [dadosOcrExtraidos, setDadosOcrExtraidos] = useState(null);
-  const [mostrarPreviewOcr, setMostrarPreviewOcr] = useState(false);
-  const [origemDados, setOrigemDados] = useState('manual'); // 'manual' | 'ocr'
   const [documentoUrl, setDocumentoUrl] = useState(null);
   const [documentoPendenteOcr, setDocumentoPendenteOcr] = useState(false);
+  
+  // origem_dados: Rastreabilidade da origem dos dados ('manual' | 'ocr')
+  // NOTA: Atualmente sempre 'manual' pois OCR local não está implementado
+  // Mantido para rastreabilidade futura quando OCR for implementado
+  const [origemDados, setOrigemDados] = useState('manual'); // 'manual' | 'ocr'
   
   const [placa, setPlaca] = useState('');
   const [renavam, setRenavam] = useState('');
@@ -767,7 +768,6 @@ export default function CadastroVeiculoScreen({ route, navigation }) {
                   setImagemDocumento(null);
                   setDocumentoUrl(null);
                   setDocumentoPendenteOcr(false);
-                  setDadosOcrExtraidos(null);
                   setOrigemDados('manual');
                 }}
               >

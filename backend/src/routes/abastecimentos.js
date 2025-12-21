@@ -247,7 +247,9 @@ router.post('/', authRequired, upload.single('imagem'), async (req, res) => {
           [veiculo_id, userId, kmDepois, 'abastecimento', fonteHistorico]
         );
 
-        // Só atualizar km_atual se o histórico foi salvo com sucesso
+        // IMPORTANTE: km_atual é CACHE/LEGADO - fonte única de verdade é km_historico
+        // Atualizamos km_atual apenas para compatibilidade e performance de consultas
+        // Sempre salvar no histórico ANTES de atualizar km_atual (garantir consistência)
         await query(
           'UPDATE veiculos SET km_atual = ? WHERE id = ? AND usuario_id = ?',
           [kmDepois, veiculo_id, userId]
