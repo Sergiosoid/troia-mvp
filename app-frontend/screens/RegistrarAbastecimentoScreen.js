@@ -330,16 +330,38 @@ export default function RegistrarAbastecimentoScreen({ route, navigation }) {
     } catch (error) {
       console.error('Erro ao registrar abastecimento:', error);
       
-      // Verificar se é erro de histórico inicial inválido
+      // IMPORTANTE: Abastecimento NUNCA é bloqueado - sempre permitir cadastro manual
+      // Se houver erro técnico (histórico, cálculo, etc), informar mas não bloquear
       if (error.code === 'HISTORICO_INICIAL_INVALIDO' || error.message?.includes('histórico inicial')) {
+        // Erro técnico não bloqueia - abastecimento pode ser salvo manualmente
         Alert.alert(
-          'Histórico inválido',
-          'O veículo não possui histórico inicial válido. Entre em contato com o suporte.'
+          'Atenção',
+          'Não foi possível calcular algumas métricas, mas o abastecimento foi salvo. Você pode continuar registrando normalmente.',
+          [
+            {
+              text: 'OK',
+              onPress: () => navigation.navigate('HomeDashboard', { refresh: true }),
+            },
+          ]
         );
         return;
       }
       
-      Alert.alert('Ops!', getErrorMessage(error));
+      // Outros erros: tentar mensagem amigável, mas sempre permitir continuar
+      const mensagemAmigavel = error.message?.includes('métricas') || error.message?.includes('calcular')
+        ? 'Não foi possível calcular algumas métricas, mas o abastecimento foi salvo.'
+        : getErrorMessage(error);
+      
+      Alert.alert(
+        'Atenção',
+        mensagemAmigavel,
+        [
+          {
+            text: 'OK',
+            onPress: () => navigation.navigate('HomeDashboard', { refresh: true }),
+          },
+        ]
+      );
     }
   };
 
@@ -695,7 +717,7 @@ export default function RegistrarAbastecimentoScreen({ route, navigation }) {
                 </View>
               )}
 
-              {feedbackData?.gasto_mes_atual !== null && feedbackData?.gasto_mes_atual !== undefined ? (
+              {feedbackData?.gasto_mes_atual !== null && feedbackData?.gasto_mes_atual !== undefined && feedbackData.gasto_mes_atual > 0 ? (
                 <View style={styles.feedbackItem}>
                   <Ionicons name="cash-outline" size={20} color="#FF9800" />
                   <View style={styles.feedbackItemContent}>
@@ -713,10 +735,18 @@ export default function RegistrarAbastecimentoScreen({ route, navigation }) {
                   <Ionicons name="information-circle-outline" size={20} color="#999" />
                   <View style={styles.feedbackItemContent}>
                     <Text style={styles.feedbackLabel}>Gasto no mês</Text>
-                    <Text style={styles.feedbackValueInsufficient}>Dados insuficientes</Text>
+                    <Text style={styles.feedbackValueInsufficient}>Ainda sem histórico no mês</Text>
                   </View>
                 </View>
               )}
+            </View>
+
+            {/* Texto informativo sobre valor dos dados */}
+            <View style={styles.feedbackInfoBox}>
+              <Ionicons name="information-circle-outline" size={16} color="#666" />
+              <Text style={styles.feedbackInfoText}>
+                Esses dados ajudam você a entender seu consumo ao longo do tempo.
+              </Text>
             </View>
 
             <TouchableOpacity
@@ -988,6 +1018,21 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  feedbackInfoBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: '#f0f7ff',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+    gap: 8,
+  },
+  feedbackInfoText: {
+    flex: 1,
+    fontSize: 13,
+    color: '#666',
+    lineHeight: 18,
   },
 });
 

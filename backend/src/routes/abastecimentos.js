@@ -128,18 +128,17 @@ router.post('/', authRequired, upload.single('imagem'), async (req, res) => {
       return res.status(404).json({ error: 'Veículo não encontrado' });
     }
 
-    // FONTE ÚNICA DE VERDADE: Validar que o veículo possui histórico inicial
+    // IMPORTANTE: Abastecimento NUNCA é bloqueado - sempre permitir cadastro
+    // Verificar histórico apenas para cálculos, não para bloquear
     const historicoExiste = await queryOne(
       'SELECT 1 FROM km_historico WHERE veiculo_id = ? LIMIT 1',
       [veiculo_id]
     );
 
+    // Se não houver histórico, permitir abastecimento mas avisar que métricas podem não estar disponíveis
     if (!historicoExiste) {
-      console.error('[POST /abastecimentos] Veículo sem histórico inicial:', veiculo_id);
-      return res.status(400).json({ 
-        error: 'Não é possível cadastrar abastecimento. O veículo não possui histórico inicial válido.',
-        code: 'HISTORICO_INICIAL_INVALIDO'
-      });
+      console.warn('[POST /abastecimentos] Veículo sem histórico inicial - permitindo abastecimento:', veiculo_id);
+      // Continuar normalmente - abastecimento será salvo mesmo sem histórico
     }
 
     // Buscar último KM do histórico (fonte única de verdade)
