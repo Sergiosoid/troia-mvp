@@ -8,17 +8,22 @@ import CameraButton from '../components/CameraButton';
 import { commonStyles } from '../constants/styles';
 import { cadastrarVeiculo, listarFabricantes, listarModelos, buscarAnosModelo } from '../services/api';
 import { getErrorMessage, getSuccessMessage } from '../utils/errorMessages';
-import { processarOcrDocumentoLocal } from '../services/ocrLocal';
-
-// Estados para OCR Local
-const [imagemDocumento, setImagemDocumento] = useState(null);
-const [processandoOcr, setProcessandoOcr] = useState(false);
-const [dadosOcrExtraidos, setDadosOcrExtraidos] = useState(null);
-const [mostrarPreviewOcr, setMostrarPreviewOcr] = useState(false);
-const [origemDados, setOrigemDados] = useState('manual'); // 'manual' | 'ocr'
+// OCR local desabilitado - será implementado futuramente
+// import { processarOcrDocumentoLocal } from '../services/ocrLocal';
+import { getMetricaPorTipo } from '../utils/tipoEquipamento';
 
 export default function CadastroVeiculoScreen({ route, navigation }) {
   const { proprietarioId } = route?.params || {};
+  
+  // Estados para OCR Local (movidos para dentro do componente)
+  const [imagemDocumento, setImagemDocumento] = useState(null);
+  const [processandoOcr, setProcessandoOcr] = useState(false);
+  const [dadosOcrExtraidos, setDadosOcrExtraidos] = useState(null);
+  const [mostrarPreviewOcr, setMostrarPreviewOcr] = useState(false);
+  const [origemDados, setOrigemDados] = useState('manual'); // 'manual' | 'ocr'
+  const [documentoUrl, setDocumentoUrl] = useState(null);
+  const [documentoPendenteOcr, setDocumentoPendenteOcr] = useState(false);
+  
   const [placa, setPlaca] = useState('');
   const [renavam, setRenavam] = useState('');
   const [marca, setMarca] = useState('');
@@ -52,22 +57,42 @@ export default function CadastroVeiculoScreen({ route, navigation }) {
   const [mostrarAnos, setMostrarAnos] = useState(false);
   const [modoManual, setModoManual] = useState(false); // Fallback para dados não padronizados
 
-  // Carregar fabricantes ao montar
+  // Carregar fabricantes quando tipo for selecionado
   useEffect(() => {
-    carregarFabricantes();
-  }, []);
-
-  // Carregar modelos quando fabricante for selecionado
-  useEffect(() => {
-    if (fabricanteSelecionado && !modoManual) {
-      carregarModelos(fabricanteSelecionado.id);
+    if (tipoVeiculo && !modoManual) {
+      carregarFabricantes(tipoVeiculo);
     } else {
+      setFabricantes([]);
+      setFabricanteSelecionado(null);
       setModelos([]);
       setModeloSelecionado(null);
       setAnos([]);
       setAnoSelecionado(null);
     }
-  }, [fabricanteSelecionado, modoManual]);
+    // Limpar seleções quando tipo muda
+    if (!tipoVeiculo) {
+      setFabricanteSelecionado(null);
+      setModeloSelecionado(null);
+      setAnoSelecionado(null);
+    }
+  }, [tipoVeiculo, modoManual]);
+
+  // Carregar modelos quando fabricante for selecionado
+  useEffect(() => {
+    // Bloquear chamada se não tiver tipo ou fabricante
+    if (!tipoVeiculo || !fabricanteSelecionado || modoManual) {
+      setModelos([]);
+      setModeloSelecionado(null);
+      setAnos([]);
+      setAnoSelecionado(null);
+      return;
+    }
+    
+    // Só chamar API se tiver ambos
+    if (fabricanteSelecionado.id && tipoVeiculo) {
+      carregarModelos(fabricanteSelecionado.id, tipoVeiculo);
+    }
+  }, [fabricanteSelecionado, tipoVeiculo, modoManual]);
 
   // Carregar anos quando modelo for selecionado
   useEffect(() => {
@@ -79,10 +104,11 @@ export default function CadastroVeiculoScreen({ route, navigation }) {
     }
   }, [modeloSelecionado, modoManual]);
 
-  const carregarFabricantes = async () => {
+  const carregarFabricantes = async (tipo) => {
+    if (!tipo) return;
     try {
       setCarregandoFabricantes(true);
-      const dados = await listarFabricantes();
+      const dados = await listarFabricantes(tipo);
       setFabricantes(dados || []);
     } catch (error) {
       console.error('Erro ao carregar fabricantes:', error);
@@ -93,14 +119,22 @@ export default function CadastroVeiculoScreen({ route, navigation }) {
     }
   };
 
-  const carregarModelos = async (fabricanteId) => {
+  const carregarModelos = async (fabricanteId, tipo) => {
+    // Validação obrigatória antes de chamar API
+    if (!fabricanteId || !tipo) {
+      setModelos([]);
+      setModeloSelecionado(null);
+      return;
+    }
+    
     try {
       setCarregandoModelos(true);
-      const dados = await listarModelos(fabricanteId);
+      const dados = await listarModelos(fabricanteId, tipo);
       setModelos(dados || []);
     } catch (error) {
       console.error('Erro ao carregar modelos:', error);
       setModelos([]);
+      setModeloSelecionado(null);
     } finally {
       setCarregandoModelos(false);
     }
@@ -144,7 +178,9 @@ export default function CadastroVeiculoScreen({ route, navigation }) {
 
       if (!result.canceled && result.assets[0]) {
         setImagemDocumento(result.assets[0]);
-        processarOcrDocumento(result.assets[0].uri);
+        setDocumentoUrl(result.assets[0].uri);
+        setDocumentoPendenteOcr(true);
+        // OCR local desabilitado - documento será processado posteriormente
       }
     } catch (error) {
       console.error('Erro ao capturar foto:', error);
@@ -170,7 +206,9 @@ export default function CadastroVeiculoScreen({ route, navigation }) {
 
       if (!result.canceled && result.assets[0]) {
         setImagemDocumento(result.assets[0]);
-        processarOcrDocumento(result.assets[0].uri);
+        setDocumentoUrl(result.assets[0].uri);
+        setDocumentoPendenteOcr(true);
+        // OCR local desabilitado - documento será processado posteriormente
       }
     } catch (error) {
       console.error('Erro ao selecionar imagem:', error);
@@ -178,81 +216,59 @@ export default function CadastroVeiculoScreen({ route, navigation }) {
     }
   };
 
-  // Função para processar OCR do documento
-  const processarOcrDocumento = async (imageUri) => {
+  // Função para selecionar documento (PDF ou foto)
+  const selecionarDocumento = async () => {
     try {
-      setProcessandoOcr(true);
-      setDadosOcrExtraidos(null);
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permissão necessária', 'É necessário permitir o acesso à galeria para selecionar o documento.');
+        return;
+      }
 
-      const resultado = await processarOcrDocumentoLocal(imageUri);
+      // Por enquanto, permite apenas imagens (PDF requer expo-document-picker)
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.8,
+      });
 
-      if (resultado.success && resultado.dados) {
-        setDadosOcrExtraidos(resultado.dados);
-        setMostrarPreviewOcr(true);
-        setOrigemDados('ocr');
-      } else {
-        Alert.alert(
-          'OCR não disponível',
-          'Não foi possível extrair dados automaticamente. Por favor, preencha os dados manualmente.',
-          [{ text: 'OK' }]
-        );
-        setOrigemDados('manual');
+      if (!result.canceled && result.assets[0]) {
+        const asset = result.assets[0];
+        setImagemDocumento(asset);
+        // Definir documento_url e flag de OCR pendente
+        setDocumentoUrl(asset.uri);
+        setDocumentoPendenteOcr(true);
+        // OCR local desabilitado - documento será processado posteriormente
       }
     } catch (error) {
-      console.error('Erro ao processar OCR:', error);
-      Alert.alert(
-        'Erro no OCR',
-        'Não foi possível processar a imagem. Você pode preencher os dados manualmente.',
-        [{ text: 'OK' }]
-      );
-      setOrigemDados('manual');
-    } finally {
-      setProcessandoOcr(false);
+      console.warn('Erro ao selecionar documento:', error);
+      Alert.alert('Erro', 'Não foi possível selecionar o documento. Tente novamente.');
     }
   };
 
-  // Função para confirmar dados do OCR
-  const confirmarDadosOcr = () => {
-    if (!dadosOcrExtraidos) return;
-
-    // Preencher campos com dados extraídos
-    if (dadosOcrExtraidos.placa) {
-      setPlaca(dadosOcrExtraidos.placa);
-    }
-    if (dadosOcrExtraidos.renavam) {
-      setRenavam(dadosOcrExtraidos.renavam);
-    }
-    if (dadosOcrExtraidos.ano) {
-      setAno(dadosOcrExtraidos.ano);
-      setAnoSelecionado(parseInt(dadosOcrExtraidos.ano));
-    }
-    if (dadosOcrExtraidos.marca) {
-      setMarca(dadosOcrExtraidos.marca);
-    }
-    if (dadosOcrExtraidos.modelo) {
-      setModelo(dadosOcrExtraidos.modelo);
-    }
-
-    setMostrarPreviewOcr(false);
-    Alert.alert('Sucesso', 'Dados extraídos foram preenchidos. Revise e confirme antes de salvar.');
-  };
-
-  // Função para descartar dados do OCR
-  const descartarDadosOcr = () => {
-    setDadosOcrExtraidos(null);
-    setImagemDocumento(null);
-    setMostrarPreviewOcr(false);
+  // Função para processar OCR do documento (DESABILITADA)
+  // OCR local será implementado futuramente
+  const processarOcrDocumento = async (imageUri) => {
+    // OCR local não está implementado - apenas armazenar documento
+    // O documento será processado posteriormente quando OCR estiver disponível
+    console.log('[CadastroVeiculo] OCR local desabilitado. Documento será processado posteriormente.');
     setOrigemDados('manual');
+    setDocumentoPendenteOcr(true);
   };
 
-  const tiposVeiculo = [
+  // Funções de OCR removidas - OCR local desabilitado
+
+  const tiposEquipamento = [
     { value: 'carro', label: 'Carro' },
     { value: 'moto', label: 'Moto' },
     { value: 'caminhao', label: 'Caminhão' },
-    { value: 'van', label: 'Van' },
-    { value: 'caminhonete', label: 'Caminhonete' },
     { value: 'onibus', label: 'Ônibus' },
     { value: 'barco', label: 'Barco' },
+    { value: 'jetski', label: 'Jetski' },
+    { value: 'maquina_agricola', label: 'Máquina Agrícola' },
+    { value: 'maquina_industrial', label: 'Máquina Industrial' },
+    { value: 'outro', label: 'Outro' },
   ];
 
   // Estados para validação visual
@@ -261,18 +277,31 @@ export default function CadastroVeiculoScreen({ route, navigation }) {
   const validarFormulario = () => {
     const novosErros = {};
 
-    // Modelo pode vir de modelo_id (dados mestres) ou modelo (legado)
-    if (!modoManual && !modeloSelecionado) {
-      novosErros.modelo = 'Selecione o modelo';
-    } else if (modoManual && !modelo.trim()) {
-      novosErros.modelo = 'O modelo é obrigatório';
+    // Tipo do equipamento é obrigatório
+    if (!tipoVeiculo) {
+      novosErros.tipoVeiculo = 'Selecione o tipo do equipamento';
     }
-    
-    // Ano pode vir de ano_modelo (dados mestres) ou ano (legado)
-    if (!modoManual && !anoSelecionado) {
-      novosErros.ano = 'Selecione o ano';
-    } else if (modoManual && !ano.trim()) {
-      novosErros.ano = 'O ano é obrigatório';
+
+    // Modelo pode vir de modelo_id (dados mestres) ou modelo (legado)
+    // No modo manual, não validar modelo/ano (apenas avisar)
+    if (!modoManual) {
+      if (tipoVeiculo && !fabricanteSelecionado) {
+        novosErros.fabricante = 'Selecione o fabricante';
+      }
+      if (tipoVeiculo && fabricanteSelecionado && !modeloSelecionado) {
+        novosErros.modelo = 'Selecione o modelo';
+      }
+      if (tipoVeiculo && modeloSelecionado && !anoSelecionado) {
+        novosErros.ano = 'Selecione o ano';
+      }
+    } else {
+      // Modo manual: validar apenas se campos estiverem preenchidos
+      if (!modelo.trim()) {
+        novosErros.modelo = 'O modelo é obrigatório';
+      }
+      if (!ano.trim()) {
+        novosErros.ano = 'O ano é obrigatório';
+      }
     }
 
     // Validações de Dados da Aquisição (OBRIGATÓRIAS)
@@ -290,14 +319,15 @@ export default function CadastroVeiculoScreen({ route, navigation }) {
       }
     }
 
-    // Se usado, KM inicial é obrigatório
+    // Se usado, valor inicial é obrigatório
     if (origemPosse === 'usado') {
+      const metricaLabel = tipoVeiculo ? getMetricaPorTipo(tipoVeiculo).labelLong : 'KM';
       if (!kmInicio || kmInicio.trim() === '') {
-        novosErros.kmInicio = 'KM inicial é obrigatório para veículos usados';
+        novosErros.kmInicio = `${metricaLabel} inicial é obrigatório para equipamentos usados`;
       } else {
         const kmNum = parseInt(kmInicio);
         if (isNaN(kmNum) || kmNum < 0) {
-          novosErros.kmInicio = 'KM inicial deve ser um número maior ou igual a 0';
+          novosErros.kmInicio = `${metricaLabel} inicial deve ser um número maior ou igual a 0`;
         }
       }
     }
@@ -313,9 +343,25 @@ export default function CadastroVeiculoScreen({ route, navigation }) {
       return;
     }
 
+    // Determinar métrica baseada no tipo de equipamento
+    const metrica = tipoVeiculo ? getMetricaPorTipo(tipoVeiculo) : { key: 'km', labelLong: 'Quilometragem' };
+    const valorInicial = origemPosse === 'zero_km' ? 0 : parseInt(kmInicio.replace(/\D/g, '')) || 0;
+    
+    // Validar valor antes do envio (exceto para tipo configuravel e zero_km)
+    if (metrica.key !== 'configuravel' && origemPosse === 'usado') {
+      if (!valorInicial || isNaN(Number(valorInicial)) || valorInicial < 0) {
+        Alert.alert(
+          'Valor inválido',
+          `Informe ${metrica.labelLong.toLowerCase()} inicial válida`
+        );
+        return;
+      }
+    }
+    
     setLoading(true);
     try {
-      const response = await cadastrarVeiculo({ 
+      // Construir payload base
+      const payload = {
         placa: placa.trim() ? placa.trim().toUpperCase() : null, 
         renavam: renavam.trim() || null,
         marca: modoManual ? (marca.trim() || null) : null,
@@ -325,15 +371,39 @@ export default function CadastroVeiculoScreen({ route, navigation }) {
         proprietario_id: proprietarioId || null,
         origem_posse: origemPosse,
         data_aquisicao: dataAquisicao ? dataAquisicao.toISOString().split('T')[0] : null, // Converter Date para YYYY-MM-DD
-        km_aquisicao: origemPosse === 'zero_km' ? 0 : parseInt(kmInicio.replace(/\D/g, '')) || 0,
         // Dados mestres (se selecionados)
         fabricante_id: !modoManual && fabricanteSelecionado ? fabricanteSelecionado.id : null,
         modelo_id: !modoManual && modeloSelecionado ? modeloSelecionado.id : null,
         ano_modelo: !modoManual && anoSelecionado ? anoSelecionado : null,
         dados_nao_padronizados: modoManual,
         // Origem dos dados (manual ou OCR)
-        origem_dados: origemDados
-      });
+        origem_dados: origemDados,
+        // Documento do equipamento (usar URI do asset se existir, senão documentoUrl)
+        documento_url: imagemDocumento?.uri || documentoUrl || null,
+        documento_pendente_ocr: documentoPendenteOcr || !!imagemDocumento,
+        // Inicializar campos de métrica como null
+        km_inicial: null,
+        horas_inicial: null
+      };
+      
+      // Adicionar métrica correta baseada no tipo
+      if (metrica.key === 'km') {
+        payload.km_inicial = Number(valorInicial);
+        // Backend ainda aceita km_aquisicao para compatibilidade
+        payload.km_aquisicao = Number(valorInicial);
+      } else if (metrica.key === 'horas') {
+        payload.horas_inicial = Number(valorInicial);
+        // Backend ainda aceita km_aquisicao para compatibilidade (será convertido internamente)
+        payload.km_aquisicao = Number(valorInicial);
+      } else if (metrica.key === 'configuravel') {
+        // Para tipo "outro", não criar histórico automático
+        payload.km_inicial = null;
+        payload.horas_inicial = null;
+        // Para tipo "outro", enviar 0 para não quebrar backend (histórico será criado manualmente depois)
+        payload.km_aquisicao = 0;
+      }
+      
+      const response = await cadastrarVeiculo(payload);
       if (response && response.id) {
         const returnTo = route?.params?.returnTo;
         Alert.alert('Sucesso', getSuccessMessage('veiculo'), [
@@ -401,7 +471,38 @@ export default function CadastroVeiculoScreen({ route, navigation }) {
           {proprietarioId && (
             <View style={styles.infoBox}>
               <Ionicons name="information-circle-outline" size={20} color="#2196F3" />
-              <Text style={styles.infoText}>Veículo será vinculado ao proprietário selecionado</Text>
+              <Text style={styles.infoText}>Equipamento será vinculado ao proprietário selecionado</Text>
+            </View>
+          )}
+
+          {/* Tipo do Equipamento (PRIMEIRO CAMPO) */}
+          <Text style={commonStyles.label}>Tipo do Equipamento *</Text>
+          <View style={styles.pickerContainer}>
+            <TouchableOpacity 
+              style={[commonStyles.inputContainer, styles.pickerButton, (!tipoVeiculo || erros.tipoVeiculo) && styles.inputRequired]}
+              onPress={() => setMostrarTipoVeiculo(true)}
+            >
+              <Ionicons name="car-sport-outline" size={20} color="#666" style={commonStyles.inputIcon} />
+              <Text style={styles.pickerText}>
+                {tipoVeiculo 
+                  ? tiposEquipamento.find(t => t.value === tipoVeiculo)?.label || tipoVeiculo
+                  : 'Selecione o tipo do equipamento *'}
+              </Text>
+              <Ionicons name="chevron-down" size={20} color="#666" />
+            </TouchableOpacity>
+          </View>
+          {erros.tipoVeiculo && <Text style={styles.errorText}>{erros.tipoVeiculo}</Text>}
+          {!tipoVeiculo && (
+            <Text style={styles.helperText}>
+              Selecione o tipo do equipamento primeiro para continuar
+            </Text>
+          )}
+          {tipoVeiculo === 'outro' && (
+            <View style={[styles.infoBox, styles.infoBoxNeutral]}>
+              <Ionicons name="information-circle-outline" size={16} color="#666" />
+              <Text style={[styles.infoText, { color: '#666' }]}>
+                Este tipo permite uso livre e personalizado. Algumas comparações automáticas e métricas padrão podem não se aplicar.
+              </Text>
             </View>
           )}
 
@@ -430,41 +531,160 @@ export default function CadastroVeiculoScreen({ route, navigation }) {
             />
           </View>
 
-          <Text style={commonStyles.label}>Fabricante</Text>
-          <View style={commonStyles.inputContainer}>
-            <Ionicons name="car-sport-outline" size={20} color="#666" style={commonStyles.inputIcon} />
-            <TextInput
-              style={commonStyles.input}
-              placeholder="Ex: Toyota, Honda, Fiat..."
-              placeholderTextColor="#999"
-              value={marca}
-              onChangeText={setMarca}
-              autoCapitalize="words"
-            />
-          </View>
-
-          <Text style={commonStyles.label}>Modelo / Identificação *</Text>
-          <View style={commonStyles.inputContainer}>
-            <Ionicons name="car-outline" size={20} color="#666" style={commonStyles.inputIcon} />
-            <TextInput
-              style={[commonStyles.input, erros.modelo && styles.inputError]}
-              placeholder="Ex: Corolla, Civic, Uno..."
-              placeholderTextColor="#999"
-              value={modelo}
-              onChangeText={(text) => {
-                setModelo(text);
-                if (erros.modelo) {
-                  setErros({ ...erros, modelo: null });
-                }
-              }}
-              autoCapitalize="words"
-            />
-          </View>
-          {erros.modelo && <Text style={styles.errorText}>{erros.modelo}</Text>}
-
-          {/* Ano - apenas se modo manual ou não selecionado via dados mestres */}
-          {(modoManual || !anoSelecionado) && (
+          {/* Modo Guiado (Padrão) */}
+          {!modoManual ? (
             <>
+              <Text style={commonStyles.label}>Fabricante *</Text>
+              <TouchableOpacity
+                style={[
+                  commonStyles.inputContainer, 
+                  styles.pickerButton, 
+                  erros.fabricante && styles.inputError,
+                  !tipoVeiculo && styles.inputDisabled
+                ]}
+                onPress={() => tipoVeiculo && setMostrarFabricantes(true)}
+                disabled={!tipoVeiculo}
+              >
+                <Ionicons name="car-sport-outline" size={20} color="#666" style={commonStyles.inputIcon} />
+                <Text style={[
+                  styles.pickerText, 
+                  (!fabricanteSelecionado || !tipoVeiculo) && styles.pickerTextPlaceholder
+                ]}>
+                  {!tipoVeiculo 
+                    ? 'Selecione o tipo do equipamento primeiro'
+                    : fabricanteSelecionado 
+                      ? fabricanteSelecionado.nome 
+                      : 'Selecione o fabricante *'}
+                </Text>
+                {carregandoFabricantes ? (
+                  <ActivityIndicator size="small" color="#666" />
+                ) : (
+                  <Ionicons name="chevron-down" size={20} color="#666" />
+                )}
+              </TouchableOpacity>
+              {erros.fabricante && <Text style={styles.errorText}>{erros.fabricante}</Text>}
+
+              {fabricanteSelecionado && tipoVeiculo && (
+                <>
+                  <Text style={commonStyles.label}>Modelo *</Text>
+                  <TouchableOpacity
+                    style={[
+                      commonStyles.inputContainer, 
+                      styles.pickerButton, 
+                      erros.modelo && styles.inputError,
+                      (!fabricanteSelecionado || !tipoVeiculo) && styles.inputDisabled
+                    ]}
+                    onPress={() => (fabricanteSelecionado && tipoVeiculo) && setMostrarModelos(true)}
+                    disabled={!fabricanteSelecionado || !tipoVeiculo || carregandoModelos}
+                  >
+                    <Ionicons name="car-outline" size={20} color="#666" style={commonStyles.inputIcon} />
+                    <Text style={[styles.pickerText, !modeloSelecionado && styles.pickerTextPlaceholder]}>
+                      {modeloSelecionado ? modeloSelecionado.nome : 'Selecione o modelo *'}
+                    </Text>
+                    {carregandoModelos ? (
+                      <ActivityIndicator size="small" color="#666" />
+                    ) : (
+                      <Ionicons name="chevron-down" size={20} color="#666" />
+                    )}
+                  </TouchableOpacity>
+                  {erros.modelo && <Text style={styles.errorText}>{erros.modelo}</Text>}
+                </>
+              )}
+
+              {modeloSelecionado && tipoVeiculo && (
+                <>
+                  <Text style={commonStyles.label}>Ano do Modelo *</Text>
+                  <TouchableOpacity
+                    style={[
+                      commonStyles.inputContainer, 
+                      styles.pickerButton, 
+                      erros.ano && styles.inputError,
+                      (!modeloSelecionado || !tipoVeiculo) && styles.inputDisabled
+                    ]}
+                    onPress={() => (modeloSelecionado && tipoVeiculo) && setMostrarAnos(true)}
+                    disabled={!modeloSelecionado || !tipoVeiculo || carregandoAnos}
+                  >
+                    <Ionicons name="calendar-outline" size={20} color="#666" style={commonStyles.inputIcon} />
+                    <Text style={[styles.pickerText, !anoSelecionado && styles.pickerTextPlaceholder]}>
+                      {anoSelecionado ? anoSelecionado.toString() : 'Selecione o ano *'}
+                    </Text>
+                    {carregandoAnos ? (
+                      <ActivityIndicator size="small" color="#666" />
+                    ) : (
+                      <Ionicons name="chevron-down" size={20} color="#666" />
+                    )}
+                  </TouchableOpacity>
+                  {erros.ano && <Text style={styles.errorText}>{erros.ano}</Text>}
+                </>
+              )}
+
+              {/* Botão para ativar modo manual */}
+              {tipoVeiculo && (
+                <TouchableOpacity
+                  style={styles.modoManualButton}
+                  onPress={() => {
+                    setModoManual(true);
+                    setFabricanteSelecionado(null);
+                    setModeloSelecionado(null);
+                    setAnoSelecionado(null);
+                    setErros({ ...erros, fabricante: null, modelo: null, ano: null });
+                  }}
+                >
+                  <Ionicons name="create-outline" size={16} color="#666" />
+                  <Text style={styles.modoManualButtonText}>Não encontrei meu modelo</Text>
+                </TouchableOpacity>
+              )}
+            </>
+          ) : (
+            <>
+              {/* Modo Manual */}
+              <View style={styles.modoManualHeader}>
+                <Text style={styles.modoManualTitle}>Modo Manual</Text>
+                <TouchableOpacity
+                  onPress={() => {
+                    setModoManual(false);
+                    setMarca('');
+                    setModelo('');
+                    setAno('');
+                    setErros({ ...erros, modelo: null, ano: null });
+                  }}
+                >
+                  <Text style={styles.modoManualLink}>Voltar ao modo guiado</Text>
+                </TouchableOpacity>
+              </View>
+
+              <Text style={commonStyles.label}>Fabricante / Marca *</Text>
+              <View style={commonStyles.inputContainer}>
+                <Ionicons name="car-sport-outline" size={20} color="#666" style={commonStyles.inputIcon} />
+                <TextInput
+                  style={commonStyles.input}
+                  placeholder="Ex: Toyota, Honda, Fiat..."
+                  placeholderTextColor="#999"
+                  value={marca}
+                  onChangeText={setMarca}
+                  autoCapitalize="words"
+                />
+              </View>
+
+              <Text style={commonStyles.label}>Modelo *</Text>
+              <View style={commonStyles.inputContainer}>
+                <Ionicons name="car-outline" size={20} color="#666" style={commonStyles.inputIcon} />
+                <TextInput
+                  style={[commonStyles.input, erros.modelo && styles.inputError]}
+                  placeholder="Ex: Corolla, Civic, Uno..."
+                  placeholderTextColor="#999"
+                  value={modelo}
+                  onChangeText={(text) => {
+                    setModelo(text);
+                    if (erros.modelo) {
+                      setErros({ ...erros, modelo: null });
+                    }
+                  }}
+                  autoCapitalize="words"
+                />
+              </View>
+              {erros.modelo && <Text style={styles.errorText}>{erros.modelo}</Text>}
+
               <Text style={commonStyles.label}>Ano *</Text>
               <View style={commonStyles.inputContainer}>
                 <Ionicons name="calendar-outline" size={20} color="#666" style={commonStyles.inputIcon} />
@@ -484,24 +704,77 @@ export default function CadastroVeiculoScreen({ route, navigation }) {
                 />
               </View>
               {erros.ano && <Text style={styles.errorText}>{erros.ano}</Text>}
+
+              {/* Aviso leve no modo manual */}
+              <View style={[styles.infoBox, styles.infoBoxWarning]}>
+                <Ionicons name="information-circle-outline" size={16} color="#FF9800" />
+                <Text style={styles.infoTextWarning}>
+                  Esses dados poderão ser ajustados depois, se necessário.
+                </Text>
+              </View>
             </>
           )}
 
-          <Text style={commonStyles.label}>Tipo de Veículo</Text>
-          <View style={styles.pickerContainer}>
-            <TouchableOpacity 
-              style={[commonStyles.inputContainer, styles.pickerButton]}
-              onPress={() => setMostrarTipoVeiculo(true)}
+
+          {/* Seção: Documento do Equipamento (Opcional) */}
+          <View style={styles.sectionDivider} />
+          <Text style={[commonStyles.label, styles.sectionTitle]}>Documento do Equipamento (Opcional)</Text>
+          
+          {/* Mensagem informativa sobre OCR futuro */}
+          <View style={styles.infoBox}>
+            <Ionicons name="information-circle-outline" size={18} color="#2196F3" />
+            <Text style={styles.infoText}>
+              Leitura automática será disponibilizada em breve. Por enquanto, você pode anexar o documento (CRLV, nota fiscal, etc.) em PDF ou foto para referência futura.
+            </Text>
+          </View>
+          
+          <View style={styles.ocrButtonsContainer}>
+            <TouchableOpacity
+              style={[styles.ocrButton, styles.ocrButtonSecondary]}
+              onPress={capturarFotoDocumento}
             >
-              <Ionicons name="car-sport-outline" size={20} color="#666" style={commonStyles.inputIcon} />
-              <Text style={styles.pickerText}>
-                {tipoVeiculo 
-                  ? tiposVeiculo.find(t => t.value === tipoVeiculo)?.label || tipoVeiculo
-                  : 'Selecione o tipo (opcional)'}
-              </Text>
-              <Ionicons name="chevron-down" size={20} color="#666" />
+              <Ionicons name="camera-outline" size={20} color="#4CAF50" />
+              <Text style={[styles.ocrButtonText, styles.ocrButtonTextSecondary]}>Tirar Foto</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={[styles.ocrButton, styles.ocrButtonSecondary]}
+              onPress={selecionarDocumento}
+            >
+              <Ionicons name="document-attach-outline" size={20} color="#4CAF50" />
+              <Text style={[styles.ocrButtonText, styles.ocrButtonTextSecondary]}>PDF ou Foto</Text>
             </TouchableOpacity>
           </View>
+
+          {(imagemDocumento || documentoUrl) && (
+            <View style={styles.ocrImagePreview}>
+              {imagemDocumento?.uri ? (
+                <Image source={{ uri: imagemDocumento.uri }} style={styles.ocrImage} />
+              ) : documentoUrl ? (
+                <Image source={{ uri: documentoUrl }} style={styles.ocrImage} />
+              ) : (
+                <View style={styles.documentPreview}>
+                  <Ionicons name="document-text" size={48} color="#666" />
+                  <Text style={styles.documentPreviewText}>Documento anexado</Text>
+                  {documentoPendenteOcr && (
+                    <Text style={styles.documentPendenteText}>OCR pendente</Text>
+                  )}
+                </View>
+              )}
+              <TouchableOpacity
+                style={styles.ocrRemoveButton}
+                onPress={() => {
+                  setImagemDocumento(null);
+                  setDocumentoUrl(null);
+                  setDocumentoPendenteOcr(false);
+                  setDadosOcrExtraidos(null);
+                  setOrigemDados('manual');
+                }}
+              >
+                <Ionicons name="close-circle" size={24} color="#f44336" />
+              </TouchableOpacity>
+            </View>
+          )}
 
           {/* Seção: Dados da Aquisição (OBRIGATÓRIA) */}
           <View style={styles.sectionDivider} />
@@ -534,9 +807,9 @@ export default function CadastroVeiculoScreen({ route, navigation }) {
           </TouchableOpacity>
           {erros.dataAquisicao && <Text style={styles.errorText}>{erros.dataAquisicao}</Text>}
           
-          {/* DatePicker nativo - sempre renderizar no iOS, controlar visibilidade via estado */}
-          {Platform.OS === 'ios' ? (
-            mostrarDatePicker && (
+          {/* DatePicker nativo - corrigido para funcionar corretamente */}
+          {mostrarDatePicker && (
+            Platform.OS === 'ios' ? (
               <View style={styles.datePickerContainer}>
                 <View style={styles.datePickerHeader}>
                   <TouchableOpacity
@@ -566,8 +839,9 @@ export default function CadastroVeiculoScreen({ route, navigation }) {
                   maximumDate={new Date()}
                   onChange={(event, selectedDate) => {
                     if (event.type === 'set' && selectedDate) {
+                      // Manter como Date object
                       setDataAquisicao(selectedDate);
-                      // Formatar para DD/MM/YYYY para exibição
+                      // Formatar para DD/MM/YYYY apenas para exibição
                       const day = String(selectedDate.getDate()).padStart(2, '0');
                       const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
                       const year = selectedDate.getFullYear();
@@ -575,13 +849,13 @@ export default function CadastroVeiculoScreen({ route, navigation }) {
                       if (erros.dataAquisicao) {
                         setErros({ ...erros, dataAquisicao: null });
                       }
+                    } else if (event.type === 'dismissed') {
+                      setMostrarDatePicker(false);
                     }
                   }}
                 />
               </View>
-            )
-          ) : (
-            mostrarDatePicker && (
+            ) : (
               <DateTimePicker
                 value={dataAquisicao || new Date()}
                 mode="date"
@@ -590,8 +864,9 @@ export default function CadastroVeiculoScreen({ route, navigation }) {
                 onChange={(event, selectedDate) => {
                   setMostrarDatePicker(false);
                   if (event.type === 'set' && selectedDate) {
+                    // Manter como Date object
                     setDataAquisicao(selectedDate);
-                    // Formatar para DD/MM/YYYY para exibição
+                    // Formatar para DD/MM/YYYY apenas para exibição
                     const day = String(selectedDate.getDate()).padStart(2, '0');
                     const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
                     const year = selectedDate.getFullYear();
@@ -707,17 +982,28 @@ export default function CadastroVeiculoScreen({ route, navigation }) {
               style={styles.modalScrollView}
               showsVerticalScrollIndicator={true}
             >
-              {tiposVeiculo.map(tipo => (
+              {tiposEquipamento.map(tipo => (
                 <TouchableOpacity
                   key={tipo.value}
                   style={[
                     styles.modalOptionItem,
                     tipoVeiculo === tipo.value && styles.modalOptionItemSelected
                   ]}
-                  onPress={() => {
-                    setTipoVeiculo(tipo.value);
-                    setMostrarTipoVeiculo(false);
-                  }}
+                onPress={() => {
+                  const novoTipo = tipo.value;
+                  // Se tipo mudar, limpar seleções dependentes
+                  if (tipoVeiculo !== novoTipo) {
+                    setFabricanteSelecionado(null);
+                    setModeloSelecionado(null);
+                    setAnoSelecionado(null);
+                    setFabricantes([]);
+                    setModelos([]);
+                    setAnos([]);
+                    setErros({ ...erros, tipoVeiculo: null, fabricante: null, modelo: null, ano: null });
+                  }
+                  setTipoVeiculo(novoTipo);
+                  setMostrarTipoVeiculo(false);
+                }}
                 >
                   <Text style={[
                     styles.modalOptionText,
@@ -809,6 +1095,204 @@ export default function CadastroVeiculoScreen({ route, navigation }) {
         </Pressable>
       </Modal>
 
+      {/* Modal de Seleção de Fabricante */}
+      <Modal
+        visible={mostrarFabricantes}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setMostrarFabricantes(false)}
+      >
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => setMostrarFabricantes(false)}
+        >
+          <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Selecione o Fabricante</Text>
+              <TouchableOpacity
+                onPress={() => setMostrarFabricantes(false)}
+                style={styles.modalCloseButton}
+              >
+                <Ionicons name="close" size={24} color="#666" />
+              </TouchableOpacity>
+            </View>
+            <ScrollView
+              style={styles.modalScrollView}
+              showsVerticalScrollIndicator={true}
+            >
+              {carregandoFabricantes ? (
+                <View style={styles.modalLoading}>
+                  <ActivityIndicator size="large" color="#4CAF50" />
+                  <Text style={styles.modalLoadingText}>Carregando fabricantes...</Text>
+                </View>
+              ) : fabricantes.length === 0 ? (
+                <View style={styles.modalEmpty}>
+                  <Text style={styles.modalEmptyText}>Nenhum fabricante disponível</Text>
+                </View>
+              ) : (
+                fabricantes.map(fabricante => (
+                  <TouchableOpacity
+                    key={fabricante.id}
+                    style={[
+                      styles.modalOptionItem,
+                      fabricanteSelecionado?.id === fabricante.id && styles.modalOptionItemSelected
+                    ]}
+                    onPress={() => {
+                      setFabricanteSelecionado(fabricante);
+                      setMostrarFabricantes(false);
+                      setErros({ ...erros, fabricante: null });
+                    }}
+                  >
+                    <Text style={[
+                      styles.modalOptionText,
+                      fabricanteSelecionado?.id === fabricante.id && styles.modalOptionTextSelected
+                    ]}>
+                      {fabricante.nome}
+                    </Text>
+                    {fabricanteSelecionado?.id === fabricante.id && (
+                      <Ionicons name="checkmark" size={20} color="#4CAF50" />
+                    )}
+                  </TouchableOpacity>
+                ))
+              )}
+            </ScrollView>
+          </View>
+        </Pressable>
+      </Modal>
+
+      {/* Modal de Seleção de Modelo */}
+      <Modal
+        visible={mostrarModelos}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setMostrarModelos(false)}
+      >
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => setMostrarModelos(false)}
+        >
+          <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Selecione o Modelo</Text>
+              <TouchableOpacity
+                onPress={() => setMostrarModelos(false)}
+                style={styles.modalCloseButton}
+              >
+                <Ionicons name="close" size={24} color="#666" />
+              </TouchableOpacity>
+            </View>
+            <ScrollView
+              style={styles.modalScrollView}
+              showsVerticalScrollIndicator={true}
+            >
+              {carregandoModelos ? (
+                <View style={styles.modalLoading}>
+                  <ActivityIndicator size="large" color="#4CAF50" />
+                  <Text style={styles.modalLoadingText}>Carregando modelos...</Text>
+                </View>
+              ) : modelos.length === 0 ? (
+                <View style={styles.modalEmpty}>
+                  <Text style={styles.modalEmptyText}>Nenhum modelo disponível</Text>
+                </View>
+              ) : (
+                modelos.map(modelo => (
+                  <TouchableOpacity
+                    key={modelo.id}
+                    style={[
+                      styles.modalOptionItem,
+                      modeloSelecionado?.id === modelo.id && styles.modalOptionItemSelected
+                    ]}
+                    onPress={() => {
+                      setModeloSelecionado(modelo);
+                      setMostrarModelos(false);
+                      setErros({ ...erros, modelo: null });
+                    }}
+                  >
+                    <Text style={[
+                      styles.modalOptionText,
+                      modeloSelecionado?.id === modelo.id && styles.modalOptionTextSelected
+                    ]}>
+                      {modelo.nome}
+                    </Text>
+                    {modeloSelecionado?.id === modelo.id && (
+                      <Ionicons name="checkmark" size={20} color="#4CAF50" />
+                    )}
+                  </TouchableOpacity>
+                ))
+              )}
+            </ScrollView>
+          </View>
+        </Pressable>
+      </Modal>
+
+      {/* Modal de Seleção de Ano */}
+      <Modal
+        visible={mostrarAnos}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setMostrarAnos(false)}
+      >
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => setMostrarAnos(false)}
+        >
+          <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Selecione o Ano</Text>
+              <TouchableOpacity
+                onPress={() => setMostrarAnos(false)}
+                style={styles.modalCloseButton}
+              >
+                <Ionicons name="close" size={24} color="#666" />
+              </TouchableOpacity>
+            </View>
+            <ScrollView
+              style={styles.modalScrollView}
+              showsVerticalScrollIndicator={true}
+            >
+              {carregandoAnos ? (
+                <View style={styles.modalLoading}>
+                  <ActivityIndicator size="large" color="#4CAF50" />
+                  <Text style={styles.modalLoadingText}>Carregando anos...</Text>
+                </View>
+              ) : anos.length === 0 ? (
+                <View style={styles.modalEmpty}>
+                  <Text style={styles.modalEmptyText}>Nenhum ano disponível</Text>
+                </View>
+              ) : (
+                anos.map(ano => (
+                  <TouchableOpacity
+                    key={ano}
+                    style={[
+                      styles.modalOptionItem,
+                      anoSelecionado === ano && styles.modalOptionItemSelected
+                    ]}
+                    onPress={() => {
+                      setAnoSelecionado(ano);
+                      setMostrarAnos(false);
+                      setErros({ ...erros, ano: null });
+                    }}
+                  >
+                    <Text style={[
+                      styles.modalOptionText,
+                      anoSelecionado === ano && styles.modalOptionTextSelected
+                    ]}>
+                      {ano.toString()}
+                    </Text>
+                    {anoSelecionado === ano && (
+                      <Ionicons name="checkmark" size={20} color="#4CAF50" />
+                    )}
+                  </TouchableOpacity>
+                ))
+              )}
+            </ScrollView>
+          </View>
+        </Pressable>
+      </Modal>
+
+      {/* Modal: Preview de Dados OCR */}
+      {/* Modal de Preview de OCR removido - OCR local desabilitado */}
+
       {/* Modal: Veículo já existe */}
       <Modal
         visible={mostrarModalVeiculoExistente}
@@ -866,6 +1350,79 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#333',
   },
+  pickerTextPlaceholder: {
+    color: '#999',
+  },
+  modoManualButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginTop: 8,
+    marginBottom: 16,
+    backgroundColor: '#f5f5f5',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+  },
+  modoManualButtonText: {
+    marginLeft: 8,
+    fontSize: 14,
+    color: '#666',
+    fontWeight: '500',
+  },
+  modoManualHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  modoManualTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+  },
+  modoManualLink: {
+    fontSize: 14,
+    color: '#4CAF50',
+    fontWeight: '500',
+  },
+  infoBoxWarning: {
+    backgroundColor: '#fff3cd',
+    borderLeftWidth: 3,
+    borderLeftColor: '#FF9800',
+  },
+  infoTextWarning: {
+    fontSize: 13,
+    color: '#856404',
+    marginLeft: 12,
+    flex: 1,
+    lineHeight: 18,
+  },
+  modalLoading: {
+    padding: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalLoadingText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: '#666',
+  },
+  modalEmpty: {
+    padding: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalEmptyText: {
+    fontSize: 14,
+    color: '#999',
+    textAlign: 'center',
+  },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
@@ -890,6 +1447,12 @@ const styles = StyleSheet.create({
     padding: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#e0e0e0',
+  },
+  modalHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: 8,
   },
   modalTitle: {
     fontSize: 18,
@@ -928,6 +1491,12 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 8,
     marginBottom: 20,
+    borderLeftWidth: 4,
+    borderLeftColor: '#2196F3',
+  },
+  infoBoxNeutral: {
+    backgroundColor: '#f5f5f5',
+    borderLeftColor: '#666',
   },
   infoText: {
     marginLeft: 10,
@@ -1171,5 +1740,87 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#fff',
     fontWeight: '600',
+  },
+  sectionDivider: {
+    height: 1,
+    backgroundColor: '#e0e0e0',
+    marginVertical: 24,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 8,
+    color: '#333',
+  },
+  sectionSubtitle: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 16,
+    lineHeight: 20,
+  },
+  ocrButtonsContainer: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 16,
+  },
+  ocrButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    gap: 8,
+  },
+  ocrButtonPrimary: {
+    backgroundColor: '#4CAF50',
+  },
+  ocrButtonSecondary: {
+    backgroundColor: '#E8F5E9',
+    borderWidth: 1,
+    borderColor: '#4CAF50',
+  },
+  ocrButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  ocrButtonTextSecondary: {
+    color: '#4CAF50',
+  },
+  ocrProcessingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    marginBottom: 16,
+    backgroundColor: '#f5f5f5',
+    borderRadius: 8,
+    gap: 8,
+  },
+  ocrProcessingText: {
+    fontSize: 14,
+    color: '#666',
+  },
+  ocrImagePreview: {
+    position: 'relative',
+    marginBottom: 16,
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  ocrImage: {
+    width: '100%',
+    height: 200,
+    resizeMode: 'contain',
+    backgroundColor: '#f5f5f5',
+  },
+  ocrRemoveButton: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    borderRadius: 16,
+    padding: 4,
   },
 });
