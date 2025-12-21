@@ -14,6 +14,7 @@ import HeaderBar from '../components/HeaderBar';
 import { commonStyles } from '../constants/styles';
 import { buscarTimeline, buscarVeiculoPorId } from '../services/api';
 import { getErrorMessage } from '../utils/errorMessages';
+import { getMetricaPorTipo } from '../utils/tipoEquipamento';
 
 export default function TimelineVeiculoScreen({ navigation, route }) {
   const { veiculoId } = route?.params || {};
@@ -59,9 +60,36 @@ export default function TimelineVeiculoScreen({ navigation, route }) {
     if (!data) return 'Data não informada';
     try {
       const date = new Date(data);
+      const agora = new Date();
+      const hoje = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate());
+      const ontem = new Date(hoje);
+      ontem.setDate(ontem.getDate() - 1);
+      const dataEvento = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+      
+      // Se for hoje, mostrar "Hoje" + hora
+      if (dataEvento.getTime() === hoje.getTime()) {
+        return `Hoje às ${date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
+      }
+      
+      // Se for ontem, mostrar "Ontem" + hora
+      if (dataEvento.getTime() === ontem.getTime()) {
+        return `Ontem às ${date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
+      }
+      
+      // Se for da mesma semana, mostrar dia da semana + data
+      const diasDiferenca = Math.floor((hoje - dataEvento) / (1000 * 60 * 60 * 24));
+      if (diasDiferenca <= 7) {
+        const diaSemana = date.toLocaleDateString('pt-BR', { weekday: 'long' });
+        return `${diaSemana.charAt(0).toUpperCase() + diaSemana.slice(1)}, ${date.toLocaleDateString('pt-BR', {
+          day: '2-digit',
+          month: '2-digit',
+        })}`;
+      }
+      
+      // Para datas mais antigas, mostrar data completa
       return date.toLocaleDateString('pt-BR', {
         day: '2-digit',
-        month: '2-digit',
+        month: 'short',
         year: 'numeric',
       });
     } catch {
@@ -74,10 +102,21 @@ export default function TimelineVeiculoScreen({ navigation, route }) {
     return parseInt(km).toLocaleString('pt-BR');
   };
 
-  const getTipoIcon = (tipo) => {
+  // Obter métrica baseada no tipo do equipamento (fallback para 'carro' se não houver tipo)
+  const getMetrica = () => {
+    const tipo = veiculo?.tipo_veiculo || 'carro';
+    return getMetricaPorTipo(tipo);
+  };
+
+  const getTipoIcon = (tipo, origem) => {
     switch (tipo) {
       case 'km':
-        return 'speedometer-outline';
+        // Ícone específico baseado na origem
+        if (origem === 'abastecimento') {
+          return 'car-sport-outline'; // Ícone específico para abastecimento
+        }
+        // Usar ícone da métrica do equipamento para outros tipos de KM
+        return getMetrica().icon;
       case 'manutencao':
         return 'construct-outline';
       case 'transferencia':
@@ -102,13 +141,45 @@ export default function TimelineVeiculoScreen({ navigation, route }) {
 
   const getOrigemLabel = (origem) => {
     const labels = {
-      manual: 'Manual',
+      manual: 'Usuário',
       ocr: 'OCR',
       abastecimento: 'Abastecimento',
-      aquisicao: 'Aquisição',
-      venda: 'Venda',
+      aquisicao: 'Sistema',
+      venda: 'Sistema',
     };
     return labels[origem] || origem || '';
+  };
+
+  const getOrigemIcon = (origem) => {
+    switch (origem) {
+      case 'manual':
+        return 'person-outline';
+      case 'ocr':
+        return 'camera-outline';
+      case 'abastecimento':
+        return 'car-sport-outline';
+      case 'aquisicao':
+      case 'venda':
+        return 'settings-outline';
+      default:
+        return 'information-circle-outline';
+    }
+  };
+
+  const getOrigemColor = (origem) => {
+    switch (origem) {
+      case 'manual':
+        return '#2196F3'; // Azul para usuário
+      case 'ocr':
+        return '#9C27B0'; // Roxo para OCR
+      case 'abastecimento':
+        return '#FF9800'; // Laranja para abastecimento
+      case 'aquisicao':
+      case 'venda':
+        return '#666'; // Cinza para sistema
+      default:
+        return '#999';
+    }
   };
 
   if (loading) {
@@ -163,9 +234,11 @@ export default function TimelineVeiculoScreen({ navigation, route }) {
         ) : (
           <View style={styles.timelineContainer}>
             {eventos.map((evento, index) => {
-              const tipoIcon = getTipoIcon(evento.tipo);
+              const tipoIcon = getTipoIcon(evento.tipo, evento.origem);
               const tipoColor = getTipoColor(evento.tipo);
               const isLast = index === eventos.length - 1;
+              const origemIcon = evento.origem ? getOrigemIcon(evento.origem) : null;
+              const origemColor = evento.origem ? getOrigemColor(evento.origem) : '#999';
 
               return (
                 <View key={evento.id} style={styles.timelineItem}>
@@ -182,20 +255,25 @@ export default function TimelineVeiculoScreen({ navigation, route }) {
                     <View style={styles.eventoHeader}>
                       <Text style={styles.eventoData}>{formatarData(evento.data)}</Text>
                       {evento.origem && (
-                        <View style={styles.origemBadge}>
-                          <Text style={styles.origemText}>{getOrigemLabel(evento.origem)}</Text>
+                        <View style={[styles.origemBadge, { borderColor: origemColor }]}>
+                          {origemIcon && (
+                            <Ionicons name={origemIcon} size={12} color={origemColor} style={{ marginRight: 4 }} />
+                          )}
+                          <Text style={[styles.origemText, { color: origemColor }]}>
+                            {getOrigemLabel(evento.origem)}
+                          </Text>
                         </View>
                       )}
                     </View>
 
                     <Text style={styles.eventoDescricao}>{evento.descricao}</Text>
 
-                    {/* KM relacionado */}
+                    {/* Valor relacionado (KM ou Horas) */}
                     {evento.km_relacionado !== null && evento.km_relacionado !== undefined && (
                       <View style={styles.kmInfo}>
-                        <Ionicons name="speedometer-outline" size={14} color="#666" />
+                        <Ionicons name={getMetrica().icon} size={14} color="#666" />
                         <Text style={styles.kmText}>
-                          {formatarKm(evento.km_relacionado)} km
+                          {formatarKm(evento.km_relacionado)} {getMetrica().label.toLowerCase()}
                         </Text>
                       </View>
                     )}
@@ -310,15 +388,17 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   origemBadge: {
-    backgroundColor: '#f0f0f0',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
   },
   origemText: {
-    fontSize: 10,
-    color: '#666',
-    fontWeight: '500',
+    fontSize: 11,
+    fontWeight: '600',
   },
   eventoDescricao: {
     fontSize: 15,
