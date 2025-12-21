@@ -48,6 +48,7 @@ export default function HomeDashboardScreen({ navigation, route }) {
       ]);
       
       // Processar resultados com fallback seguro
+      // IMPORTANTE: Nunca bloquear renderização - sempre ter valores padrão
       const veiculosData = resultados[0].status === 'fulfilled' ? resultados[0].value : [];
       const total = resultados[1].status === 'fulfilled' ? resultados[1].value : 0;
       const resumo = resultados[2].status === 'fulfilled' ? resultados[2].value : null;
@@ -55,7 +56,13 @@ export default function HomeDashboardScreen({ navigation, route }) {
       
       setVeiculos(Array.isArray(veiculosData) ? veiculosData : []);
       setTotalGeral(total || 0);
-      setResumoDashboard(resumo);
+      // Fallback seguro: se resumo falhar, usar estrutura vazia com valores padrão
+      setResumoDashboard(resumo || {
+        gasto30dias: 0,
+        consumoMedio: null,
+        litrosMes: 0,
+        manutencaoProxima: null
+      });
       setAlertas(Array.isArray(alertasData) ? alertasData : []);
       
       // Log de erros individuais (sem bloquear)
@@ -73,10 +80,15 @@ export default function HomeDashboardScreen({ navigation, route }) {
         Alert.alert('Ops!', getErrorMessage(error));
       }
       
-      // Fallback seguro
+      // Fallback seguro - nunca deixar null para evitar quebras
       setVeiculos([]);
       setTotalGeral(0);
-      setResumoDashboard(null);
+      setResumoDashboard({
+        gasto30dias: 0,
+        consumoMedio: null,
+        litrosMes: 0,
+        manutencaoProxima: null
+      });
       setAlertas([]);
     } finally {
       setLoading(false);
@@ -178,13 +190,12 @@ export default function HomeDashboardScreen({ navigation, route }) {
         }
         showsVerticalScrollIndicator={false}
       >
-        {/* Dashboard Summary Cards */}
+        {/* Dashboard Summary Cards - Foco em dados financeiros e operacionais */}
         <DashboardSummaryCard
-          kmTotal={resumoDashboard?.kmTotal}
-          gasto30dias={resumoDashboard?.gasto30dias}
-          consumoMedio={resumoDashboard?.consumoMedio}
-          litrosMes={resumoDashboard?.litrosMes}
-          manutencaoProxima={resumoDashboard?.manutencaoProxima}
+          gasto30dias={resumoDashboard?.gasto30dias ?? 0}
+          consumoMedio={resumoDashboard?.consumoMedio ?? null}
+          litrosMes={resumoDashboard?.litrosMes ?? 0}
+          manutencaoProxima={resumoDashboard?.manutencaoProxima ?? null}
           loading={loadingResumo}
         />
 

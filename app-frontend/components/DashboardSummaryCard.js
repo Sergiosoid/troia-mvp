@@ -1,6 +1,17 @@
 /**
  * Componente DashboardSummaryCard
- * Exibe métricas resumidas do dashboard em cards horizontais
+ * 
+ * FOCO: Dashboard financeiro e operacional para uso diário
+ * 
+ * Este componente exibe métricas práticas focadas em:
+ * - Gastos recentes (últimos 30 dias)
+ * - Consumo de combustível (média e volume)
+ * - Alertas de manutenção próxima
+ * 
+ * NÃO exibe métricas técnicas profundas (ex: KM total agregado da frota)
+ * que não agregam valor imediato para o usuário.
+ * 
+ * Todas as métricas têm fallback seguro - nunca quebra se API falhar.
  */
 
 import React from 'react';
@@ -11,7 +22,6 @@ import { commonStyles } from '../constants/styles';
 const SPACING = 16;
 
 export default function DashboardSummaryCard({ 
-  kmTotal, 
   gasto30dias, 
   consumoMedio, 
   litrosMes, 
@@ -22,7 +32,7 @@ export default function DashboardSummaryCard({
     return (
       <View style={styles.container}>
         <View style={styles.cardRow}>
-          {[1, 2, 3, 4].map((i) => (
+          {[1, 2, 3].map((i) => (
             <View key={i} style={[styles.card, styles.skeletonCard]}>
               <ActivityIndicator size="small" color="#ccc" />
             </View>
@@ -45,40 +55,37 @@ export default function DashboardSummaryCard({
 
   return (
     <View style={styles.container}>
-      <Text style={styles.sectionTitle}>Resumo da Frota</Text>
+      <Text style={styles.sectionTitle}>Resumo Financeiro</Text>
       
       <View style={styles.cardRow}>
-        {/* Card: KM Total */}
-        <View style={[styles.card, styles.cardVerde]}>
-          <Ionicons name="speedometer-outline" size={24} color="#fff" />
-          <Text style={styles.cardLabel}>KM Total</Text>
-          <Text style={styles.cardValue}>{formatarNumero(kmTotal || 0)}</Text>
-        </View>
-
         {/* Card: Gasto 30 Dias */}
         <View style={[styles.card, styles.cardAzul]}>
           <Ionicons name="cash-outline" size={24} color="#fff" />
           <Text style={styles.cardLabel}>Gasto 30 dias</Text>
           <Text style={styles.cardValue}>{formatarMoeda(gasto30dias || 0)}</Text>
         </View>
-      </View>
 
-      <View style={styles.cardRow}>
         {/* Card: Consumo Médio */}
         <View style={[styles.card, styles.cardAmarelo]}>
           <Ionicons name="flame-outline" size={24} color="#fff" />
           <Text style={styles.cardLabel}>Consumo Médio</Text>
           <Text style={styles.cardValue}>
-            {consumoMedio ? `${parseFloat(consumoMedio).toFixed(1)} km/l` : 'N/A'}
+            {consumoMedio && parseFloat(consumoMedio) > 0 
+              ? `${parseFloat(consumoMedio).toFixed(1)} km/l` 
+              : '—'}
           </Text>
         </View>
+      </View>
 
-        {/* Card: Litros no Mês */}
-        <View style={[styles.card, styles.cardLaranja]}>
+      {/* Card: Litros no Mês - Ocupar largura total quando sozinho */}
+      <View style={styles.cardRow}>
+        <View style={[styles.card, styles.cardLaranja, styles.cardFullWidth]}>
           <Ionicons name="water-outline" size={24} color="#fff" />
           <Text style={styles.cardLabel}>Litros no Mês</Text>
           <Text style={styles.cardValue}>
-            {litrosMes ? `${parseFloat(litrosMes).toFixed(1)} L` : '0 L'}
+            {litrosMes && parseFloat(litrosMes) > 0 
+              ? `${parseFloat(litrosMes).toFixed(1)} L` 
+              : '0 L'}
           </Text>
         </View>
       </View>
@@ -199,6 +206,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#f0f0f0',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  cardFullWidth: {
+    flex: 1,
+    maxWidth: '100%',
   },
 });
 
