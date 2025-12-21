@@ -265,11 +265,60 @@ router.post('/', authRequired, upload.single('imagem'), async (req, res) => {
       [result.insertId]
     );
 
+    // Calcular feedback de valor para o usuário
+    let consumoMedio = null;
+    let gastoMesAtual = null;
+
+    try {
+      // 1. Calcular consumo médio (média de todos os abastecimentos com consumo válido)
+      const abastecimentosComConsumo = await queryAll(
+        `SELECT consumo 
+         FROM abastecimentos 
+         WHERE veiculo_id = ? AND usuario_id = ? AND consumo IS NOT NULL AND consumo > 0
+         ORDER BY data DESC, id DESC`,
+        [veiculo_id, userId]
+      );
+
+      if (abastecimentosComConsumo && abastecimentosComConsumo.length > 0) {
+        const somaConsumo = abastecimentosComConsumo.reduce((acc, ab) => {
+          return acc + (parseFloat(ab.consumo) || 0);
+        }, 0);
+        consumoMedio = parseFloat((somaConsumo / abastecimentosComConsumo.length).toFixed(2));
+      }
+
+      // 2. Calcular gasto total no mês atual
+      const agora = new Date();
+      const primeiroDiaMes = new Date(agora.getFullYear(), agora.getMonth(), 1);
+      const primeiroDiaMesStr = primeiroDiaMes.toISOString().split('T')[0];
+
+      const abastecimentosMes = await queryAll(
+        `SELECT valor_total 
+         FROM abastecimentos 
+         WHERE veiculo_id = ? AND usuario_id = ? 
+           AND data >= ? AND valor_total IS NOT NULL`,
+        [veiculo_id, userId, primeiroDiaMesStr]
+      );
+
+      if (abastecimentosMes && abastecimentosMes.length > 0) {
+        gastoMesAtual = abastecimentosMes.reduce((acc, ab) => {
+          return acc + (parseFloat(ab.valor_total) || 0);
+        }, 0);
+        gastoMesAtual = parseFloat(gastoMesAtual.toFixed(2));
+      }
+    } catch (feedbackError) {
+      // Não bloquear resposta se cálculo de feedback falhar
+      console.warn('[AVISO] Erro ao calcular feedback de abastecimento:', feedbackError);
+    }
+
     res.status(201).json({
       success: true,
       data: {
         ...abastecimento,
         imagem_url: construirUrlImagem(imagem, req)
+      },
+      feedback: {
+        consumo_medio: consumoMedio,
+        gasto_mes_atual: gastoMesAtual
       }
     });
 

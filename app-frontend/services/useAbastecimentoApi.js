@@ -156,7 +156,11 @@ export const registrarAbastecimento = async (dados, imagemUri = null) => {
       throw new Error(res.error || 'Erro ao registrar abastecimento');
     }
 
-    return res.data || res;
+    // Retornar resposta completa incluindo feedback
+    return {
+      ...(res.data || res),
+      feedback: res.feedback || null
+    };
   } catch (error) {
     console.error('[Abastecimento] Erro ao registrar:', error);
     throw error;

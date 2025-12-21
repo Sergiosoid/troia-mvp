@@ -53,6 +53,8 @@ export default function RegistrarAbastecimentoScreen({ route, navigation }) {
   const [processandoOcr, setProcessandoOcr] = useState(false);
   const [dadosOcrExtraidos, setDadosOcrExtraidos] = useState(false);
   const [ultimoKmHistorico, setUltimoKmHistorico] = useState(null);
+  const [mostrarFeedback, setMostrarFeedback] = useState(false);
+  const [feedbackData, setFeedbackData] = useState(null);
   
   const { loading, error, processarOcr, registrar } = useAbastecimentoApi();
 
@@ -295,7 +297,7 @@ export default function RegistrarAbastecimentoScreen({ route, navigation }) {
         data: formatarDataParaApi(data),
       };
 
-      await registrar(dados, imagem?.uri);
+      const resultado = await registrar(dados, imagem?.uri);
 
       // Se houver km_depois, atualizar KM via endpoint correto com origem 'abastecimento'
       if (kmDepois && veiculoId) {
@@ -308,16 +310,23 @@ export default function RegistrarAbastecimentoScreen({ route, navigation }) {
         }
       }
 
-      Alert.alert(
-        'Sucesso',
-        getSuccessMessage('abastecimento'),
-        [
-          {
-            text: 'OK',
-            onPress: () => navigation.navigate('HomeDashboard', { refresh: true }),
-          },
-        ]
-      );
+      // Capturar feedback da resposta (se disponível)
+      if (resultado && resultado.feedback) {
+        setFeedbackData(resultado.feedback);
+        setMostrarFeedback(true);
+      } else {
+        // Fallback: se não houver feedback, usar Alert tradicional
+        Alert.alert(
+          'Sucesso',
+          getSuccessMessage('abastecimento'),
+          [
+            {
+              text: 'OK',
+              onPress: () => navigation.navigate('HomeDashboard', { refresh: true }),
+            },
+          ]
+        );
+      }
     } catch (error) {
       console.error('Erro ao registrar abastecimento:', error);
       
@@ -648,6 +657,81 @@ export default function RegistrarAbastecimentoScreen({ route, navigation }) {
         </View>
       </Modal>
 
+      {/* Modal de Feedback pós-abastecimento */}
+      <Modal
+        visible={mostrarFeedback}
+        transparent
+        animationType="slide"
+        onRequestClose={() => {
+          setMostrarFeedback(false);
+          navigation.navigate('HomeDashboard', { refresh: true });
+        }}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.feedbackModalContent}>
+            <View style={styles.feedbackModalHeader}>
+              <Ionicons name="checkmark-circle" size={32} color="#4CAF50" />
+              <Text style={styles.feedbackModalTitle}>Abastecimento registrado!</Text>
+            </View>
+
+            <View style={styles.feedbackCard}>
+              {feedbackData?.consumo_medio ? (
+                <View style={styles.feedbackItem}>
+                  <Ionicons name="speedometer-outline" size={20} color="#2196F3" />
+                  <View style={styles.feedbackItemContent}>
+                    <Text style={styles.feedbackLabel}>Consumo médio estimado</Text>
+                    <Text style={styles.feedbackValue}>
+                      {feedbackData.consumo_medio.toFixed(2)} km/l
+                    </Text>
+                  </View>
+                </View>
+              ) : (
+                <View style={styles.feedbackItem}>
+                  <Ionicons name="information-circle-outline" size={20} color="#999" />
+                  <View style={styles.feedbackItemContent}>
+                    <Text style={styles.feedbackLabel}>Consumo médio</Text>
+                    <Text style={styles.feedbackValueInsufficient}>Dados insuficientes</Text>
+                  </View>
+                </View>
+              )}
+
+              {feedbackData?.gasto_mes_atual !== null && feedbackData?.gasto_mes_atual !== undefined ? (
+                <View style={styles.feedbackItem}>
+                  <Ionicons name="cash-outline" size={20} color="#FF9800" />
+                  <View style={styles.feedbackItemContent}>
+                    <Text style={styles.feedbackLabel}>Gasto no mês</Text>
+                    <Text style={styles.feedbackValue}>
+                      {new Intl.NumberFormat('pt-BR', {
+                        style: 'currency',
+                        currency: 'BRL'
+                      }).format(feedbackData.gasto_mes_atual)}
+                    </Text>
+                  </View>
+                </View>
+              ) : (
+                <View style={styles.feedbackItem}>
+                  <Ionicons name="information-circle-outline" size={20} color="#999" />
+                  <View style={styles.feedbackItemContent}>
+                    <Text style={styles.feedbackLabel}>Gasto no mês</Text>
+                    <Text style={styles.feedbackValueInsufficient}>Dados insuficientes</Text>
+                  </View>
+                </View>
+              )}
+            </View>
+
+            <TouchableOpacity
+              style={styles.feedbackButton}
+              onPress={() => {
+                setMostrarFeedback(false);
+                navigation.navigate('HomeDashboard', { refresh: true });
+              }}
+            >
+              <Text style={styles.feedbackButtonText}>OK</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
     </View>
   );
 }
@@ -846,6 +930,64 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
     color: '#1976D2',
+  },
+  feedbackModalContent: {
+    backgroundColor: commonStyles.backgroundWhite,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 24,
+    maxHeight: '80%',
+  },
+  feedbackModalHeader: {
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  feedbackModalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: commonStyles.textPrimary,
+    marginTop: 12,
+  },
+  feedbackCard: {
+    backgroundColor: '#f5f5f5',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 24,
+    gap: 16,
+  },
+  feedbackItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  feedbackItemContent: {
+    flex: 1,
+  },
+  feedbackLabel: {
+    fontSize: 14,
+    color: commonStyles.textSecondary,
+    marginBottom: 4,
+  },
+  feedbackValue: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: commonStyles.textPrimary,
+  },
+  feedbackValueInsufficient: {
+    fontSize: 14,
+    color: '#999',
+    fontStyle: 'italic',
+  },
+  feedbackButton: {
+    backgroundColor: '#4CAF50',
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  feedbackButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
 
