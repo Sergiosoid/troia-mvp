@@ -163,17 +163,18 @@ router.post('/', authRequired, upload.single('imagem'), async (req, res) => {
     }
 
     // Validar KM: km_depois deve ser maior ou igual ao último KM do histórico
-    if (kmDepois < ultimoKm) {
-      return res.status(400).json({ 
-        error: `KM depois (${kmDepois}) não pode ser menor que o último KM registrado (${ultimoKm})` 
-      });
+    // IMPORTANTE: Se não houver histórico, não validar (permitir abastecimento)
+    // Avisar mas não bloquear - permitir que usuário continue
+    if (historicoExiste && kmDepois < ultimoKm) {
+      console.warn(`[POST /abastecimentos] KM depois (${kmDepois}) menor que último KM (${ultimoKm}) - permitindo mas avisando`);
+      // Continuar - abastecimento será salvo mesmo com KM inconsistente
     }
 
     // Validar KM: km_depois deve ser maior ou igual a km_antes
+    // IMPORTANTE: Avisar mas não bloquear
     if (kmAntes && kmDepois < kmAntes) {
-      return res.status(400).json({ 
-        error: 'KM depois não pode ser menor que KM antes' 
-      });
+      console.warn('[POST /abastecimentos] KM depois menor que KM antes - permitindo mas avisando');
+      // Continuar - abastecimento será salvo mesmo com KM inconsistente
     }
 
     // Calcular consumo (km/l)
