@@ -40,12 +40,38 @@ export default function HomeDashboardScreen({ navigation, route }) {
       }
       
       // Carregar dados em paralelo com fallback individual
+      console.log('[DIAGNÓSTICO HomeDashboard] Iniciando carregamento de dados...');
       const resultados = await Promise.allSettled([
         listarVeiculosComTotais(),
         calcularTotalGeral(),
         buscarResumoDashboard(),
         buscarAlertas(),
       ]);
+      
+      console.log('[DIAGNÓSTICO HomeDashboard] Resultados Promise.allSettled:', {
+        veiculos: {
+          status: resultados[0].status,
+          value: resultados[0].status === 'fulfilled' ? resultados[0].value : resultados[0].reason,
+          isArray: resultados[0].status === 'fulfilled' ? Array.isArray(resultados[0].value) : false
+        },
+        totalGeral: {
+          status: resultados[1].status,
+          value: resultados[1].status === 'fulfilled' ? resultados[1].value : resultados[1].reason
+        },
+        resumoDashboard: {
+          status: resultados[2].status,
+          value: resultados[2].status === 'fulfilled' ? resultados[2].value : resultados[2].reason,
+          tipo: resultados[2].status === 'fulfilled' ? typeof resultados[2].value : 'N/A',
+          keys: resultados[2].status === 'fulfilled' && typeof resultados[2].value === 'object' 
+            ? Object.keys(resultados[2].value) 
+            : 'N/A'
+        },
+        alertas: {
+          status: resultados[3].status,
+          value: resultados[3].status === 'fulfilled' ? resultados[3].value : resultados[3].reason,
+          isArray: resultados[3].status === 'fulfilled' ? Array.isArray(resultados[3].value) : false
+        }
+      });
       
       // Processar resultados com fallback seguro
       // IMPORTANTE: Nunca bloquear renderização - sempre ter valores padrão
@@ -54,15 +80,42 @@ export default function HomeDashboardScreen({ navigation, route }) {
       const resumo = resultados[2].status === 'fulfilled' ? resultados[2].value : null;
       const alertasData = resultados[3].status === 'fulfilled' ? resultados[3].value : [];
       
+      console.log('[DIAGNÓSTICO HomeDashboard] Dados processados antes de setState:', {
+        veiculosData: {
+          tipo: typeof veiculosData,
+          isArray: Array.isArray(veiculosData),
+          length: Array.isArray(veiculosData) ? veiculosData.length : 'N/A',
+          valor: veiculosData
+        },
+        total: {
+          tipo: typeof total,
+          valor: total
+        },
+        resumo: {
+          tipo: typeof resumo,
+          isNull: resumo === null,
+          valor: resumo,
+          stringified: JSON.stringify(resumo, null, 2)
+        },
+        alertasData: {
+          tipo: typeof alertasData,
+          isArray: Array.isArray(alertasData),
+          length: Array.isArray(alertasData) ? alertasData.length : 'N/A',
+          valor: alertasData
+        }
+      });
+      
       setVeiculos(Array.isArray(veiculosData) ? veiculosData : []);
       setTotalGeral(total || 0);
       // Fallback seguro: se resumo falhar, usar estrutura vazia com valores padrão
-      setResumoDashboard(resumo || {
+      const resumoFinal = resumo || {
         gasto30dias: 0,
         consumoMedio: null,
         litrosMes: 0,
         manutencaoProxima: null
-      });
+      };
+      console.log('[DIAGNÓSTICO HomeDashboard] Resumo final que será setado:', resumoFinal);
+      setResumoDashboard(resumoFinal);
       setAlertas(Array.isArray(alertasData) ? alertasData : []);
       
       // Log de erros individuais (sem bloquear)

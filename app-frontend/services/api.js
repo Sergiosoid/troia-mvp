@@ -1029,21 +1029,62 @@ export const buscarAlertas = async () => {
   try {
     const token = await getToken();
     if (!token) {
+      console.log('[DIAGNÓSTICO buscarAlertas] Sem token, retornando []');
       return [];
     }
     
     const headers = await getHeaders();
-    const res = await fetchWithTimeout(`${API_URL}/alertas`, {
+    console.log('[DIAGNÓSTICO buscarAlertas] Fazendo requisição para:', `${API_URL}/alertas`);
+    console.log('[DIAGNÓSTICO buscarAlertas] Headers:', headers);
+    
+    // Fazer requisição manual para capturar status HTTP
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
+    
+    const response = await fetch(`${API_URL}/alertas`, {
       headers,
+      signal: controller.signal,
+    });
+    
+    clearTimeout(timeoutId);
+    
+    console.log('[DIAGNÓSTICO buscarAlertas] Status HTTP:', response.status, response.statusText);
+    console.log('[DIAGNÓSTICO buscarAlertas] Response OK:', response.ok);
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('[DIAGNÓSTICO buscarAlertas] Erro HTTP:', {
+        status: response.status,
+        statusText: response.statusText,
+        body: errorText
+      });
+      return [];
+    }
+    
+    const res = await response.json();
+    
+    console.log('[DIAGNÓSTICO buscarAlertas] Resposta JSON recebida:', {
+      tipo: typeof res,
+      isArray: Array.isArray(res),
+      valor: res,
+      stringified: JSON.stringify(res, null, 2)
     });
     
     if (Array.isArray(res)) {
+      console.log('[DIAGNÓSTICO buscarAlertas] Retornando array com', res.length, 'itens');
       return res;
     }
     
+    console.log('[DIAGNÓSTICO buscarAlertas] Resposta não é array, retornando []');
     return [];
   } catch (error) {
-    console.error('Erro ao buscar alertas:', error);
+    console.error('[DIAGNÓSTICO buscarAlertas] Erro:', error);
+    console.error('[DIAGNÓSTICO buscarAlertas] Erro completo:', {
+      message: error.message,
+      stack: error.stack,
+      status: error.status,
+      name: error.name
+    });
     return [];
   }
 };
@@ -1052,21 +1093,64 @@ export const buscarResumoDashboard = async () => {
   try {
     const token = await getToken();
     if (!token) {
+      console.log('[DIAGNÓSTICO buscarResumoDashboard] Sem token, retornando null');
       return null;
     }
     
     const headers = await getHeaders();
-    const res = await fetchWithTimeout(`${API_URL}/dashboard/resumo`, {
+    console.log('[DIAGNÓSTICO buscarResumoDashboard] Fazendo requisição para:', `${API_URL}/dashboard/resumo`);
+    console.log('[DIAGNÓSTICO buscarResumoDashboard] Headers:', headers);
+    
+    // Fazer requisição manual para capturar status HTTP
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
+    
+    const response = await fetch(`${API_URL}/dashboard/resumo`, {
       headers,
+      signal: controller.signal,
+    });
+    
+    clearTimeout(timeoutId);
+    
+    console.log('[DIAGNÓSTICO buscarResumoDashboard] Status HTTP:', response.status, response.statusText);
+    console.log('[DIAGNÓSTICO buscarResumoDashboard] Response OK:', response.ok);
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('[DIAGNÓSTICO buscarResumoDashboard] Erro HTTP:', {
+        status: response.status,
+        statusText: response.statusText,
+        body: errorText
+      });
+      return null;
+    }
+    
+    const res = await response.json();
+    
+    console.log('[DIAGNÓSTICO buscarResumoDashboard] Resposta JSON recebida:', {
+      tipo: typeof res,
+      isObject: typeof res === 'object',
+      isNull: res === null,
+      valor: res,
+      stringified: JSON.stringify(res, null, 2),
+      keys: res && typeof res === 'object' ? Object.keys(res) : 'N/A'
     });
     
     if (res && typeof res === 'object') {
+      console.log('[DIAGNÓSTICO buscarResumoDashboard] Retornando objeto:', res);
       return res;
     }
     
+    console.log('[DIAGNÓSTICO buscarResumoDashboard] Resposta não é objeto válido, retornando null');
     return null;
   } catch (error) {
-    console.error('Erro ao buscar resumo do dashboard:', error);
+    console.error('[DIAGNÓSTICO buscarResumoDashboard] Erro:', error);
+    console.error('[DIAGNÓSTICO buscarResumoDashboard] Erro completo:', {
+      message: error.message,
+      stack: error.stack,
+      status: error.status,
+      name: error.name
+    });
     return null;
   }
 };
@@ -1193,7 +1277,7 @@ export const buscarDiagnosticoVeiculo = async (veiculoId) => {
 /**
  * Lista todos os fabricantes ativos
  */
-export const listarFabricantes = async () => {
+export const listarFabricantes = async (tipo = null) => {
   try {
     const headers = await getHeaders();
     const res = await fetchWithTimeout(`${API_URL}/fabricantes`, {
@@ -1209,11 +1293,14 @@ export const listarFabricantes = async () => {
 /**
  * Lista modelos de um fabricante específico
  */
-export const listarModelos = async (fabricanteId) => {
+export const listarModelos = async (fabricanteId, tipo = null) => {
   try {
     if (!fabricanteId) return [];
     const headers = await getHeaders();
-    const res = await fetchWithTimeout(`${API_URL}/fabricantes/${fabricanteId}/modelos`, {
+    const url = tipo
+      ? `${API_URL}/fabricantes/${fabricanteId}/modelos?tipo=${encodeURIComponent(tipo)}`
+      : `${API_URL}/fabricantes/${fabricanteId}/modelos`;
+    const res = await fetchWithTimeout(url, {
       headers,
     });
     return Array.isArray(res) ? res : [];
