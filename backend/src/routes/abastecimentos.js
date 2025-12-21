@@ -266,28 +266,31 @@ router.post('/', authRequired, upload.single('imagem'), async (req, res) => {
       [result.insertId]
     );
 
-    // Calcular feedback de valor para o usuário
+    // Calcular feedback de valor para o usuário (sempre tentar, mas nunca bloquear)
     let consumoMedio = null;
     let gastoMesAtual = null;
 
     try {
       // 1. Calcular consumo médio (média de todos os abastecimentos com consumo válido)
-      const abastecimentosComConsumo = await queryAll(
-        `SELECT consumo 
-         FROM abastecimentos 
-         WHERE veiculo_id = ? AND usuario_id = ? AND consumo IS NOT NULL AND consumo > 0
-         ORDER BY data DESC, id DESC`,
-        [veiculo_id, userId]
-      );
+      // IMPORTANTE: Só calcular se houver histórico suficiente
+      if (historicoExiste) {
+        const abastecimentosComConsumo = await queryAll(
+          `SELECT consumo 
+           FROM abastecimentos 
+           WHERE veiculo_id = ? AND usuario_id = ? AND consumo IS NOT NULL AND consumo > 0
+           ORDER BY data DESC, id DESC`,
+          [veiculo_id, userId]
+        );
 
-      if (abastecimentosComConsumo && abastecimentosComConsumo.length > 0) {
-        const somaConsumo = abastecimentosComConsumo.reduce((acc, ab) => {
-          return acc + (parseFloat(ab.consumo) || 0);
-        }, 0);
-        consumoMedio = parseFloat((somaConsumo / abastecimentosComConsumo.length).toFixed(2));
+        if (abastecimentosComConsumo && abastecimentosComConsumo.length > 0) {
+          const somaConsumo = abastecimentosComConsumo.reduce((acc, ab) => {
+            return acc + (parseFloat(ab.consumo) || 0);
+          }, 0);
+          consumoMedio = parseFloat((somaConsumo / abastecimentosComConsumo.length).toFixed(2));
+        }
       }
 
-      // 2. Calcular gasto total no mês atual
+      // 2. Calcular gasto total no mês atual (sempre tentar, mesmo sem histórico)
       const agora = new Date();
       const primeiroDiaMes = new Date(agora.getFullYear(), agora.getMonth(), 1);
       const primeiroDiaMesStr = primeiroDiaMes.toISOString().split('T')[0];
@@ -308,7 +311,8 @@ router.post('/', authRequired, upload.single('imagem'), async (req, res) => {
       }
     } catch (feedbackError) {
       // Não bloquear resposta se cálculo de feedback falhar
-      console.warn('[AVISO] Erro ao calcular feedback de abastecimento:', feedbackError);
+      // Abastecimento foi salvo com sucesso, métricas são apenas informativas
+      console.warn('[AVISO] Erro ao calcular feedback de abastecimento (não bloqueia):', feedbackError);
     }
 
     res.status(201).json({
