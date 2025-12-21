@@ -113,7 +113,7 @@ export default function OnboardingContextualScreen({ navigation, route }) {
         return {
           icone: 'car-outline',
           cor: '#4CAF50',
-          titulo: 'Bem-vindo ao TROIA!',
+          titulo: 'Bem-vindo',
           mensagem: 'Vamos começar cadastrando seu primeiro veículo.',
           descricao: 'Para começar a usar o TROIA, você precisa cadastrar pelo menos um veículo. Você poderá adicionar mais veículos depois.',
           acao: 'Cadastrar Primeiro Veículo',
@@ -125,7 +125,6 @@ export default function OnboardingContextualScreen({ navigation, route }) {
   if (!contextoDetectado) {
     return (
       <View style={commonStyles.container}>
-        <HeaderBar title="Bem-vindo" navigation={navigation} />
         <View style={styles.loadingContainer}>
           <Text style={styles.loadingText}>Carregando...</Text>
         </View>
@@ -134,10 +133,11 @@ export default function OnboardingContextualScreen({ navigation, route }) {
   }
 
   const conteudo = getConteudoContexto();
+  const mostrarHeader = contextoDetectado !== 'conta_sem_veiculo';
 
   return (
     <View style={commonStyles.container}>
-      <HeaderBar title="Bem-vindo" navigation={navigation} />
+      {mostrarHeader && <HeaderBar title="Bem-vindo" navigation={navigation} />}
 
       <ScrollView
         style={commonStyles.scrollContainer}

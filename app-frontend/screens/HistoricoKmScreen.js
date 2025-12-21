@@ -15,6 +15,7 @@ import HeaderBar from '../components/HeaderBar';
 import { commonStyles } from '../constants/styles';
 import { listarHistoricoKm, buscarVeiculoPorId } from '../services/api';
 import { getErrorMessage } from '../utils/errorMessages';
+import { getMetricaPorTipo } from '../utils/tipoEquipamento';
 
 export default function HistoricoKmScreen({ navigation, route }) {
   const { veiculoId } = route?.params || {};
@@ -116,10 +117,22 @@ export default function HistoricoKmScreen({ navigation, route }) {
     return colors[origem] || '#666';
   };
 
+  // Obter métrica baseada no tipo do equipamento (fallback para 'carro' se não houver tipo)
+  const getMetrica = () => {
+    const tipo = veiculo?.tipo_veiculo || 'carro';
+    return getMetricaPorTipo(tipo);
+  };
+
+  // Título dinâmico baseado na métrica
+  const getTitulo = () => {
+    const metrica = getMetrica();
+    return `Histórico de ${metrica.labelLong}`;
+  };
+
   if (loading) {
     return (
       <View style={commonStyles.container}>
-        <HeaderBar title="Histórico de KM" navigation={navigation} />
+        <HeaderBar title={getTitulo()} navigation={navigation} />
         <View style={commonStyles.loadingContainer}>
           <ActivityIndicator size="large" color="#4CAF50" />
           <Text style={commonStyles.loadingText}>Carregando histórico...</Text>
@@ -130,7 +143,7 @@ export default function HistoricoKmScreen({ navigation, route }) {
 
   return (
     <View style={commonStyles.container}>
-      <HeaderBar title="Histórico de KM" navigation={navigation} />
+      <HeaderBar title={getTitulo()} navigation={navigation} />
 
       <ScrollView
         style={commonStyles.scrollContainer}
@@ -144,7 +157,7 @@ export default function HistoricoKmScreen({ navigation, route }) {
               {veiculo.marca || ''} {veiculo.modelo || ''} {veiculo.ano || ''}
             </Text>
             <Text style={styles.veiculoKmAtual}>
-              KM Atual: {parseInt(veiculo.km_atual) || 0}
+              {getMetrica().labelLong} Atual: {parseInt(veiculo.km_atual || 0).toLocaleString('pt-BR')} {getMetrica().label.toLowerCase()}
             </Text>
           </View>
         )}
@@ -156,10 +169,10 @@ export default function HistoricoKmScreen({ navigation, route }) {
 
         {historico.length === 0 ? (
           <View style={commonStyles.emptyContainer}>
-            <Ionicons name="speedometer-outline" size={64} color="#ccc" />
-            <Text style={styles.emptyTitle}>Nenhum registro de KM</Text>
+            <Ionicons name={getMetrica().icon} size={64} color="#ccc" />
+            <Text style={styles.emptyTitle}>Nenhum registro de {getMetrica().labelLong.toLowerCase()}</Text>
             <Text style={styles.emptySubtext}>
-              O histórico de KM será criado automaticamente quando você atualizar o KM do veículo.
+              O histórico de {getMetrica().labelLong.toLowerCase()} será criado automaticamente quando você atualizar o {getMetrica().label.toLowerCase()} do veículo.
             </Text>
           </View>
         ) : (
@@ -189,10 +202,12 @@ export default function HistoricoKmScreen({ navigation, route }) {
                     </Text>
                   </View>
                   <View style={styles.registroRight}>
-                    <Text style={styles.registroKm}>{kmAtual.toLocaleString('pt-BR')} km</Text>
+                    <Text style={styles.registroKm}>
+                      {kmAtual.toLocaleString('pt-BR')} {getMetrica().label.toLowerCase()}
+                    </Text>
                     {kmRodado !== null && kmRodado > 0 && (
                       <Text style={styles.registroKmRodado}>
-                        +{kmRodado.toLocaleString('pt-BR')} km
+                        +{kmRodado.toLocaleString('pt-BR')} {getMetrica().label.toLowerCase()}
                       </Text>
                     )}
                   </View>

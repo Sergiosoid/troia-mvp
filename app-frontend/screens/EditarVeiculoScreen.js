@@ -195,12 +195,12 @@ export default function EditarVeiculoScreen({ route, navigation }) {
 
   const handleSalvar = async () => {
     if (!modelo.trim()) {
-      Alert.alert('Atenção', 'Modelo é obrigatório');
+      Alert.alert('Atenção', 'O modelo é necessário para completar a edição');
       return;
     }
 
     if (!ano.trim()) {
-      Alert.alert('Atenção', 'Ano é obrigatório');
+      Alert.alert('Atenção', 'O ano é necessário para completar a edição');
       return;
     }
 
@@ -303,7 +303,7 @@ export default function EditarVeiculoScreen({ route, navigation }) {
 
   const handleAdicionarProprietario = async () => {
     if (!nomeProprietario.trim()) {
-      Alert.alert('Atenção', 'Nome do proprietário é obrigatório');
+      Alert.alert('Atenção', 'O nome do proprietário é necessário para completar a edição');
       return;
     }
 

@@ -35,7 +35,7 @@ export default function CadastroVeiculoScreen({ route, navigation }) {
   const [loading, setLoading] = useState(false);
   const [mostrarModalVeiculoExistente, setMostrarModalVeiculoExistente] = useState(false);
   
-  // Dados da Aquisição (OBRIGATÓRIOS)
+  // Dados da Aquisição (necessários para histórico completo)
   const [origemPosse, setOrigemPosse] = useState(''); // 'zero_km' ou 'usado'
   const [mostrarOrigemPosse, setMostrarOrigemPosse] = useState(false);
   const [dataAquisicao, setDataAquisicao] = useState(null); // Date object
@@ -278,7 +278,7 @@ export default function CadastroVeiculoScreen({ route, navigation }) {
   const validarFormulario = () => {
     const novosErros = {};
 
-    // Tipo do equipamento é obrigatório
+    // Tipo do equipamento é necessário
     if (!tipoVeiculo) {
       novosErros.tipoVeiculo = 'Selecione o tipo do equipamento';
     }
@@ -298,20 +298,20 @@ export default function CadastroVeiculoScreen({ route, navigation }) {
     } else {
       // Modo manual: validar apenas se campos estiverem preenchidos
       if (!modelo.trim()) {
-        novosErros.modelo = 'O modelo é obrigatório';
+        novosErros.modelo = 'O modelo é necessário';
       }
       if (!ano.trim()) {
-        novosErros.ano = 'O ano é obrigatório';
+        novosErros.ano = 'O ano é necessário';
       }
     }
 
-    // Validações de Dados da Aquisição (OBRIGATÓRIAS)
+    // Validações de Dados da Aquisição (necessárias para histórico completo)
     if (!origemPosse || !['zero_km', 'usado'].includes(origemPosse)) {
       novosErros.origemPosse = 'Selecione o tipo de aquisição';
     }
 
     if (!dataAquisicao) {
-      novosErros.dataAquisicao = 'Data de aquisição é obrigatória';
+      novosErros.dataAquisicao = 'A data de aquisição é necessária';
     } else {
       const hoje = new Date();
       hoje.setHours(23, 59, 59, 999);
@@ -320,11 +320,11 @@ export default function CadastroVeiculoScreen({ route, navigation }) {
       }
     }
 
-    // Se usado, valor inicial é obrigatório
+    // Se usado, valor inicial é necessário
     if (origemPosse === 'usado') {
       const metricaLabel = tipoVeiculo ? getMetricaPorTipo(tipoVeiculo).labelLong : 'KM';
       if (!kmInicio || kmInicio.trim() === '') {
-        novosErros.kmInicio = `${metricaLabel} inicial é obrigatório para equipamentos usados`;
+        novosErros.kmInicio = `${metricaLabel} inicial é necessário para equipamentos usados`;
       } else {
         const kmNum = parseInt(kmInicio);
         if (isNaN(kmNum) || kmNum < 0) {
@@ -436,10 +436,11 @@ export default function CadastroVeiculoScreen({ route, navigation }) {
       }
       
       // Tratar erro de aquisição obrigatória
+      // IMPORTANTE: Mensagem amigável, não acusatória
       if (error.code === 'AQUISICAO_OBRIGATORIA') {
         Alert.alert(
-          'Dados de Aquisição Obrigatórios',
-          error.message || 'Por favor, preencha todos os dados de aquisição do veículo.',
+          'Atenção',
+          error.message || 'Alguns dados ainda são necessários para completar o cadastro.',
           [{ text: 'OK' }]
         );
         return;

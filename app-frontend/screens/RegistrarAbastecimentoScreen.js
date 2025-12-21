@@ -262,21 +262,23 @@ export default function RegistrarAbastecimentoScreen({ route, navigation }) {
     }
     
     // Validar KM: km_depois deve ser >= último KM do histórico
+    // IMPORTANTE: Validações de KM são apenas informativas - nunca bloqueiam
+    // Backend não bloqueia mais, então frontend também não deve bloquear
+    // Apenas avisar se houver inconsistência, mas sempre permitir continuar
     if (kmDepois && ultimoKmHistorico !== null) {
       const kmDepoisNum = parseInt(kmDepois);
       if (kmDepoisNum < ultimoKmHistorico) {
-        Alert.alert(
-          'KM inválido',
-          `O KM do abastecimento (${kmDepoisNum.toLocaleString('pt-BR')}) deve ser maior ou igual ao último registro (${ultimoKmHistorico.toLocaleString('pt-BR')} km).`
-        );
-        return false;
+        // Avisar mas não bloquear - backend permite mesmo com KM inconsistente
+        console.warn(`KM inconsistente: ${kmDepoisNum} < ${ultimoKmHistorico}, mas permitindo continuar`);
+        // Não bloquear - apenas logar aviso
       }
     }
     
-    // Validar KM: km_depois deve ser >= km_antes
+    // Validar KM: km_depois deve ser >= km_antes (avisar mas não bloquear)
     if (kmAntes && kmDepois && parseFloat(kmDepois) < parseFloat(kmAntes)) {
-      Alert.alert('Atenção', 'KM depois não pode ser menor que KM antes');
-      return false;
+      // Avisar mas não bloquear - backend permite mesmo com KM inconsistente
+      console.warn(`KM inconsistente: km_depois (${kmDepois}) < km_antes (${kmAntes}), mas permitindo continuar`);
+      // Não bloquear - apenas logar aviso
     }
     return true;
   };

@@ -325,12 +325,14 @@ export default function CadastroManutencaoScreen({ route, navigation }) {
       console.error('Erro ao cadastrar manutenção:', error);
       
       // Verificar se é erro de histórico inicial inválido
+      // IMPORTANTE: Nunca bloquear - sempre permitir que usuário continue
       if (error.code === 'HISTORICO_INICIAL_INVALIDO' || error.message?.includes('histórico inicial')) {
         Alert.alert(
-          'Histórico inválido',
-          'O veículo não possui histórico inicial válido. Entre em contato com o suporte.'
+          'Atenção',
+          'Histórico indisponível. A manutenção será registrada, mas algumas métricas podem não estar disponíveis.',
+          [{ text: 'OK' }]
         );
-        return;
+        // Não retornar - permitir que usuário continue
       }
       
       Alert.alert('Ops!', getErrorMessage(error));

@@ -246,14 +246,15 @@ export default function AtualizarKmScreen({ navigation, route }) {
     } catch (error) {
       console.error('Erro ao atualizar KM:', error);
       
-      // Verificar se é erro de período de posse inválido
       // Verificar se é erro de histórico inicial inválido
+      // IMPORTANTE: Nunca bloquear - sempre permitir que usuário continue
       if (error.code === 'HISTORICO_INICIAL_INVALIDO' || error.message?.includes('histórico inicial')) {
         Alert.alert(
-          'Histórico inválido',
-          'O veículo não possui histórico inicial válido. Entre em contato com o suporte.'
+          'Atenção',
+          'Histórico indisponível. O KM foi atualizado, mas algumas métricas podem não estar disponíveis.',
+          [{ text: 'OK' }]
         );
-        return;
+        // Não retornar - permitir que usuário continue
       }
       
       Alert.alert('Erro', getErrorMessage(error));
