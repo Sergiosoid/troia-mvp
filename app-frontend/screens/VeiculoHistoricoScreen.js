@@ -16,7 +16,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ActionButton from '../components/ActionButton';
 import HeaderBar from '../components/HeaderBar';
 import { commonStyles } from '../constants/styles';
-import { API_URL, buscarResumoPeriodo, buscarVeiculoPorId, excluirManutencao, listarHistoricoVeiculo } from '../services/api';
+import { API_URL, buscarEstatisticas, buscarResumoPeriodo, buscarTimeline, buscarVeiculoPorId, excluirManutencao, listarHistoricoVeiculo } from '../services/api';
 import { getErrorMessage, getSuccessMessage } from '../utils/errorMessages';
 import { getMetricaPorTipo } from '../utils/tipoEquipamento';
 
@@ -26,6 +26,8 @@ export default function VeiculoHistoricoScreen({ navigation, route }) {
   const [veiculoCompleto, setVeiculoCompleto] = useState(null); // Para armazenar tipo_veiculo
   const [manutencoes, setManutencoes] = useState([]);
   const [resumoPeriodo, setResumoPeriodo] = useState(null);
+  const [timeline, setTimeline] = useState([]);
+  const [estatisticas, setEstatisticas] = useState(null);
   const [loading, setLoading] = useState(true);
   const [excluindoId, setExcluindoId] = useState(null);
   const [modalExcluir, setModalExcluir] = useState({ visivel: false, manutencao: null });
@@ -91,6 +93,24 @@ export default function VeiculoHistoricoScreen({ navigation, route }) {
           setResumoPeriodo(null);
         }
       }
+
+      // Buscar timeline para última atividade (não bloquear se falhar)
+      try {
+        const timelineData = await buscarTimeline(veiculoId);
+        setTimeline(Array.isArray(timelineData) ? timelineData : []);
+      } catch (err) {
+        console.error('Erro ao buscar timeline:', err);
+        setTimeline([]);
+      }
+
+      // Buscar estatísticas para gastos mensais (não bloquear se falhar)
+      try {
+        const stats = await buscarEstatisticas(veiculoId);
+        setEstatisticas(stats && typeof stats === 'object' ? stats : null);
+      } catch (err) {
+        console.error('Erro ao buscar estatísticas:', err);
+        setEstatisticas(null);
+      }
     } catch (error) {
       console.error('Erro ao carregar histórico:', error);
       Alert.alert('Ops!', getErrorMessage(error));
@@ -136,6 +156,54 @@ export default function VeiculoHistoricoScreen({ navigation, route }) {
   const getMetrica = () => {
     const tipo = veiculoCompleto?.tipo_veiculo || 'carro';
     return getMetricaPorTipo(tipo);
+  };
+
+  // Obter gasto do mês atual (apenas dados do backend)
+  const getGastoMesAtual = () => {
+    if (!estatisticas || !estatisticas.gastosMensais || !Array.isArray(estatisticas.gastosMensais)) {
+      return 0;
+    }
+    
+    const agora = new Date();
+    const mesAtual = agora.getMonth() + 1;
+    const anoAtual = agora.getFullYear();
+    
+    const gastoMes = estatisticas.gastosMensais.find(
+      g => g.mes === mesAtual && g.ano === anoAtual
+    );
+    
+    return gastoMes ? parseFloat(gastoMes.total) || 0 : 0;
+  };
+
+  // Obter última atividade (apenas dados do backend)
+  const getUltimaAtividade = () => {
+    if (!timeline || !Array.isArray(timeline) || timeline.length === 0) {
+      return null;
+    }
+    
+    // Timeline já vem ordenada do mais antigo para o mais recente
+    const ultimoEvento = timeline[timeline.length - 1];
+    
+    if (!ultimoEvento || !ultimoEvento.data) {
+      return null;
+    }
+    
+    // Determinar tipo de atividade baseado no tipo e origem
+    let tipoAtividade = 'Atividade';
+    if (ultimoEvento.tipo === 'km' && ultimoEvento.origem === 'abastecimento') {
+      tipoAtividade = 'Abastecimento';
+    } else if (ultimoEvento.tipo === 'km') {
+      tipoAtividade = 'KM atualizado';
+    } else if (ultimoEvento.tipo === 'manutencao') {
+      tipoAtividade = 'Manutenção';
+    } else if (ultimoEvento.tipo === 'transferencia') {
+      tipoAtividade = 'Transferência';
+    }
+    
+    return {
+      tipo: tipoAtividade,
+      data: ultimoEvento.data
+    };
   };
 
   const handleExcluirManutencao = async () => {
@@ -237,6 +305,67 @@ export default function VeiculoHistoricoScreen({ navigation, route }) {
             )}
           </View>
         )}
+
+        {/* Card: Resumo do Veículo */}
+        <View style={styles.resumoVeiculoCard}>
+          <View style={styles.resumoVeiculoHeader}>
+            <Ionicons name="stats-chart-outline" size={20} color="#2196F3" />
+            <Text style={styles.resumoVeiculoTitulo}>Resumo do Veículo</Text>
+          </View>
+          
+          <View style={styles.resumoVeiculoContent}>
+            {/* KM/Horas atual */}
+            <View style={styles.resumoVeiculoItem}>
+              <View style={styles.resumoVeiculoItemLeft}>
+                <Ionicons name={getMetrica().icon} size={18} color="#2196F3" />
+                <Text style={styles.resumoVeiculoLabel}>{getMetrica().labelLong} atual</Text>
+              </View>
+              <Text style={styles.resumoVeiculoValor}>
+                {resumoPeriodo?.km_atual !== undefined && resumoPeriodo?.km_atual !== null
+                  ? `${formatarKm(resumoPeriodo.km_atual)} ${getMetrica().label.toLowerCase()}`
+                  : '—'}
+              </Text>
+            </View>
+
+            {/* KM/Horas rodado no período */}
+            <View style={styles.resumoVeiculoItem}>
+              <View style={styles.resumoVeiculoItemLeft}>
+                <Ionicons name="trending-up-outline" size={18} color="#4CAF50" />
+                <Text style={styles.resumoVeiculoLabel}>Rodado no período</Text>
+              </View>
+              <Text style={styles.resumoVeiculoValorVerde}>
+                {resumoPeriodo?.km_rodado_no_periodo !== undefined && resumoPeriodo?.km_rodado_no_periodo !== null
+                  ? `${formatarKm(resumoPeriodo.km_rodado_no_periodo)} ${getMetrica().label.toLowerCase()}`
+                  : '0'}
+              </Text>
+            </View>
+
+            {/* Gasto no mês atual */}
+            <View style={styles.resumoVeiculoItem}>
+              <View style={styles.resumoVeiculoItemLeft}>
+                <Ionicons name="cash-outline" size={18} color="#FF9800" />
+                <Text style={styles.resumoVeiculoLabel}>Gasto no mês</Text>
+              </View>
+              <Text style={styles.resumoVeiculoValor}>
+                {getGastoMesAtual() > 0 ? formatarMoeda(getGastoMesAtual()) : '—'}
+              </Text>
+            </View>
+
+            {/* Última atividade */}
+            {getUltimaAtividade() && (
+              <View style={styles.resumoVeiculoItem}>
+                <View style={styles.resumoVeiculoItemLeft}>
+                  <Ionicons name="time-outline" size={18} color="#666" />
+                  <Text style={styles.resumoVeiculoLabel}>Última atividade</Text>
+                </View>
+                <View style={styles.resumoVeiculoItemRight}>
+                  <Text style={styles.resumoVeiculoValorPequeno}>{getUltimaAtividade().tipo}</Text>
+                  <Text style={styles.resumoVeiculoData}>{formatarData(getUltimaAtividade().data)}</Text>
+                </View>
+              </View>
+            )}
+          </View>
+        </View>
 
         {/* Card: Seu período de uso */}
         {resumoPeriodo && (
@@ -765,6 +894,74 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     marginLeft: 8,
+  },
+  resumoVeiculoCard: {
+    backgroundColor: '#fff',
+    marginHorizontal: 15,
+    marginBottom: 15,
+    padding: 16,
+    borderRadius: 12,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    borderLeftWidth: 4,
+    borderLeftColor: '#2196F3',
+  },
+  resumoVeiculoHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+    gap: 8,
+  },
+  resumoVeiculoTitulo: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  resumoVeiculoContent: {
+    gap: 12,
+  },
+  resumoVeiculoItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  resumoVeiculoItemLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+  },
+  resumoVeiculoItemRight: {
+    alignItems: 'flex-end',
+  },
+  resumoVeiculoLabel: {
+    fontSize: 14,
+    color: '#666',
+    fontWeight: '500',
+  },
+  resumoVeiculoValor: {
+    fontSize: 16,
+    color: '#333',
+    fontWeight: '600',
+  },
+  resumoVeiculoValorVerde: {
+    fontSize: 16,
+    color: '#4CAF50',
+    fontWeight: '600',
+  },
+  resumoVeiculoValorPequeno: {
+    fontSize: 13,
+    color: '#666',
+    fontWeight: '500',
+  },
+  resumoVeiculoData: {
+    fontSize: 12,
+    color: '#999',
+    marginTop: 2,
   },
   resumoPeriodoCard: {
     backgroundColor: '#fff',
