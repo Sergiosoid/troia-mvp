@@ -1,5 +1,6 @@
 import express from 'express';
 import { authRequired, requireRole } from '../middleware/auth.js';
+import { ocrRateLimit } from '../middleware/ocrRateLimit.js';
 import { query, queryOne, queryAll, isPostgres } from '../database/db-adapter.js';
 import multer from 'multer';
 import path from 'path';
@@ -651,7 +652,8 @@ router.get('/totais', authRequired, async (req, res) => {
 });
 
 // OCR de documento do veículo (stub/placeholder) - DEVE VIR ANTES DE /:id
-router.post('/ocr-documento', authRequired, upload.single('imagem'), async (req, res) => {
+// Rate limiting: 10/min, 100/mês
+router.post('/ocr-documento', authRequired, ocrRateLimit('documento'), upload.single('imagem'), async (req, res) => {
   try {
     const file = req.file;
     
@@ -692,7 +694,8 @@ router.post('/ocr-documento', authRequired, upload.single('imagem'), async (req,
 });
 
 // OCR de KM (stub/placeholder) - DEVE VIR ANTES DE /:id
-router.post('/ocr-km', authRequired, upload.single('imagem'), async (req, res) => {
+// Rate limiting: 10/min, 100/mês
+router.post('/ocr-km', authRequired, ocrRateLimit('km'), upload.single('imagem'), async (req, res) => {
   try {
     // Stub: OCR de KM ainda não implementado
     // Aceita a requisição mas retorna placeholder

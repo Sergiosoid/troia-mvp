@@ -9,6 +9,7 @@ import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { authRequired } from '../middleware/auth.js';
+import { ocrRateLimit } from '../middleware/ocrRateLimit.js';
 import { query, queryOne, queryAll, isPostgres } from '../database/db-adapter.js';
 import { extrairDadosAbastecimento } from '../services/abastecimentoOcr.js';
 
@@ -47,8 +48,9 @@ const construirUrlImagem = (filename, req) => {
 /**
  * POST /abastecimentos/ocr
  * Extrai dados de abastecimento de uma imagem usando OCR
+ * Rate limiting: 10/min, 100/mês
  */
-router.post('/ocr', authRequired, upload.single('imagem'), async (req, res) => {
+router.post('/ocr', authRequired, ocrRateLimit('abastecimento'), upload.single('imagem'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'Nenhuma imagem enviada' });
