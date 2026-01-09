@@ -108,13 +108,21 @@ export default function HomeDashboardScreen({ navigation, route }) {
       setVeiculos(Array.isArray(veiculosData) ? veiculosData : []);
       setTotalGeral(total || 0);
       // Fallback seguro: se resumo falhar, usar estrutura vazia com valores padrão
-      const resumoFinal = resumo || {
+      // IMPORTANTE: Garantir que os campos estejam mapeados corretamente do backend
+      const resumoFinal = resumo ? {
+        gasto30dias: typeof resumo.gasto30dias === 'number' && !isNaN(resumo.gasto30dias) ? resumo.gasto30dias : 0,
+        consumoMedio: (typeof resumo.consumoMedio === 'number' && !isNaN(resumo.consumoMedio) && resumo.consumoMedio > 0) 
+          ? resumo.consumoMedio 
+          : null,
+        litrosMes: typeof resumo.litrosMes === 'number' && !isNaN(resumo.litrosMes) ? resumo.litrosMes : 0,
+        manutencaoProxima: resumo.manutencaoProxima || null
+      } : {
         gasto30dias: 0,
         consumoMedio: null,
         litrosMes: 0,
         manutencaoProxima: null
       };
-      console.log('[DIAGNÓSTICO HomeDashboard] Resumo final que será setado:', resumoFinal);
+      console.log('[DIAGNÓSTICO HomeDashboard] Resumo final que será setado:', JSON.stringify(resumoFinal, null, 2));
       setResumoDashboard(resumoFinal);
       setAlertas(Array.isArray(alertasData) ? alertasData : []);
       
@@ -143,6 +151,7 @@ export default function HomeDashboardScreen({ navigation, route }) {
         manutencaoProxima: null
       });
       setAlertas([]);
+      console.log('[DIAGNÓSTICO HomeDashboard] Erro capturado - usando fallback seguro');
     } finally {
       setLoading(false);
       setLoadingResumo(false);

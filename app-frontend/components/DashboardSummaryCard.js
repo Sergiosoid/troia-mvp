@@ -62,7 +62,13 @@ export default function DashboardSummaryCard({
         <View style={[styles.card, styles.cardAzul]}>
           <Ionicons name="cash-outline" size={24} color="#fff" />
           <Text style={styles.cardLabel}>Gasto 30 dias</Text>
-          <Text style={styles.cardValue}>{formatarMoeda(gasto30dias || 0)}</Text>
+          <Text style={styles.cardValue}>
+            {formatarMoeda(
+              (typeof gasto30dias === 'number' && !isNaN(gasto30dias)) 
+                ? gasto30dias 
+                : 0
+            )}
+          </Text>
         </View>
 
         {/* Card: Consumo Médio */}
@@ -70,7 +76,7 @@ export default function DashboardSummaryCard({
           <Ionicons name="flame-outline" size={24} color="#fff" />
           <Text style={styles.cardLabel}>Consumo Médio</Text>
           <Text style={styles.cardValue}>
-            {consumoMedio && parseFloat(consumoMedio) > 0 
+            {consumoMedio != null && !isNaN(consumoMedio) && parseFloat(consumoMedio) > 0 
               ? `${parseFloat(consumoMedio).toFixed(1)} km/l` 
               : '—'}
           </Text>
@@ -83,7 +89,7 @@ export default function DashboardSummaryCard({
           <Ionicons name="water-outline" size={24} color="#fff" />
           <Text style={styles.cardLabel}>Litros no Mês</Text>
           <Text style={styles.cardValue}>
-            {litrosMes && parseFloat(litrosMes) > 0 
+            {litrosMes != null && !isNaN(litrosMes) && parseFloat(litrosMes) > 0 
               ? `${parseFloat(litrosMes).toFixed(1)} L` 
               : '0 L'}
           </Text>
