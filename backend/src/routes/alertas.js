@@ -57,35 +57,91 @@ router.get('/', authRequired, async (req, res) => {
       // (A) ALERTA: Troca de Óleo
       // Buscar última manutenção relacionada a óleo (pode ser herdada)
       // IMPORTANTE: Remover filtro por usuario_id para buscar manutenções herdadas
-      const ultimaTrocaOleo = await queryOne(
-        `SELECT m.*, v.km_atual 
-         FROM manutencoes m
-         JOIN veiculos v ON m.veiculo_id = v.id
-         WHERE m.veiculo_id = ?
-           AND (
-             LOWER(m.descricao) LIKE '%óleo%' 
-             OR LOWER(m.descricao) LIKE '%oleo%'
-             OR LOWER(m.descricao) LIKE '%troca%'
-             OR LOWER(m.descricao) LIKE '%lubrific%'
-             OR (m.tipo_manutencao = 'preventiva' AND m.area_manutencao = 'motor_cambio')
-           )
-           AND m.data IS NOT NULL
-           AND (m.data >= ? OR ? IS NULL)
-         ORDER BY m.data DESC, m.id DESC
-         LIMIT 1`,
-        [veiculoId, periodo.dataInicio, periodo.dataInicio]
-      );
+      // Construir query dinamicamente baseado em se há data de início válida
+      let ultimaTrocaOleo;
+      if (periodo.dataInicio && typeof periodo.dataInicio === 'string' && periodo.dataInicio.trim() !== '') {
+        const dataInicioValida = new Date(periodo.dataInicio);
+        if (!isNaN(dataInicioValida.getTime())) {
+          const dataInicioStr = dataInicioValida.toISOString().split('T')[0];
+          ultimaTrocaOleo = await queryOne(
+            `SELECT m.*, v.km_atual 
+             FROM manutencoes m
+             JOIN veiculos v ON m.veiculo_id = v.id
+             WHERE m.veiculo_id = ?
+               AND (
+                 LOWER(m.descricao) LIKE '%óleo%' 
+                 OR LOWER(m.descricao) LIKE '%oleo%'
+                 OR LOWER(m.descricao) LIKE '%troca%'
+                 OR LOWER(m.descricao) LIKE '%lubrific%'
+                 OR (m.tipo_manutencao = 'preventiva' AND m.area_manutencao = 'motor_cambio')
+               )
+               AND m.data IS NOT NULL
+               AND m.data >= ?::date
+             ORDER BY m.data DESC, m.id DESC
+             LIMIT 1`,
+            [veiculoId, dataInicioStr]
+          );
+        } else {
+          // Data inválida, buscar sem filtro de data
+          ultimaTrocaOleo = await queryOne(
+            `SELECT m.*, v.km_atual 
+             FROM manutencoes m
+             JOIN veiculos v ON m.veiculo_id = v.id
+             WHERE m.veiculo_id = ?
+               AND (
+                 LOWER(m.descricao) LIKE '%óleo%' 
+                 OR LOWER(m.descricao) LIKE '%oleo%'
+                 OR LOWER(m.descricao) LIKE '%troca%'
+                 OR LOWER(m.descricao) LIKE '%lubrific%'
+                 OR (m.tipo_manutencao = 'preventiva' AND m.area_manutencao = 'motor_cambio')
+               )
+               AND m.data IS NOT NULL
+             ORDER BY m.data DESC, m.id DESC
+             LIMIT 1`,
+            [veiculoId]
+          );
+        }
+      } else {
+        // Sem data de início, buscar sem filtro de data
+        ultimaTrocaOleo = await queryOne(
+          `SELECT m.*, v.km_atual 
+           FROM manutencoes m
+           JOIN veiculos v ON m.veiculo_id = v.id
+           WHERE m.veiculo_id = ?
+             AND (
+               LOWER(m.descricao) LIKE '%óleo%' 
+               OR LOWER(m.descricao) LIKE '%oleo%'
+               OR LOWER(m.descricao) LIKE '%troca%'
+               OR LOWER(m.descricao) LIKE '%lubrific%'
+               OR (m.tipo_manutencao = 'preventiva' AND m.area_manutencao = 'motor_cambio')
+             )
+             AND m.data IS NOT NULL
+           ORDER BY m.data DESC, m.id DESC
+           LIMIT 1`,
+          [veiculoId]
+        );
+      }
 
       if (ultimaTrocaOleo) {
         const intervaloKm = 10000;
         const intervaloMeses = 6;
 
         // Buscar KM na data da última manutenção (usar histórico de KM)
+        // Validar data antes de usar em query
+        let dataManutencaoValida = new Date();
+        if (ultimaTrocaOleo.data) {
+          const dataTeste = new Date(ultimaTrocaOleo.data);
+          if (!isNaN(dataTeste.getTime())) {
+            dataManutencaoValida = dataTeste;
+          }
+        }
+        const dataManutencaoStr = dataManutencaoValida.toISOString().split('T')[0];
+        
         const kmHistorico = await queryOne(
           `SELECT km FROM km_historico 
-           WHERE veiculo_id = ? AND (data_registro <= ? OR criado_em <= ?)
+           WHERE veiculo_id = ? AND (data_registro <= ?::date OR criado_em <= ?::timestamp)
            ORDER BY data_registro DESC, criado_em DESC LIMIT 1`,
-          [veiculoId, ultimaTrocaOleo.data || new Date(), ultimaTrocaOleo.data || new Date()]
+          [veiculoId, dataManutencaoStr, dataManutencaoValida.toISOString()]
         );
 
         const kmNaDataManutencao = (kmHistorico && kmHistorico.km != null)
@@ -154,29 +210,73 @@ router.get('/', authRequired, async (req, res) => {
 
       // (B) ALERTA: Revisão Geral
       // Buscar última revisão geral (manutenção preventiva) - pode ser herdada
-      const ultimaRevisao = await queryOne(
-        `SELECT m.*, v.km_atual 
-         FROM manutencoes m
-         JOIN veiculos v ON m.veiculo_id = v.id
-         WHERE m.veiculo_id = ?
-           AND m.tipo_manutencao = 'preventiva'
-           AND m.data IS NOT NULL
-           AND (m.data >= ? OR ? IS NULL)
-         ORDER BY m.data DESC, m.id DESC
-         LIMIT 1`,
-        [veiculoId, periodo.dataInicio, periodo.dataInicio]
-      );
+      // Construir query dinamicamente baseado em se há data de início válida
+      let ultimaRevisao;
+      if (periodo.dataInicio && typeof periodo.dataInicio === 'string' && periodo.dataInicio.trim() !== '') {
+        const dataInicioValida = new Date(periodo.dataInicio);
+        if (!isNaN(dataInicioValida.getTime())) {
+          const dataInicioStr = dataInicioValida.toISOString().split('T')[0];
+          ultimaRevisao = await queryOne(
+            `SELECT m.*, v.km_atual 
+             FROM manutencoes m
+             JOIN veiculos v ON m.veiculo_id = v.id
+             WHERE m.veiculo_id = ?
+               AND m.tipo_manutencao = 'preventiva'
+               AND m.data IS NOT NULL
+               AND m.data >= ?::date
+             ORDER BY m.data DESC, m.id DESC
+             LIMIT 1`,
+            [veiculoId, dataInicioStr]
+          );
+        } else {
+          // Data inválida, buscar sem filtro de data
+          ultimaRevisao = await queryOne(
+            `SELECT m.*, v.km_atual 
+             FROM manutencoes m
+             JOIN veiculos v ON m.veiculo_id = v.id
+             WHERE m.veiculo_id = ?
+               AND m.tipo_manutencao = 'preventiva'
+               AND m.data IS NOT NULL
+             ORDER BY m.data DESC, m.id DESC
+             LIMIT 1`,
+            [veiculoId]
+          );
+        }
+      } else {
+        // Sem data de início, buscar sem filtro de data
+        ultimaRevisao = await queryOne(
+          `SELECT m.*, v.km_atual 
+           FROM manutencoes m
+           JOIN veiculos v ON m.veiculo_id = v.id
+           WHERE m.veiculo_id = ?
+             AND m.tipo_manutencao = 'preventiva'
+             AND m.data IS NOT NULL
+           ORDER BY m.data DESC, m.id DESC
+           LIMIT 1`,
+          [veiculoId]
+        );
+      }
 
       if (ultimaRevisao) {
         const intervaloKm = 10000;
         const intervaloMeses = 12;
 
         // Buscar KM na data da última revisão (usar histórico de KM)
+        // Validar data antes de usar em query
+        let dataRevisaoValida = new Date();
+        if (ultimaRevisao.data) {
+          const dataTeste = new Date(ultimaRevisao.data);
+          if (!isNaN(dataTeste.getTime())) {
+            dataRevisaoValida = dataTeste;
+          }
+        }
+        const dataRevisaoStr = dataRevisaoValida.toISOString().split('T')[0];
+        
         const kmHistorico = await queryOne(
           `SELECT km FROM km_historico 
-           WHERE veiculo_id = ? AND (data_registro <= ? OR criado_em <= ?)
+           WHERE veiculo_id = ? AND (data_registro <= ?::date OR criado_em <= ?::timestamp)
            ORDER BY data_registro DESC, criado_em DESC LIMIT 1`,
-          [veiculoId, ultimaRevisao.data || new Date(), ultimaRevisao.data || new Date()]
+          [veiculoId, dataRevisaoStr, dataRevisaoValida.toISOString()]
         );
 
         const kmNaDataRevisao = (kmHistorico && kmHistorico.km != null)

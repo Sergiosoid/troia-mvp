@@ -45,13 +45,19 @@ router.get('/resumo', authRequired, async (req, res) => {
       const periodo = await getPeriodoProprietarioAtual(veiculo.id);
       if (!periodo) continue;
 
-      const dataInicioFiltro = periodo.dataInicio && periodo.dataInicio > data30DiasAtrasStr 
-        ? periodo.dataInicio 
-        : data30DiasAtrasStr;
+      // Validar data de início antes de usar em query SQL
+      let dataInicioFiltro = data30DiasAtrasStr;
+      if (periodo.dataInicio && typeof periodo.dataInicio === 'string' && periodo.dataInicio.trim() !== '') {
+        const dataInicioValida = new Date(periodo.dataInicio);
+        if (!isNaN(dataInicioValida.getTime())) {
+          const dataInicioStr = dataInicioValida.toISOString().split('T')[0];
+          dataInicioFiltro = dataInicioStr > data30DiasAtrasStr ? dataInicioStr : data30DiasAtrasStr;
+        }
+      }
 
       const abastVeiculo = await queryAll(
         `SELECT valor_total FROM abastecimentos 
-         WHERE usuario_id = ? AND veiculo_id = ? AND data >= ?`,
+         WHERE usuario_id = ? AND veiculo_id = ? AND data >= ?::date`,
         [userId, veiculo.id, dataInicioFiltro]
       ) || [];
       abastecimentos30Dias = abastecimentos30Dias.concat(Array.isArray(abastVeiculo) ? abastVeiculo : []);
@@ -64,14 +70,20 @@ router.get('/resumo', authRequired, async (req, res) => {
       const periodo = await getPeriodoProprietarioAtual(veiculo.id);
       if (!periodo) continue;
 
-      const dataInicioFiltro = periodo.dataInicio && periodo.dataInicio > data30DiasAtrasStr 
-        ? periodo.dataInicio 
-        : data30DiasAtrasStr;
+      // Validar data de início antes de usar em query SQL
+      let dataInicioFiltro = data30DiasAtrasStr;
+      if (periodo.dataInicio && typeof periodo.dataInicio === 'string' && periodo.dataInicio.trim() !== '') {
+        const dataInicioValida = new Date(periodo.dataInicio);
+        if (!isNaN(dataInicioValida.getTime())) {
+          const dataInicioStr = dataInicioValida.toISOString().split('T')[0];
+          dataInicioFiltro = dataInicioStr > data30DiasAtrasStr ? dataInicioStr : data30DiasAtrasStr;
+        }
+      }
 
       // Buscar todas as manutenções do veículo (herdáveis)
       const manutVeiculo = await queryAll(
         `SELECT valor, data FROM manutencoes 
-         WHERE veiculo_id = ? AND data >= ?`,
+         WHERE veiculo_id = ? AND data >= ?::date`,
         [veiculo.id, dataInicioFiltro]
       ) || [];
 
@@ -113,15 +125,26 @@ router.get('/resumo', authRequired, async (req, res) => {
     for (const veiculo of veiculos) {
       if (!veiculo || !veiculo.id) continue;
       const periodo = await getPeriodoProprietarioAtual(veiculo.id);
-      if (!periodo || !periodo.dataInicio) continue;
+      if (!periodo) continue;
+      
+      // Validar data de início antes de usar em query SQL
+      if (!periodo.dataInicio || typeof periodo.dataInicio !== 'string' || periodo.dataInicio.trim() === '') {
+        continue; // Pular se não houver data válida
+      }
+      
+      const dataInicioValida = new Date(periodo.dataInicio);
+      if (isNaN(dataInicioValida.getTime())) {
+        continue; // Pular se data for inválida
+      }
+      const dataInicioStr = dataInicioValida.toISOString().split('T')[0];
 
       const abastVeiculo = await queryAll(
         `SELECT km_antes, km_depois, litros, data
          FROM abastecimentos 
          WHERE usuario_id = ? AND veiculo_id = ? 
            AND km_antes IS NOT NULL AND km_depois IS NOT NULL 
-           AND litros > 0 AND data >= ?`,
-        [userId, veiculo.id, periodo.dataInicio]
+           AND litros > 0 AND data >= ?::date`,
+        [userId, veiculo.id, dataInicioStr]
       ) || [];
       abastecimentosComKm = abastecimentosComKm.concat(Array.isArray(abastVeiculo) ? abastVeiculo : []);
     }
@@ -155,13 +178,19 @@ router.get('/resumo', authRequired, async (req, res) => {
       const periodo = await getPeriodoProprietarioAtual(veiculo.id);
       if (!periodo) continue;
 
-      const dataInicioFiltro = periodo.dataInicio && periodo.dataInicio > primeiroDiaMesStr 
-        ? periodo.dataInicio 
-        : primeiroDiaMesStr;
+      // Validar data de início antes de usar em query SQL
+      let dataInicioFiltro = primeiroDiaMesStr;
+      if (periodo.dataInicio && typeof periodo.dataInicio === 'string' && periodo.dataInicio.trim() !== '') {
+        const dataInicioValida = new Date(periodo.dataInicio);
+        if (!isNaN(dataInicioValida.getTime())) {
+          const dataInicioStr = dataInicioValida.toISOString().split('T')[0];
+          dataInicioFiltro = dataInicioStr > primeiroDiaMesStr ? dataInicioStr : primeiroDiaMesStr;
+        }
+      }
 
       const abastVeiculo = await queryAll(
         `SELECT litros FROM abastecimentos 
-         WHERE usuario_id = ? AND veiculo_id = ? AND data >= ?`,
+         WHERE usuario_id = ? AND veiculo_id = ? AND data >= ?::date`,
         [userId, veiculo.id, dataInicioFiltro]
       ) || [];
       abastecimentosMes = abastecimentosMes.concat(Array.isArray(abastVeiculo) ? abastVeiculo : []);
@@ -183,19 +212,55 @@ router.get('/resumo', authRequired, async (req, res) => {
       const periodo = await getPeriodoProprietarioAtual(veiculo.id);
       if (!periodo) continue;
 
-      const trocaOleo = await queryOne(
-        `SELECT m.*, v.km_atual 
-         FROM manutencoes m
-         JOIN veiculos v ON m.veiculo_id = v.id
-         WHERE m.veiculo_id = ?
-           AND m.tipo_manutencao = 'preventiva'
-           AND m.area_manutencao = 'motor_cambio'
-           AND m.data IS NOT NULL
-           AND (m.data >= ? OR ? IS NULL)
-         ORDER BY m.data DESC, m.id DESC
-         LIMIT 1`,
-        [veiculo.id, periodo.dataInicio, periodo.dataInicio]
-      );
+      // Construir query dinamicamente baseado em se há data de início válida
+      let trocaOleo;
+      if (periodo.dataInicio && typeof periodo.dataInicio === 'string' && periodo.dataInicio.trim() !== '') {
+        const dataInicioValida = new Date(periodo.dataInicio);
+        if (!isNaN(dataInicioValida.getTime())) {
+          const dataInicioStr = dataInicioValida.toISOString().split('T')[0];
+          trocaOleo = await queryOne(
+            `SELECT m.*, v.km_atual 
+             FROM manutencoes m
+             JOIN veiculos v ON m.veiculo_id = v.id
+             WHERE m.veiculo_id = ?
+               AND m.tipo_manutencao = 'preventiva'
+               AND m.area_manutencao = 'motor_cambio'
+               AND m.data IS NOT NULL
+               AND m.data >= ?::date
+             ORDER BY m.data DESC, m.id DESC
+             LIMIT 1`,
+            [veiculo.id, dataInicioStr]
+          );
+        } else {
+          // Data inválida, buscar sem filtro de data
+          trocaOleo = await queryOne(
+            `SELECT m.*, v.km_atual 
+             FROM manutencoes m
+             JOIN veiculos v ON m.veiculo_id = v.id
+             WHERE m.veiculo_id = ?
+               AND m.tipo_manutencao = 'preventiva'
+               AND m.area_manutencao = 'motor_cambio'
+               AND m.data IS NOT NULL
+             ORDER BY m.data DESC, m.id DESC
+             LIMIT 1`,
+            [veiculo.id]
+          );
+        }
+      } else {
+        // Sem data de início, buscar sem filtro de data
+        trocaOleo = await queryOne(
+          `SELECT m.*, v.km_atual 
+           FROM manutencoes m
+           JOIN veiculos v ON m.veiculo_id = v.id
+           WHERE m.veiculo_id = ?
+             AND m.tipo_manutencao = 'preventiva'
+             AND m.area_manutencao = 'motor_cambio'
+             AND m.data IS NOT NULL
+           ORDER BY m.data DESC, m.id DESC
+           LIMIT 1`,
+          [veiculo.id]
+        );
+      }
 
       if (trocaOleo && (!ultimaTrocaOleo || trocaOleo.data > ultimaTrocaOleo.data)) {
         ultimaTrocaOleo = trocaOleo;
@@ -215,11 +280,21 @@ router.get('/resumo', authRequired, async (req, res) => {
       const kmAtualVeiculo = parseInt(veiculoTrocaOleo.km_atual) || 0;
       
       // Buscar KM do veículo na data da última manutenção (usar histórico de KM)
+      // Validar data antes de usar em query
+      let dataManutencaoValida = new Date();
+      if (ultimaTrocaOleo.data) {
+        const dataTeste = new Date(ultimaTrocaOleo.data);
+        if (!isNaN(dataTeste.getTime())) {
+          dataManutencaoValida = dataTeste;
+        }
+      }
+      const dataManutencaoStr = dataManutencaoValida.toISOString().split('T')[0];
+      
       const kmHistorico = await queryOne(
         `SELECT km FROM km_historico 
-         WHERE veiculo_id = ? AND (data_registro <= ? OR criado_em <= ?)
+         WHERE veiculo_id = ? AND (data_registro <= ?::date OR criado_em <= ?::timestamp)
          ORDER BY data_registro DESC, criado_em DESC LIMIT 1`,
-        [veiculoTrocaOleo.id, ultimaTrocaOleo.data || new Date(), ultimaTrocaOleo.data || new Date()]
+        [veiculoTrocaOleo.id, dataManutencaoStr, dataManutencaoValida.toISOString()]
       );
       
       const kmNaDataManutencao = (kmHistorico && kmHistorico.km != null)
