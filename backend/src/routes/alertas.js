@@ -76,7 +76,7 @@ router.get('/', authRequired, async (req, res) => {
                  OR (m.tipo_manutencao = 'preventiva' AND m.area_manutencao = 'motor_cambio')
                )
                AND m.data IS NOT NULL
-               AND m.data >= ?::date
+               AND m.data >= ?::text::date
              ORDER BY m.data DESC, m.id DESC
              LIMIT 1`,
             [veiculoId, dataInicioStr]
@@ -139,7 +139,7 @@ router.get('/', authRequired, async (req, res) => {
         
         const kmHistorico = await queryOne(
           `SELECT km FROM km_historico 
-           WHERE veiculo_id = ? AND (data_registro <= ?::date OR criado_em <= ?::timestamp)
+           WHERE veiculo_id = ? AND (data_registro <= ?::text::date OR criado_em <= ?::text::timestamp)
            ORDER BY data_registro DESC, criado_em DESC LIMIT 1`,
           [veiculoId, dataManutencaoStr, dataManutencaoValida.toISOString()]
         );
@@ -223,7 +223,7 @@ router.get('/', authRequired, async (req, res) => {
              WHERE m.veiculo_id = ?
                AND m.tipo_manutencao = 'preventiva'
                AND m.data IS NOT NULL
-               AND m.data >= ?::date
+               AND m.data >= ?::text::date
              ORDER BY m.data DESC, m.id DESC
              LIMIT 1`,
             [veiculoId, dataInicioStr]
@@ -274,7 +274,7 @@ router.get('/', authRequired, async (req, res) => {
         
         const kmHistorico = await queryOne(
           `SELECT km FROM km_historico 
-           WHERE veiculo_id = ? AND (data_registro <= ?::date OR criado_em <= ?::timestamp)
+           WHERE veiculo_id = ? AND (data_registro <= ?::text::date OR criado_em <= ?::text::timestamp)
            ORDER BY data_registro DESC, criado_em DESC LIMIT 1`,
           [veiculoId, dataRevisaoStr, dataRevisaoValida.toISOString()]
         );

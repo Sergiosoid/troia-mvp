@@ -57,7 +57,7 @@ router.get('/resumo', authRequired, async (req, res) => {
 
       const abastVeiculo = await queryAll(
         `SELECT valor_total FROM abastecimentos 
-         WHERE usuario_id = ? AND veiculo_id = ? AND data >= ?::date`,
+         WHERE usuario_id = ? AND veiculo_id = ? AND data >= ?`,
         [userId, veiculo.id, dataInicioFiltro]
       ) || [];
       abastecimentos30Dias = abastecimentos30Dias.concat(Array.isArray(abastVeiculo) ? abastVeiculo : []);
@@ -83,7 +83,7 @@ router.get('/resumo', authRequired, async (req, res) => {
       // Buscar todas as manutenções do veículo (herdáveis)
       const manutVeiculo = await queryAll(
         `SELECT valor, data FROM manutencoes 
-         WHERE veiculo_id = ? AND data >= ?::date`,
+         WHERE veiculo_id = ? AND data >= ?`,
         [veiculo.id, dataInicioFiltro]
       ) || [];
 
@@ -143,7 +143,7 @@ router.get('/resumo', authRequired, async (req, res) => {
          FROM abastecimentos 
          WHERE usuario_id = ? AND veiculo_id = ? 
            AND km_antes IS NOT NULL AND km_depois IS NOT NULL 
-           AND litros > 0 AND data >= ?::date`,
+           AND litros > 0 AND data >= ?`,
         [userId, veiculo.id, dataInicioStr]
       ) || [];
       abastecimentosComKm = abastecimentosComKm.concat(Array.isArray(abastVeiculo) ? abastVeiculo : []);
@@ -190,7 +190,7 @@ router.get('/resumo', authRequired, async (req, res) => {
 
       const abastVeiculo = await queryAll(
         `SELECT litros FROM abastecimentos 
-         WHERE usuario_id = ? AND veiculo_id = ? AND data >= ?::date`,
+         WHERE usuario_id = ? AND veiculo_id = ? AND data >= ?`,
         [userId, veiculo.id, dataInicioFiltro]
       ) || [];
       abastecimentosMes = abastecimentosMes.concat(Array.isArray(abastVeiculo) ? abastVeiculo : []);
@@ -226,7 +226,7 @@ router.get('/resumo', authRequired, async (req, res) => {
                AND m.tipo_manutencao = 'preventiva'
                AND m.area_manutencao = 'motor_cambio'
                AND m.data IS NOT NULL
-               AND m.data >= ?::date
+               AND m.data >= ?::text::date
              ORDER BY m.data DESC, m.id DESC
              LIMIT 1`,
             [veiculo.id, dataInicioStr]
@@ -292,7 +292,7 @@ router.get('/resumo', authRequired, async (req, res) => {
       
       const kmHistorico = await queryOne(
         `SELECT km FROM km_historico 
-         WHERE veiculo_id = ? AND (data_registro <= ?::date OR criado_em <= ?::timestamp)
+         WHERE veiculo_id = ? AND (data_registro <= ?::text::date OR criado_em <= ?::text::timestamp)
          ORDER BY data_registro DESC, criado_em DESC LIMIT 1`,
         [veiculoTrocaOleo.id, dataManutencaoStr, dataManutencaoValida.toISOString()]
       );
