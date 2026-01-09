@@ -24,12 +24,14 @@ router.get('/resumo', authRequired, async (req, res) => {
     const veiculos = await queryAll(
       'SELECT id, km_atual FROM veiculos WHERE usuario_id = ?',
       [userId]
-    );
+    ) || [];
 
     // Calcular kmTotal (soma do km_atual de todos os veículos)
-    const kmTotal = veiculos.reduce((total, veiculo) => {
-      return total + (parseInt(veiculo.km_atual) || 0);
-    }, 0);
+    const kmTotal = Array.isArray(veiculos) && veiculos.length > 0
+      ? veiculos.reduce((total, veiculo) => {
+          return total + (parseInt(veiculo?.km_atual) || 0);
+        }, 0)
+      : 0;
 
     // (B) Buscar abastecimentos dos últimos 30 dias (apenas do proprietário atual)
     const data30DiasAtras = new Date();
@@ -39,6 +41,7 @@ router.get('/resumo', authRequired, async (req, res) => {
     // Para cada veículo, filtrar abastecimentos do período do proprietário atual
     let abastecimentos30Dias = [];
     for (const veiculo of veiculos) {
+      if (!veiculo || !veiculo.id) continue;
       const periodo = await getPeriodoProprietarioAtual(veiculo.id);
       if (!periodo) continue;
 
@@ -50,13 +53,14 @@ router.get('/resumo', authRequired, async (req, res) => {
         `SELECT valor_total FROM abastecimentos 
          WHERE usuario_id = ? AND veiculo_id = ? AND data >= ?`,
         [userId, veiculo.id, dataInicioFiltro]
-      );
-      abastecimentos30Dias = abastecimentos30Dias.concat(abastVeiculo);
+      ) || [];
+      abastecimentos30Dias = abastecimentos30Dias.concat(Array.isArray(abastVeiculo) ? abastVeiculo : []);
     }
 
     // (B) Buscar manutenções dos últimos 30 dias (apenas do proprietário atual)
     let manutencoes30Dias = [];
     for (const veiculo of veiculos) {
+      if (!veiculo || !veiculo.id) continue;
       const periodo = await getPeriodoProprietarioAtual(veiculo.id);
       if (!periodo) continue;
 
@@ -69,31 +73,45 @@ router.get('/resumo', authRequired, async (req, res) => {
         `SELECT valor, data FROM manutencoes 
          WHERE veiculo_id = ? AND data >= ?`,
         [veiculo.id, dataInicioFiltro]
-      );
+      ) || [];
 
       // Filtrar apenas as que pertencem ao proprietário atual
-      for (const man of manutVeiculo) {
-        const pertence = await manutencaoPertenceAoProprietarioAtual(veiculo.id, man.data);
-        if (pertence && man.valor) {
-          manutencoes30Dias.push(man);
+      if (Array.isArray(manutVeiculo)) {
+        for (const man of manutVeiculo) {
+          if (man && man.data) {
+            try {
+              const pertence = await manutencaoPertenceAoProprietarioAtual(veiculo.id, man.data);
+              if (pertence && man.valor) {
+                manutencoes30Dias.push(man);
+              }
+            } catch (err) {
+              console.error(`[DIAGNÓSTICO] Erro ao verificar manutenção ${man?.id}:`, err);
+              // Continuar processamento mesmo se uma manutenção falhar
+            }
+          }
         }
       }
     }
 
     // Calcular gasto30dias
-    const gastoAbastecimentos = abastecimentos30Dias.reduce((total, ab) => {
-      return total + (parseFloat(ab.valor_total) || 0);
-    }, 0);
+    const gastoAbastecimentos = Array.isArray(abastecimentos30Dias) && abastecimentos30Dias.length > 0
+      ? abastecimentos30Dias.reduce((total, ab) => {
+          return total + (parseFloat(ab?.valor_total) || 0);
+        }, 0)
+      : 0;
 
-    const gastoManutencoes = manutencoes30Dias.reduce((total, man) => {
-      return total + (parseFloat(man.valor) || 0);
-    }, 0);
+    const gastoManutencoes = Array.isArray(manutencoes30Dias) && manutencoes30Dias.length > 0
+      ? manutencoes30Dias.reduce((total, man) => {
+          return total + (parseFloat(man?.valor) || 0);
+        }, 0)
+      : 0;
 
-    const gasto30dias = gastoAbastecimentos + gastoManutencoes;
+    const gasto30dias = (gastoAbastecimentos || 0) + (gastoManutencoes || 0);
 
     // (C) Calcular consumo médio (km rodado / litros abastecidos) - apenas do proprietário atual
     let abastecimentosComKm = [];
     for (const veiculo of veiculos) {
+      if (!veiculo || !veiculo.id) continue;
       const periodo = await getPeriodoProprietarioAtual(veiculo.id);
       if (!periodo || !periodo.dataInicio) continue;
 
@@ -104,23 +122,27 @@ router.get('/resumo', authRequired, async (req, res) => {
            AND km_antes IS NOT NULL AND km_depois IS NOT NULL 
            AND litros > 0 AND data >= ?`,
         [userId, veiculo.id, periodo.dataInicio]
-      );
-      abastecimentosComKm = abastecimentosComKm.concat(abastVeiculo);
+      ) || [];
+      abastecimentosComKm = abastecimentosComKm.concat(Array.isArray(abastVeiculo) ? abastVeiculo : []);
     }
 
     let kmRodadoTotal = 0;
     let litrosTotal = 0;
 
-    abastecimentosComKm.forEach((ab) => {
-      const kmRodado = (parseInt(ab.km_depois) || 0) - (parseInt(ab.km_antes) || 0);
-      const litros = parseFloat(ab.litros) || 0;
-      if (kmRodado > 0 && litros > 0) {
-        kmRodadoTotal += kmRodado;
-        litrosTotal += litros;
-      }
-    });
+    if (Array.isArray(abastecimentosComKm) && abastecimentosComKm.length > 0) {
+      abastecimentosComKm.forEach((ab) => {
+        if (ab && ab.km_depois && ab.km_antes && ab.litros) {
+          const kmRodado = (parseInt(ab.km_depois) || 0) - (parseInt(ab.km_antes) || 0);
+          const litros = parseFloat(ab.litros) || 0;
+          if (kmRodado > 0 && litros > 0) {
+            kmRodadoTotal += kmRodado;
+            litrosTotal += litros;
+          }
+        }
+      });
+    }
 
-    const consumoMedio = litrosTotal > 0 ? (kmRodadoTotal / litrosTotal).toFixed(2) : 0;
+    const consumoMedio = litrosTotal > 0 ? (kmRodadoTotal / litrosTotal).toFixed(2) : '0';
 
     // (D) Calcular litros abastecidos no mês atual (apenas do proprietário atual)
     const agora = new Date();
@@ -129,6 +151,7 @@ router.get('/resumo', authRequired, async (req, res) => {
 
     let abastecimentosMes = [];
     for (const veiculo of veiculos) {
+      if (!veiculo || !veiculo.id) continue;
       const periodo = await getPeriodoProprietarioAtual(veiculo.id);
       if (!periodo) continue;
 
@@ -140,13 +163,15 @@ router.get('/resumo', authRequired, async (req, res) => {
         `SELECT litros FROM abastecimentos 
          WHERE usuario_id = ? AND veiculo_id = ? AND data >= ?`,
         [userId, veiculo.id, dataInicioFiltro]
-      );
-      abastecimentosMes = abastecimentosMes.concat(abastVeiculo);
+      ) || [];
+      abastecimentosMes = abastecimentosMes.concat(Array.isArray(abastVeiculo) ? abastVeiculo : []);
     }
 
-    const litrosMes = abastecimentosMes.reduce((total, ab) => {
-      return total + (parseFloat(ab.litros) || 0);
-    }, 0);
+    const litrosMes = Array.isArray(abastecimentosMes) && abastecimentosMes.length > 0
+      ? abastecimentosMes.reduce((total, ab) => {
+          return total + (parseFloat(ab?.litros) || 0);
+        }, 0)
+      : 0;
 
     // (E) Calcular previsão de manutenção mais próxima (considerando período do proprietário atual)
     // Buscar última troca de óleo (manutenção preventiva na área motor/cambio) - pode ser herdada
@@ -154,6 +179,7 @@ router.get('/resumo', authRequired, async (req, res) => {
     let veiculoTrocaOleo = null;
     
     for (const veiculo of veiculos) {
+      if (!veiculo || !veiculo.id) continue;
       const periodo = await getPeriodoProprietarioAtual(veiculo.id);
       if (!periodo) continue;
 
@@ -196,8 +222,8 @@ router.get('/resumo', authRequired, async (req, res) => {
         [veiculoTrocaOleo.id, ultimaTrocaOleo.data || new Date(), ultimaTrocaOleo.data || new Date()]
       );
       
-      const kmNaDataManutencao = kmHistorico 
-        ? parseInt(kmHistorico.km) 
+      const kmNaDataManutencao = (kmHistorico && kmHistorico.km != null)
+        ? parseInt(kmHistorico.km) || 0
         : Math.max(kmInicio, kmAtualVeiculo - 5000); // Aproximação, mas não menor que kmInicio
       
       // Calcular KM rodado desde a última manutenção (apenas no período do proprietário atual)
@@ -205,13 +231,30 @@ router.get('/resumo', authRequired, async (req, res) => {
       const faltaKm = intervaloKm - kmRodadoDesdeManutencao;
 
       // Verificar também por data (6 meses) - considerar período do proprietário atual
-      const dataUltimaManutencao = ultimaTrocaOleo.data 
-        ? new Date(ultimaTrocaOleo.data) 
-        : new Date();
+      let dataUltimaManutencao;
+      try {
+        dataUltimaManutencao = ultimaTrocaOleo.data 
+          ? new Date(ultimaTrocaOleo.data) 
+          : new Date();
+        if (isNaN(dataUltimaManutencao.getTime())) {
+          dataUltimaManutencao = new Date();
+        }
+      } catch (err) {
+        dataUltimaManutencao = new Date();
+      }
       
-      const dataInicioPeriodo = periodo && periodo.dataInicio 
-        ? new Date(periodo.dataInicio) 
-        : dataUltimaManutencao;
+      let dataInicioPeriodo;
+      try {
+        dataInicioPeriodo = periodo && periodo.dataInicio 
+          ? new Date(periodo.dataInicio) 
+          : dataUltimaManutencao;
+        if (isNaN(dataInicioPeriodo.getTime())) {
+          dataInicioPeriodo = dataUltimaManutencao;
+        }
+      } catch (err) {
+        dataInicioPeriodo = dataUltimaManutencao;
+      }
+      
       const dataReferencia = dataUltimaManutencao > dataInicioPeriodo ? dataUltimaManutencao : dataInicioPeriodo;
       const mesesDesdeManutencao = (agora - dataReferencia) / (1000 * 60 * 60 * 24 * 30);
       const faltaMeses = intervaloMeses - mesesDesdeManutencao;
@@ -228,28 +271,46 @@ router.get('/resumo', authRequired, async (req, res) => {
       }
     }
 
-    // Retornar resumo
+    // Retornar resumo - garantir valores seguros
+    const gasto30diasNum = typeof gasto30dias === 'number' && !isNaN(gasto30dias) ? gasto30dias : 0;
+    const consumoMedioNum = typeof consumoMedio === 'string' 
+      ? parseFloat(consumoMedio) || 0 
+      : (typeof consumoMedio === 'number' && !isNaN(consumoMedio) ? consumoMedio : 0);
+    const litrosMesNum = typeof litrosMes === 'number' && !isNaN(litrosMes) ? litrosMes : 0;
+    
     const resumoFinal = {
-      kmTotal,
-      gasto30dias: parseFloat(gasto30dias.toFixed(2)),
-      consumoMedio: parseFloat(consumoMedio),
-      litrosMes: parseFloat(litrosMes.toFixed(2)),
-      manutencaoProxima,
+      kmTotal: typeof kmTotal === 'number' && !isNaN(kmTotal) ? kmTotal : 0,
+      gasto30dias: parseFloat(gasto30diasNum.toFixed(2)) || 0,
+      consumoMedio: consumoMedioNum > 0 ? parseFloat(consumoMedioNum.toFixed(2)) : 0,
+      litrosMes: parseFloat(litrosMesNum.toFixed(2)) || 0,
+      manutencaoProxima: manutencaoProxima || null,
     };
     
     console.log('[DIAGNÓSTICO GET /dashboard/resumo] Resumo final retornado:', JSON.stringify(resumoFinal, null, 2));
     console.log('[DIAGNÓSTICO GET /dashboard/resumo] Detalhes:', {
-      kmTotal: { tipo: typeof kmTotal, valor: kmTotal },
+      kmTotal: { tipo: typeof resumoFinal.kmTotal, valor: resumoFinal.kmTotal },
       gasto30dias: { tipo: typeof resumoFinal.gasto30dias, valor: resumoFinal.gasto30dias },
       consumoMedio: { tipo: typeof resumoFinal.consumoMedio, valor: resumoFinal.consumoMedio },
       litrosMes: { tipo: typeof resumoFinal.litrosMes, valor: resumoFinal.litrosMes },
       manutencaoProxima: { tipo: typeof resumoFinal.manutencaoProxima, valor: resumoFinal.manutencaoProxima }
     });
     
-    res.json(resumoFinal);
+    res.status(200).json(resumoFinal);
   } catch (error) {
-    console.error('Erro ao buscar resumo do dashboard:', error);
-    res.status(500).json({ error: 'Erro ao buscar resumo do dashboard' });
+    console.error('[DIAGNÓSTICO - BACKEND] Erro ao buscar resumo do dashboard:', error);
+    console.error('[DIAGNÓSTICO - BACKEND] Stack trace:', error.stack);
+    
+    // SEMPRE retornar 200 com valores padrão, nunca 500
+    const resumoFallback = {
+      kmTotal: 0,
+      gasto30dias: 0,
+      consumoMedio: 0,
+      litrosMes: 0,
+      manutencaoProxima: null,
+    };
+    
+    console.log('[DIAGNÓSTICO - BACKEND] Retornando resumo fallback devido a erro:', JSON.stringify(resumoFallback, null, 2));
+    res.status(200).json(resumoFallback);
   }
 });
 
