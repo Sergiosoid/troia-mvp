@@ -278,7 +278,13 @@ export async function getPeriodoProprietarioAtual(veiculoId) {
       );
       
       if (!historico || (!historico.km_inicial && historico.km_inicial !== 0)) {
-        return null;
+        // Sem histórico: retornar objeto seguro
+        return {
+          dataInicio: null,
+          dataFim: null,
+          kmInicio: 0,
+          kmFim: null,
+        };
       }
       
     // Garantir que datas sejam válidas (não string vazia)
@@ -308,7 +314,13 @@ export async function getPeriodoProprietarioAtual(veiculoId) {
     );
     
     if (!historico || (!historico.km_inicial && historico.km_inicial !== 0)) {
-      return null;
+      // Sem histórico: retornar objeto seguro
+      return {
+        dataInicio: null,
+        dataFim: null,
+        kmInicio: 0,
+        kmFim: null,
+      };
     }
     
     // Garantir que datas sejam válidas (não string vazia)

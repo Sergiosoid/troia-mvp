@@ -76,10 +76,10 @@ router.get('/', authRequired, async (req, res) => {
                  OR (m.tipo_manutencao = 'preventiva' AND m.area_manutencao = 'motor_cambio')
                )
                AND m.data IS NOT NULL
-               AND m.data >= ?::text::date
+               AND m.data >= COALESCE(CAST(? AS DATE), m.data)
              ORDER BY m.data DESC, m.id DESC
              LIMIT 1`,
-            [veiculoId, dataInicioStr]
+            [veiculoId, dataInicioStr || null]
           );
         } else {
           // Data inválida, buscar sem filtro de data
@@ -139,9 +139,11 @@ router.get('/', authRequired, async (req, res) => {
         
         const kmHistorico = await queryOne(
           `SELECT km FROM km_historico 
-           WHERE veiculo_id = ? AND (data_registro <= ?::text::date OR criado_em <= ?::text::timestamp)
+           WHERE veiculo_id = ? 
+             AND (data_registro <= COALESCE(CAST(? AS DATE), data_registro) 
+                  OR criado_em <= COALESCE(CAST(? AS TIMESTAMP), criado_em))
            ORDER BY data_registro DESC, criado_em DESC LIMIT 1`,
-          [veiculoId, dataManutencaoStr, dataManutencaoValida.toISOString()]
+          [veiculoId, dataManutencaoStr || null, dataManutencaoValida.toISOString() || null]
         );
 
         const kmNaDataManutencao = (kmHistorico && kmHistorico.km != null)
@@ -223,10 +225,10 @@ router.get('/', authRequired, async (req, res) => {
              WHERE m.veiculo_id = ?
                AND m.tipo_manutencao = 'preventiva'
                AND m.data IS NOT NULL
-               AND m.data >= ?::text::date
+               AND m.data >= COALESCE(CAST(? AS DATE), m.data)
              ORDER BY m.data DESC, m.id DESC
              LIMIT 1`,
-            [veiculoId, dataInicioStr]
+            [veiculoId, dataInicioStr || null]
           );
         } else {
           // Data inválida, buscar sem filtro de data
@@ -274,9 +276,11 @@ router.get('/', authRequired, async (req, res) => {
         
         const kmHistorico = await queryOne(
           `SELECT km FROM km_historico 
-           WHERE veiculo_id = ? AND (data_registro <= ?::text::date OR criado_em <= ?::text::timestamp)
+           WHERE veiculo_id = ? 
+             AND (data_registro <= COALESCE(CAST(? AS DATE), data_registro) 
+                  OR criado_em <= COALESCE(CAST(? AS TIMESTAMP), criado_em))
            ORDER BY data_registro DESC, criado_em DESC LIMIT 1`,
-          [veiculoId, dataRevisaoStr, dataRevisaoValida.toISOString()]
+          [veiculoId, dataRevisaoStr || null, dataRevisaoValida.toISOString() || null]
         );
 
         const kmNaDataRevisao = (kmHistorico && kmHistorico.km != null)

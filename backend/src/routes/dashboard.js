@@ -46,6 +46,7 @@ router.get('/resumo', authRequired, async (req, res) => {
       if (!periodo) continue;
 
       // Validar data de início antes de usar em query SQL
+      // Usar COALESCE para garantir que nunca passe string vazia
       let dataInicioFiltro = data30DiasAtrasStr;
       if (periodo.dataInicio && typeof periodo.dataInicio === 'string' && periodo.dataInicio.trim() !== '') {
         const dataInicioValida = new Date(periodo.dataInicio);
@@ -57,8 +58,9 @@ router.get('/resumo', authRequired, async (req, res) => {
 
       const abastVeiculo = await queryAll(
         `SELECT valor_total FROM abastecimentos 
-         WHERE usuario_id = ? AND veiculo_id = ? AND data >= ?`,
-        [userId, veiculo.id, dataInicioFiltro]
+         WHERE usuario_id = ? AND veiculo_id = ? 
+           AND data >= COALESCE(CAST(? AS DATE), data)`,
+        [userId, veiculo.id, dataInicioFiltro || null]
       ) || [];
       abastecimentos30Dias = abastecimentos30Dias.concat(Array.isArray(abastVeiculo) ? abastVeiculo : []);
     }
@@ -71,6 +73,7 @@ router.get('/resumo', authRequired, async (req, res) => {
       if (!periodo) continue;
 
       // Validar data de início antes de usar em query SQL
+      // Usar COALESCE para garantir que nunca passe string vazia
       let dataInicioFiltro = data30DiasAtrasStr;
       if (periodo.dataInicio && typeof periodo.dataInicio === 'string' && periodo.dataInicio.trim() !== '') {
         const dataInicioValida = new Date(periodo.dataInicio);
@@ -83,8 +86,9 @@ router.get('/resumo', authRequired, async (req, res) => {
       // Buscar todas as manutenções do veículo (herdáveis)
       const manutVeiculo = await queryAll(
         `SELECT valor, data FROM manutencoes 
-         WHERE veiculo_id = ? AND data >= ?`,
-        [veiculo.id, dataInicioFiltro]
+         WHERE veiculo_id = ? 
+           AND data >= COALESCE(CAST(? AS DATE), data)`,
+        [veiculo.id, dataInicioFiltro || null]
       ) || [];
 
       // Filtrar apenas as que pertencem ao proprietário atual
@@ -143,8 +147,8 @@ router.get('/resumo', authRequired, async (req, res) => {
          FROM abastecimentos 
          WHERE usuario_id = ? AND veiculo_id = ? 
            AND km_antes IS NOT NULL AND km_depois IS NOT NULL 
-           AND litros > 0 AND data >= ?`,
-        [userId, veiculo.id, dataInicioStr]
+           AND litros > 0 AND data >= COALESCE(CAST(? AS DATE), data)`,
+        [userId, veiculo.id, dataInicioStr || null]
       ) || [];
       abastecimentosComKm = abastecimentosComKm.concat(Array.isArray(abastVeiculo) ? abastVeiculo : []);
     }
@@ -179,6 +183,7 @@ router.get('/resumo', authRequired, async (req, res) => {
       if (!periodo) continue;
 
       // Validar data de início antes de usar em query SQL
+      // Usar COALESCE para garantir que nunca passe string vazia
       let dataInicioFiltro = primeiroDiaMesStr;
       if (periodo.dataInicio && typeof periodo.dataInicio === 'string' && periodo.dataInicio.trim() !== '') {
         const dataInicioValida = new Date(periodo.dataInicio);
@@ -190,8 +195,9 @@ router.get('/resumo', authRequired, async (req, res) => {
 
       const abastVeiculo = await queryAll(
         `SELECT litros FROM abastecimentos 
-         WHERE usuario_id = ? AND veiculo_id = ? AND data >= ?`,
-        [userId, veiculo.id, dataInicioFiltro]
+         WHERE usuario_id = ? AND veiculo_id = ? 
+           AND data >= COALESCE(CAST(? AS DATE), data)`,
+        [userId, veiculo.id, dataInicioFiltro || null]
       ) || [];
       abastecimentosMes = abastecimentosMes.concat(Array.isArray(abastVeiculo) ? abastVeiculo : []);
     }
@@ -226,10 +232,10 @@ router.get('/resumo', authRequired, async (req, res) => {
                AND m.tipo_manutencao = 'preventiva'
                AND m.area_manutencao = 'motor_cambio'
                AND m.data IS NOT NULL
-               AND m.data >= ?::text::date
+               AND m.data >= COALESCE(CAST(? AS DATE), m.data)
              ORDER BY m.data DESC, m.id DESC
              LIMIT 1`,
-            [veiculo.id, dataInicioStr]
+            [veiculo.id, dataInicioStr || null]
           );
         } else {
           // Data inválida, buscar sem filtro de data
@@ -292,9 +298,11 @@ router.get('/resumo', authRequired, async (req, res) => {
       
       const kmHistorico = await queryOne(
         `SELECT km FROM km_historico 
-         WHERE veiculo_id = ? AND (data_registro <= ?::text::date OR criado_em <= ?::text::timestamp)
+         WHERE veiculo_id = ? 
+           AND (data_registro <= COALESCE(CAST(? AS DATE), data_registro) 
+                OR criado_em <= COALESCE(CAST(? AS TIMESTAMP), criado_em))
          ORDER BY data_registro DESC, criado_em DESC LIMIT 1`,
-        [veiculoTrocaOleo.id, dataManutencaoStr, dataManutencaoValida.toISOString()]
+        [veiculoTrocaOleo.id, dataManutencaoStr || null, dataManutencaoValida.toISOString() || null]
       );
       
       const kmNaDataManutencao = (kmHistorico && kmHistorico.km != null)
