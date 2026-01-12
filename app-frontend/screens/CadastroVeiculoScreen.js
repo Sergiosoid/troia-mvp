@@ -1472,40 +1472,6 @@ const styles = StyleSheet.create({
     flex: 1,
     lineHeight: 18,
   },
-  datePickerContainer: {
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    marginTop: 10,
-    marginBottom: 15,
-    padding: 10,
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
-  },
-  datePickerHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingBottom: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-    marginBottom: 10,
-  },
-  datePickerButton: {
-    padding: 8,
-  },
-  datePickerButtonText: {
-    fontSize: 16,
-    color: '#666',
-  },
-  datePickerButtonConfirm: {
-    color: '#4CAF50',
-    fontWeight: '600',
-  },
-  datePickerTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-  },
   fallbackButton: {
     marginTop: 10,
     marginBottom: 15,
