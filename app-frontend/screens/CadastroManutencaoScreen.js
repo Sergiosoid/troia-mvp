@@ -20,6 +20,7 @@ import { cadastrarManutencao, listarProprietarios, listarVeiculosPorProprietario
 import { commonStyles } from '../constants/styles';
 import HeaderBar from '../components/HeaderBar';
 import CameraButton from '../components/CameraButton';
+import DateInput from '../components/DateInput';
 import { getErrorMessage, getSuccessMessage } from '../utils/errorMessages';
 
 export default function CadastroManutencaoScreen({ route, navigation }) {
@@ -55,8 +56,7 @@ export default function CadastroManutencaoScreen({ route, navigation }) {
   const [veiculoSelecionado, setVeiculoSelecionado] = useState(null);
   const [imagem, setImagem] = useState(imageUri ? { uri: imageUri } : null);
   const [valor, setValor] = useState('');
-  const [data, setData] = useState(new Date());
-  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [data, setData] = useState(new Date()); // Date object
   const [tipoManutencao, setTipoManutencao] = useState('');
   const [areaManutencao, setAreaManutencao] = useState('');
   const [loading, setLoading] = useState(false);
@@ -85,7 +85,10 @@ export default function CadastroManutencaoScreen({ route, navigation }) {
       if (dadosPreenchidos.data) {
         const dataParts = dadosPreenchidos.data.split('-');
         if (dataParts.length === 3) {
-          setData(new Date(parseInt(dataParts[0]), parseInt(dataParts[1]) - 1, parseInt(dataParts[2])));
+          const dateObj = new Date(parseInt(dataParts[0]), parseInt(dataParts[1]) - 1, parseInt(dataParts[2]));
+          if (!isNaN(dateObj.getTime())) {
+            setData(dateObj);
+          }
         }
       }
       if (dadosPreenchidos.tipo) {
@@ -139,13 +142,6 @@ export default function CadastroManutencaoScreen({ route, navigation }) {
   }, [proprietarioSelecionado]);
 
   // veiculoId vem apenas de route.params, não atualizar via seleção
-
-  const formatarData = (date) => {
-    const dia = String(date.getDate()).padStart(2, '0');
-    const mes = String(date.getMonth() + 1).padStart(2, '0');
-    const ano = date.getFullYear();
-    return `${dia}/${mes}/${ano}`;
-  };
 
   const formatarDataParaBackend = (date) => {
     const ano = date.getFullYear();
@@ -612,17 +608,13 @@ export default function CadastroManutencaoScreen({ route, navigation }) {
           </View>
 
           {/* Data */}
-          <Text style={commonStyles.label}>Data *</Text>
-          <TouchableOpacity 
-            style={commonStyles.inputContainer}
-            onPress={() => setShowDatePicker(true)}
-          >
-            <Ionicons name="calendar-outline" size={20} color="#666" style={commonStyles.inputIcon} />
-            <Text style={[commonStyles.input, { color: '#333' }]}>
-              {formatarData(data)}
-            </Text>
-            <Ionicons name="chevron-down" size={20} color="#666" />
-          </TouchableOpacity>
+          <DateInput
+            label="Data *"
+            value={data}
+            onChange={setData}
+            placeholder="Selecione a data"
+            maximumDate={new Date()}
+          />
 
           {/* Botão Cadastrar */}
           <TouchableOpacity
@@ -644,98 +636,6 @@ export default function CadastroManutencaoScreen({ route, navigation }) {
           </TouchableOpacity>
         </View>
       </ScrollView>
-
-      {/* Modal DatePicker */}
-      {showDatePicker && (
-        <Modal
-          visible={showDatePicker}
-          transparent={true}
-          animationType="fade"
-          onRequestClose={() => setShowDatePicker(false)}
-        >
-          <View style={styles.datePickerOverlay}>
-            <View style={styles.datePickerContainer}>
-              <View style={styles.datePickerHeader}>
-                <TouchableOpacity onPress={() => setShowDatePicker(false)}>
-                  <Text style={styles.datePickerCancel}>Cancelar</Text>
-                </TouchableOpacity>
-                <Text style={styles.datePickerTitle}>Selecionar Data</Text>
-                <TouchableOpacity onPress={() => setShowDatePicker(false)}>
-                  <Text style={styles.datePickerConfirm}>Confirmar</Text>
-                </TouchableOpacity>
-              </View>
-              <ScrollView style={styles.datePickerScroll} showsVerticalScrollIndicator={false}>
-                <View style={styles.datePickerSection}>
-                  <Text style={styles.datePickerSectionTitle}>Dia</Text>
-                  <View style={styles.datePickerRow}>
-                    {Array.from({ length: 31 }, (_, i) => i + 1).map(dia => (
-                      <TouchableOpacity
-                        key={dia}
-                        style={[
-                          styles.datePickerItem,
-                          data.getDate() === dia && styles.datePickerItemSelected
-                        ]}
-                        onPress={() => setData(new Date(data.getFullYear(), data.getMonth(), dia))}
-                      >
-                        <Text style={[
-                          styles.datePickerItemText,
-                          data.getDate() === dia && styles.datePickerItemTextSelected
-                        ]}>
-                          {dia}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                </View>
-                <View style={styles.datePickerSection}>
-                  <Text style={styles.datePickerSectionTitle}>Mês</Text>
-                  <View style={styles.datePickerRow}>
-                    {Array.from({ length: 12 }, (_, i) => i + 1).map(mes => (
-                      <TouchableOpacity
-                        key={mes}
-                        style={[
-                          styles.datePickerItem,
-                          data.getMonth() + 1 === mes && styles.datePickerItemSelected
-                        ]}
-                        onPress={() => setData(new Date(data.getFullYear(), mes - 1, data.getDate()))}
-                      >
-                        <Text style={[
-                          styles.datePickerItemText,
-                          data.getMonth() + 1 === mes && styles.datePickerItemTextSelected
-                        ]}>
-                          {mes}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                </View>
-                <View style={styles.datePickerSection}>
-                  <Text style={styles.datePickerSectionTitle}>Ano</Text>
-                  <View style={styles.datePickerRow}>
-                    {Array.from({ length: 50 }, (_, i) => new Date().getFullYear() - i).map(ano => (
-                      <TouchableOpacity
-                        key={ano}
-                        style={[
-                          styles.datePickerItem,
-                          data.getFullYear() === ano && styles.datePickerItemSelected
-                        ]}
-                        onPress={() => setData(new Date(ano, data.getMonth(), data.getDate()))}
-                      >
-                        <Text style={[
-                          styles.datePickerItemText,
-                          data.getFullYear() === ano && styles.datePickerItemTextSelected
-                        ]}>
-                          {ano}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                </View>
-              </ScrollView>
-            </View>
-          </View>
-        </Modal>
-      )}
 
       {/* Modal para escolher imagem */}
       <Modal

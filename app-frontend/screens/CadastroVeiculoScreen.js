@@ -2,9 +2,9 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import React, { useState, useEffect } from 'react';
 import { ActivityIndicator, Alert, Dimensions, Image, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import DateTimePicker from '@react-native-community/datetimepicker';
 import HeaderBar from '../components/HeaderBar';
 import CameraButton from '../components/CameraButton';
+import DateInput from '../components/DateInput';
 import { commonStyles } from '../constants/styles';
 import { cadastrarVeiculo, listarFabricantes, listarModelos, buscarAnosModelo } from '../services/api';
 import { getErrorMessage, getSuccessMessage } from '../utils/errorMessages';
@@ -38,9 +38,7 @@ export default function CadastroVeiculoScreen({ route, navigation }) {
   // Dados da Aquisição (necessários para histórico completo)
   const [origemPosse, setOrigemPosse] = useState(''); // 'zero_km' ou 'usado'
   const [mostrarOrigemPosse, setMostrarOrigemPosse] = useState(false);
-  const [dataAquisicao, setDataAquisicao] = useState(null); // Date object
-  const [dataAquisicaoFormatada, setDataAquisicaoFormatada] = useState(''); // DD/MM/YYYY para exibição
-  const [mostrarDatePicker, setMostrarDatePicker] = useState(false);
+  const [dataAquisicao, setDataAquisicao] = useState(null); // Date object | null
   const [kmInicio, setKmInicio] = useState('');
 
   // Dados mestres (fabricantes/modelos/anos)
@@ -412,7 +410,7 @@ export default function CadastroVeiculoScreen({ route, navigation }) {
             text: 'OK',
             onPress: () => {
               setPlaca(''); setRenavam(''); setMarca(''); setModelo(''); setAno(''); setTipoVeiculo('');
-              setOrigemPosse(''); setDataAquisicao(null); setDataAquisicaoFormatada(''); setKmInicio('');
+              setOrigemPosse(''); setDataAquisicao(null); setKmInicio('');
               // Navegar conforme contexto
               if (returnTo === 'GerenciarVeiculos') {
                 navigation.navigate('GerenciarVeiculos', { refresh: true });
@@ -796,90 +794,19 @@ export default function CadastroVeiculoScreen({ route, navigation }) {
           </View>
           {erros.origemPosse && <Text style={styles.errorText}>{erros.origemPosse}</Text>}
 
-          <Text style={commonStyles.label}>Data de Aquisição *</Text>
-          <TouchableOpacity
-            style={[commonStyles.inputContainer, erros.dataAquisicao && styles.inputError]}
-            onPress={() => setMostrarDatePicker(true)}
-          >
-            <Ionicons name="calendar-outline" size={20} color="#666" style={commonStyles.inputIcon} />
-            <Text style={[commonStyles.input, { color: dataAquisicaoFormatada ? '#333' : '#999', paddingVertical: 12 }]}>
-              {dataAquisicaoFormatada || 'Selecione a data de aquisição'}
-            </Text>
-          </TouchableOpacity>
-          {erros.dataAquisicao && <Text style={styles.errorText}>{erros.dataAquisicao}</Text>}
-          
-          {/* DatePicker nativo - corrigido para funcionar corretamente */}
-          {mostrarDatePicker && (
-            Platform.OS === 'ios' ? (
-              <View style={styles.datePickerContainer}>
-                <View style={styles.datePickerHeader}>
-                  <TouchableOpacity
-                    onPress={() => setMostrarDatePicker(false)}
-                    style={styles.datePickerButton}
-                  >
-                    <Text style={styles.datePickerButtonText}>Cancelar</Text>
-                  </TouchableOpacity>
-                  <Text style={styles.datePickerTitle}>Selecione a data</Text>
-                  <TouchableOpacity
-                    onPress={() => {
-                      if (dataAquisicao) {
-                        setMostrarDatePicker(false);
-                      }
-                    }}
-                    style={styles.datePickerButton}
-                  >
-                    <Text style={[styles.datePickerButtonText, styles.datePickerButtonConfirm]}>
-                      Confirmar
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-                <DateTimePicker
-                  value={dataAquisicao || new Date()}
-                  mode="date"
-                  display="spinner"
-                  maximumDate={new Date()}
-                  onChange={(event, selectedDate) => {
-                    if (event.type === 'set' && selectedDate) {
-                      // Manter como Date object
-                      setDataAquisicao(selectedDate);
-                      // Formatar para DD/MM/YYYY apenas para exibição
-                      const day = String(selectedDate.getDate()).padStart(2, '0');
-                      const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
-                      const year = selectedDate.getFullYear();
-                      setDataAquisicaoFormatada(`${day}/${month}/${year}`);
-                      if (erros.dataAquisicao) {
-                        setErros({ ...erros, dataAquisicao: null });
-                      }
-                    } else if (event.type === 'dismissed') {
-                      setMostrarDatePicker(false);
-                    }
-                  }}
-                />
-              </View>
-            ) : (
-              <DateTimePicker
-                value={dataAquisicao || new Date()}
-                mode="date"
-                display="default"
-                maximumDate={new Date()}
-                onChange={(event, selectedDate) => {
-                  setMostrarDatePicker(false);
-                  if (event.type === 'set' && selectedDate) {
-                    // Manter como Date object
-                    setDataAquisicao(selectedDate);
-                    // Formatar para DD/MM/YYYY apenas para exibição
-                    const day = String(selectedDate.getDate()).padStart(2, '0');
-                    const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
-                    const year = selectedDate.getFullYear();
-                    setDataAquisicaoFormatada(`${day}/${month}/${year}`);
-                    if (erros.dataAquisicao) {
-                      setErros({ ...erros, dataAquisicao: null });
-                    }
-                  }
-                }}
-              />
-            )
-          )}
+          <DateInput
+            label="Data de Aquisição *"
+            value={dataAquisicao}
+            onChange={(date) => {
+              setDataAquisicao(date);
+              if (erros.dataAquisicao) {
+                setErros({ ...erros, dataAquisicao: null });
+              }
+            }}
+            placeholder="Selecione a data de aquisição"
+            error={erros.dataAquisicao}
+            maximumDate={new Date()}
+          />
 
           {origemPosse === 'zero_km' && (
             <>

@@ -23,6 +23,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import ActionButton from '../components/ActionButton';
 import CameraButton from '../components/CameraButton';
 import HeaderBar from '../components/HeaderBar';
+import DateInput from '../components/DateInput';
 import { commonStyles } from '../constants/styles';
 import { buscarVeiculoPorId, listarVeiculosComTotais, listarHistoricoKm } from '../services/api';
 import { useAbastecimentoApi } from '../services/useAbastecimentoApi';
@@ -45,9 +46,7 @@ export default function RegistrarAbastecimentoScreen({ route, navigation }) {
   const [posto, setPosto] = useState('');
   const [kmAntes, setKmAntes] = useState('');
   const [kmDepois, setKmDepois] = useState('');
-  const [data, setData] = useState(new Date());
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  
+  const [data, setData] = useState(new Date()); // Date object
   const [imagem, setImagem] = useState(imagemUri ? { uri: imagemUri } : null);
   const [mostrarModalImagem, setMostrarModalImagem] = useState(false);
   const [processandoOcr, setProcessandoOcr] = useState(false);
@@ -167,7 +166,10 @@ export default function RegistrarAbastecimentoScreen({ route, navigation }) {
       if (dados.data) {
         const dataParts = dados.data.split('-');
         if (dataParts.length === 3) {
-          setData(new Date(parseInt(dataParts[0]), parseInt(dataParts[1]) - 1, parseInt(dataParts[2])));
+          const dateObj = new Date(parseInt(dataParts[0]), parseInt(dataParts[1]) - 1, parseInt(dataParts[2]));
+          if (!isNaN(dateObj.getTime())) {
+            setData(dateObj);
+          }
         }
       }
 
@@ -231,13 +233,6 @@ export default function RegistrarAbastecimentoScreen({ route, navigation }) {
     if (!result.canceled && result.assets[0]) {
       setImagem({ uri: result.assets[0].uri });
     }
-  };
-
-  const formatarData = (date) => {
-    const day = String(date.getDate()).padStart(2, '0');
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const year = date.getFullYear();
-    return `${day}/${month}/${year}`;
   };
 
   const formatarDataParaApi = (date) => {
@@ -468,7 +463,11 @@ export default function RegistrarAbastecimentoScreen({ route, navigation }) {
               {data && (
                 <View style={styles.ocrDataItem}>
                   <Text style={styles.ocrDataLabel}>Data</Text>
-                  <Text style={styles.ocrDataValue}>{formatarData(data)}</Text>
+                  <Text style={styles.ocrDataValue}>
+                    {data instanceof Date && !isNaN(data.getTime())
+                      ? `${String(data.getDate()).padStart(2, '0')}/${String(data.getMonth() + 1).padStart(2, '0')}/${data.getFullYear()}`
+                      : 'Data inválida'}
+                  </Text>
                 </View>
               )}
             </View>
@@ -595,14 +594,13 @@ export default function RegistrarAbastecimentoScreen({ route, navigation }) {
           />
         </View>
 
-        <Text style={commonStyles.label}>Data</Text>
-        <TouchableOpacity
-          style={commonStyles.inputContainer}
-          onPress={() => setShowDatePicker(true)}
-        >
-          <Ionicons name="calendar-outline" size={20} color={commonStyles.textSecondary} style={commonStyles.inputIcon} />
-          <Text style={commonStyles.input}>{formatarData(data)}</Text>
-        </TouchableOpacity>
+        <DateInput
+          label="Data"
+          value={data}
+          onChange={setData}
+          placeholder="Selecione a data"
+          maximumDate={new Date()}
+        />
 
         {/* (C) Seção: Botões de Ação */}
         <View style={styles.actionButtonsSection}>
