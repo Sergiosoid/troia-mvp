@@ -10,6 +10,7 @@
 
 import React, { useState } from 'react';
 import { Platform, Modal, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
 import { commonStyles } from '../constants/styles';
@@ -96,12 +97,13 @@ export default function DateInput({
         Platform.OS === 'ios' ? (
           <Modal
             visible={showPicker}
-            transparent={true}
+            transparent={false}
             animationType="slide"
+            presentationStyle="pageSheet"
             onRequestClose={handleCancel}
           >
-            <Pressable style={styles.modalOverlay} onPress={handleCancel}>
-              <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
+            <SafeAreaView style={styles.modalContainer} edges={['bottom']}>
+              <View style={styles.modalContent}>
                 <View style={styles.modalHeader}>
                   <TouchableOpacity onPress={handleCancel} style={styles.modalButton}>
                     <Text style={styles.modalButtonText}>Cancelar</Text>
@@ -111,17 +113,20 @@ export default function DateInput({
                     <Text style={[styles.modalButtonText, styles.modalButtonConfirm]}>Confirmar</Text>
                   </TouchableOpacity>
                 </View>
-                <DateTimePicker
-                  value={dateValue}
-                  mode="date"
-                  display="spinner"
-                  maximumDate={maximumDate}
-                  minimumDate={minimumDate}
-                  onChange={handleDateChange}
-                  locale="pt-BR"
-                />
+                <View style={styles.pickerContainer}>
+                  <DateTimePicker
+                    value={dateValue}
+                    mode="date"
+                    display="spinner"
+                    maximumDate={maximumDate}
+                    minimumDate={minimumDate}
+                    onChange={handleDateChange}
+                    locale="pt-BR"
+                    style={styles.picker}
+                  />
+                </View>
               </View>
-            </Pressable>
+            </SafeAreaView>
           </Modal>
         ) : (
           <DateTimePicker
@@ -154,24 +159,23 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     marginLeft: 4,
   },
-  modalOverlay: {
+  modalContainer: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
+    backgroundColor: '#fff',
   },
   modalContent: {
+    flex: 1,
     backgroundColor: '#fff',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingBottom: 20,
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#e0e0e0',
+    backgroundColor: '#fff',
   },
   modalTitle: {
     fontSize: 18,
@@ -180,6 +184,7 @@ const styles = StyleSheet.create({
   },
   modalButton: {
     padding: 8,
+    minWidth: 80,
   },
   modalButtonText: {
     fontSize: 16,
@@ -188,6 +193,18 @@ const styles = StyleSheet.create({
   modalButtonConfirm: {
     color: '#4CAF50',
     fontWeight: '600',
+    textAlign: 'right',
+  },
+  pickerContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    paddingVertical: 20,
+  },
+  picker: {
+    width: '100%',
+    height: 216,
   },
 });
 
