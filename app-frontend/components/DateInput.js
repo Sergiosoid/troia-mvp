@@ -122,6 +122,8 @@ export default function DateInput({
                     minimumDate={minimumDate}
                     onChange={handleDateChange}
                     locale="pt-BR"
+                    themeVariant="light"
+                    textColor="#000000"
                     style={styles.picker}
                   />
                 </View>
