@@ -16,7 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 // DateTimePicker será usado via Modal nativo se disponível
-import { cadastrarManutencao, listarProprietarios, listarVeiculosPorProprietario, buscarDiagnosticoVeiculo } from '../services/api';
+import { cadastrarManutencao, listarProprietarios, listarVeiculosPorProprietario, buscarDiagnosticoVeiculo, processarOcrManutencao } from '../services/api';
 import { commonStyles } from '../constants/styles';
 import HeaderBar from '../components/HeaderBar';
 import CameraButton from '../components/CameraButton';
@@ -64,6 +64,11 @@ export default function CadastroManutencaoScreen({ route, navigation }) {
   const [mostrarProprietarios, setMostrarProprietarios] = useState(false);
   const [mostrarVeiculos, setMostrarVeiculos] = useState(false);
   const [mostrarModalImagem, setMostrarModalImagem] = useState(false);
+  
+  // Estados para OCR
+  const [processandoOcr, setProcessandoOcr] = useState(false);
+  const [dadosOcr, setDadosOcr] = useState(null); // Dados extraídos do OCR
+  const [imagemOcrFilename, setImagemOcrFilename] = useState(null); // Nome do arquivo para reutilizar
 
   const tiposManutencao = [
     { label: 'Preventiva', value: 'preventiva' },
@@ -183,6 +188,141 @@ export default function CadastroManutencaoScreen({ route, navigation }) {
     }
   };
 
+  /**
+   * Processa imagem via OCR e pré-preenche formulário
+   */
+  const processarImagemOcr = async (imageAsset) => {
+    if (!imageAsset || !imageAsset.uri) {
+      Alert.alert('Erro', 'Imagem inválida');
+      return;
+    }
+
+    try {
+      setProcessandoOcr(true);
+      setDadosOcr(null);
+
+      // Criar FormData com imagem
+      const formData = new FormData();
+      const filename = imageAsset.uri.split('/').pop() || 'imagem.jpg';
+      const match = /\.(\w+)$/.exec(filename);
+      const type = match ? `image/${match[1]}` : 'image/jpeg';
+      
+      formData.append('imagem', {
+        uri: imageAsset.uri,
+        name: filename,
+        type: type,
+      } as any);
+
+      // Chamar API de OCR
+      const resultado = await processarOcrManutencao(formData);
+
+      if (resultado && resultado.success && resultado.dados) {
+        setDadosOcr(resultado.dados);
+        setImagemOcrFilename(resultado.imagem_filename);
+        setImagem(imageAsset);
+
+        // Pré-preencher formulário com dados extraídos
+        const dados = resultado.dados;
+
+        // Tipo de manutenção
+        if (dados.tipo_manutencao?.valor && dados.tipo_manutencao.confidence > 0.5) {
+          setTipoManutencao(dados.tipo_manutencao.valor);
+        }
+
+        // Data
+        if (dados.data_manutencao?.valor && dados.data_manutencao.confidence > 0.5) {
+          const dataParts = dados.data_manutencao.valor.split('-');
+          if (dataParts.length === 3) {
+            const dateObj = new Date(parseInt(dataParts[0]), parseInt(dataParts[1]) - 1, parseInt(dataParts[2]));
+            if (!isNaN(dateObj.getTime())) {
+              setData(dateObj);
+            }
+          }
+        }
+
+        // Valor
+        if (dados.valor_total?.valor && dados.valor_total.confidence > 0.5) {
+          setValor(dados.valor_total.valor.toString());
+        }
+
+        // Descrição (usar descricao_servico ou lista_servicos)
+        // Nota: Não há campo de descrição no formulário atual, mas podemos adicionar se necessário
+        // Por enquanto, apenas armazenamos nos dados OCR para referência
+
+        Alert.alert(
+          'OCR Concluído',
+          'Dados extraídos da imagem. Revise e ajuste os campos conforme necessário.',
+          [{ text: 'OK' }]
+        );
+      } else {
+        throw new Error('Resposta inválida do OCR');
+      }
+    } catch (error: any) {
+      console.error('Erro ao processar OCR:', error);
+      
+      // Tratar erro de limite
+      if (error.code === 'OCR_LIMIT_EXCEEDED') {
+        Alert.alert(
+          'Limite de OCR Atingido',
+          error.message || 'Você atingiu o limite de processamentos OCR. Tente novamente mais tarde.',
+          [{ text: 'OK' }]
+        );
+      } else {
+        // Em caso de erro, permitir usar imagem manualmente
+        Alert.alert(
+          'OCR Indisponível',
+          'Não foi possível processar a imagem automaticamente. Você pode preencher os dados manualmente e usar a imagem como anexo.',
+          [
+            { text: 'Usar Imagem Manualmente', onPress: () => setImagem(imageAsset) },
+            { text: 'Cancelar', style: 'cancel' }
+          ]
+        );
+      }
+    } finally {
+      setProcessandoOcr(false);
+    }
+  };
+
+  /**
+   * Seleciona imagem e processa via OCR
+   */
+  const selecionarImagemParaOcr = async () => {
+    setMostrarModalImagem(false);
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permissão negada', 'Permita o acesso à galeria para continuar.');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({ 
+      mediaTypes: ImagePicker.MediaTypeOptions.Images, 
+      quality: 0.8 
+    });
+    if (!result.canceled) {
+      await processarImagemOcr(result.assets[0]);
+    }
+  };
+
+  /**
+   * Tira foto e processa via OCR
+   */
+  const tirarFotoParaOcr = async () => {
+    setMostrarModalImagem(false);
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permissão negada', 'Permita o acesso à câmera para continuar.');
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({ 
+      mediaTypes: ImagePicker.MediaTypeOptions.Images, 
+      quality: 0.8 
+    });
+    if (!result.canceled) {
+      await processarImagemOcr(result.assets[0]);
+    }
+  };
+
   const enviarManutencao = async () => {
     // Validação obrigatória: veiculoId deve vir de route.params
     if (!veiculoId) {
@@ -283,12 +423,16 @@ export default function CadastroManutencaoScreen({ route, navigation }) {
     }
 
     const formData = new FormData();
+    // Enviar imagem se disponível (sempre enviar arquivo, mesmo se veio do OCR)
     if (imagem && imagem.uri) {
+      const filename = imagem.uri.split('/').pop() || 'nota.jpg';
+      const match = /\.(\w+)$/.exec(filename);
+      const type = match ? `image/${match[1]}` : 'image/jpeg';
       formData.append('documento', { 
         uri: imagem.uri, 
-        name: 'nota.jpg', 
-        type: 'image/jpeg' 
-      });
+        name: filename, 
+        type: type 
+      } as any);
     }
     formData.append('veiculo_id', veiculoIdFinal);
     formData.append('valor', valor);
@@ -485,12 +629,32 @@ export default function CadastroManutencaoScreen({ route, navigation }) {
             </>
           )}
 
+          {/* Botão Adicionar por Foto (OCR) */}
+          {!imagem && (
+            <>
+              <Text style={commonStyles.label}>Adicionar por Foto</Text>
+              <CameraButton
+                onPress={() => setMostrarModalImagem(true)}
+                label={processandoOcr ? "Processando..." : "Adicionar por Foto"}
+                variant="primary"
+                style={{ marginBottom: 15 }}
+                disabled={processandoOcr}
+              />
+              {processandoOcr && (
+                <View style={styles.ocrProcessing}>
+                  <ActivityIndicator size="small" color="#4CAF50" />
+                  <Text style={styles.ocrProcessingText}>Processando imagem com IA...</Text>
+                </View>
+              )}
+            </>
+          )}
+
           {/* Imagem da Nota Fiscal */}
           <Text style={commonStyles.label}>Imagem da Nota Fiscal</Text>
-          {!imagem && (
+          {!imagem && !processandoOcr && (
             <CameraButton
               onPress={() => setMostrarModalImagem(true)}
-              label="Enviar Imagem"
+              label="Enviar Imagem (Manual)"
               variant="secondary"
               style={{ marginBottom: 15 }}
             />
@@ -513,7 +677,15 @@ export default function CadastroManutencaoScreen({ route, navigation }) {
             </>
           )}
 
-          {dadosPreenchidos && (
+          {/* Aviso de dados extraídos via OCR */}
+          {dadosOcr && (
+            <View style={styles.successBox}>
+              <Ionicons name="checkmark-circle" size={20} color="#4CAF50" />
+              <Text style={styles.successText}>Dados extraídos automaticamente. Revise os campos destacados.</Text>
+            </View>
+          )}
+
+          {dadosPreenchidos && !dadosOcr && (
             <View style={styles.successBox}>
               <Ionicons name="checkmark-circle" size={20} color="#4CAF50" />
               <Text style={styles.successText}>Dados preenchidos automaticamente pela IA</Text>
@@ -528,7 +700,13 @@ export default function CadastroManutencaoScreen({ route, navigation }) {
             onChange={setTipoManutencao}
             placeholder="Selecione o tipo..."
             icon="construct-outline"
+            error={dadosOcr && dadosOcr.tipo_manutencao?.confidence < 0.5 && dadosOcr.tipo_manutencao?.valor ? 'Confiança baixa - revise este campo' : undefined}
           />
+          {dadosOcr && dadosOcr.tipo_manutencao?.valor && dadosOcr.tipo_manutencao.confidence < 0.7 && (
+            <Text style={styles.confidenceWarning}>
+              ⚠️ Campo extraído com confiança baixa ({Math.round(dadosOcr.tipo_manutencao.confidence * 100)}%)
+            </Text>
+          )}
 
           {/* Área de Manutenção */}
           <SelectInput
@@ -542,7 +720,10 @@ export default function CadastroManutencaoScreen({ route, navigation }) {
 
           {/* Valor */}
           <Text style={commonStyles.label}>Valor *</Text>
-          <View style={commonStyles.inputContainer}>
+          <View style={[
+            commonStyles.inputContainer,
+            dadosOcr && dadosOcr.valor_total?.confidence < 0.7 && dadosOcr.valor_total?.valor && styles.lowConfidenceField
+          ]}>
             <Ionicons name="cash-outline" size={20} color="#666" style={commonStyles.inputIcon} />
             <TextInput
               style={commonStyles.input}
@@ -553,6 +734,11 @@ export default function CadastroManutencaoScreen({ route, navigation }) {
               keyboardType="decimal-pad"
             />
           </View>
+          {dadosOcr && dadosOcr.valor_total?.valor && dadosOcr.valor_total.confidence < 0.7 && (
+            <Text style={styles.confidenceWarning}>
+              ⚠️ Valor extraído com confiança baixa ({Math.round(dadosOcr.valor_total.confidence * 100)}%)
+            </Text>
+          )}
 
           {/* Data */}
           <DateInput
@@ -561,7 +747,13 @@ export default function CadastroManutencaoScreen({ route, navigation }) {
             onChange={setData}
             placeholder="Selecione a data"
             maximumDate={new Date()}
+            error={dadosOcr && dadosOcr.data_manutencao?.confidence < 0.5 && dadosOcr.data_manutencao?.valor ? 'Confiança baixa - revise este campo' : undefined}
           />
+          {dadosOcr && dadosOcr.data_manutencao?.valor && dadosOcr.data_manutencao.confidence < 0.7 && (
+            <Text style={styles.confidenceWarning}>
+              ⚠️ Data extraída com confiança baixa ({Math.round(dadosOcr.data_manutencao.confidence * 100)}%)
+            </Text>
+          )}
 
           {/* Botão Cadastrar */}
           <TouchableOpacity
@@ -594,6 +786,25 @@ export default function CadastroManutencaoScreen({ route, navigation }) {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Selecionar Imagem</Text>
+            <Text style={styles.modalSubtitle}>Processar com IA (OCR)</Text>
+            <CameraButton
+              onPress={tirarFotoParaOcr}
+              label="Tirar Foto e Processar"
+              icon="camera"
+              variant="primary"
+              style={styles.modalOption}
+              disabled={processandoOcr}
+            />
+            <CameraButton
+              onPress={selecionarImagemParaOcr}
+              label="Escolher da Galeria e Processar"
+              icon="images"
+              variant="primary"
+              style={styles.modalOption}
+              disabled={processandoOcr}
+            />
+            <View style={styles.modalDivider} />
+            <Text style={styles.modalSubtitle}>Adicionar Manualmente</Text>
             <CameraButton
               onPress={tirarFoto}
               label="Tirar Foto"
@@ -690,6 +901,45 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#4CAF50',
     flex: 1,
+  },
+  confidenceWarning: {
+    fontSize: 12,
+    color: '#FF9800',
+    marginTop: -10,
+    marginBottom: 10,
+    marginLeft: 4,
+    fontStyle: 'italic',
+  },
+  lowConfidenceField: {
+    borderColor: '#FF9800',
+    borderWidth: 2,
+    backgroundColor: '#FFF8E1',
+  },
+  ocrProcessing: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    marginBottom: 15,
+    backgroundColor: '#f5f5f5',
+    borderRadius: 8,
+    gap: 8,
+  },
+  ocrProcessingText: {
+    fontSize: 14,
+    color: '#666',
+  },
+  modalSubtitle: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 16,
+    marginBottom: 8,
+    fontWeight: '500',
+  },
+  modalDivider: {
+    height: 1,
+    backgroundColor: '#e0e0e0',
+    marginVertical: 16,
   },
   warningBox: {
     flexDirection: 'column',

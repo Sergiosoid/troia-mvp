@@ -329,6 +329,52 @@ export const listarVeiculosPorProprietario = async (id) => {
   }
 };
 
+/**
+ * Processa imagem de documento de manutenção via OCR
+ * @param {FormData} formData - FormData com imagem (campo 'imagem')
+ * @returns {Promise<Object>} Dados extraídos com confidence
+ */
+export const processarOcrManutencao = async (formData) => {
+  try {
+    const token = await getToken();
+    if (!token) {
+      throw new Error('Usuário não autenticado. Faça login novamente.');
+    }
+    
+    // Criar headers com JWT (sem Content-Type para FormData)
+    const headers = await getHeaders(true, null);
+    
+    const res = await fetchWithTimeout(`${API_URL}/manutencoes/ocr`, {
+      method: 'POST',
+      headers,
+      body: formData,
+    });
+    
+    // Backend retorna { success: true, dados: {...}, imagem_url, imagem_filename }
+    if (res && res.success && res.dados) {
+      return res;
+    }
+    
+    // Se retornar erro de limite
+    if (res && res.code === 'OCR_LIMIT_EXCEEDED') {
+      const limitError = new Error(res.message || 'Limite de OCR atingido');
+      limitError.code = res.code;
+      limitError.limit = res.limit;
+      throw limitError;
+    }
+    
+    throw new Error('Resposta inválida do servidor');
+  } catch (error) {
+    if (error.message.includes('502') || error.message.includes('500')) {
+      throw new Error('Servidor temporariamente indisponível. Tente novamente em alguns instantes.');
+    }
+    if (error.code === 'OCR_LIMIT_EXCEEDED') {
+      throw error; // Re-throw para tratamento específico
+    }
+    throw error;
+  }
+};
+
 export const cadastrarManutencao = async (formData) => {
   try {
     const token = await getToken();
