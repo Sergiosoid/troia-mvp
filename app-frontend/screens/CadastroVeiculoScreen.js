@@ -89,6 +89,41 @@ export default function CadastroVeiculoScreen({ route, navigation }) {
     }
   }, [fabricanteSelecionado, tipoVeiculo, modoManual]);
 
+  // Gerar lista de anos dinamicamente conforme tipo de equipamento
+  const gerarAnosPorTipo = (tipo) => {
+    if (!tipo) return [];
+    
+    const anoAtual = new Date().getFullYear();
+    const anoFim = anoAtual + 1; // Permitir até ano futuro
+    
+    let anoInicio;
+    switch (tipo) {
+      case 'carro':
+      case 'moto':
+        anoInicio = 1990;
+        break;
+      case 'caminhao':
+      case 'onibus':
+      case 'maquina_agricola':
+      case 'maquina_industrial':
+        anoInicio = 1980;
+        break;
+      case 'barco':
+      case 'jetski':
+        anoInicio = 2000;
+        break;
+      default:
+        anoInicio = 1990; // Padrão
+    }
+    
+    const anos = [];
+    for (let ano = anoFim; ano >= anoInicio; ano--) {
+      anos.push(ano);
+    }
+    
+    return anos;
+  };
+
   // Carregar anos quando modelo ou tipo for selecionado
   useEffect(() => {
     if (tipoVeiculo && !modoManual) {
@@ -135,41 +170,6 @@ export default function CadastroVeiculoScreen({ route, navigation }) {
     } finally {
       setCarregandoModelos(false);
     }
-  };
-
-  // Gerar lista de anos dinamicamente conforme tipo de equipamento
-  const gerarAnosPorTipo = (tipo) => {
-    if (!tipo) return [];
-    
-    const anoAtual = new Date().getFullYear();
-    const anoFim = anoAtual + 1; // Permitir até ano futuro
-    
-    let anoInicio;
-    switch (tipo) {
-      case 'carro':
-      case 'moto':
-        anoInicio = 1990;
-        break;
-      case 'caminhao':
-      case 'onibus':
-      case 'maquina_agricola':
-      case 'maquina_industrial':
-        anoInicio = 1980;
-        break;
-      case 'barco':
-      case 'jetski':
-        anoInicio = 2000;
-        break;
-      default:
-        anoInicio = 1990; // Padrão
-    }
-    
-    const anos = [];
-    for (let ano = anoFim; ano >= anoInicio; ano--) {
-      anos.push(ano);
-    }
-    
-    return anos;
   };
 
   const carregarAnos = async (modeloId, tipo) => {
