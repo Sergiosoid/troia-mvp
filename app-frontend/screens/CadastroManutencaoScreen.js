@@ -21,6 +21,7 @@ import { commonStyles } from '../constants/styles';
 import HeaderBar from '../components/HeaderBar';
 import CameraButton from '../components/CameraButton';
 import DateInput from '../components/DateInput';
+import SelectInput from '../components/SelectInput';
 import { getErrorMessage, getSuccessMessage } from '../utils/errorMessages';
 
 export default function CadastroManutencaoScreen({ route, navigation }) {
@@ -62,8 +63,6 @@ export default function CadastroManutencaoScreen({ route, navigation }) {
   const [loading, setLoading] = useState(false);
   const [mostrarProprietarios, setMostrarProprietarios] = useState(false);
   const [mostrarVeiculos, setMostrarVeiculos] = useState(false);
-  const [mostrarTipoManutencao, setMostrarTipoManutencao] = useState(false);
-  const [mostrarAreaManutencao, setMostrarAreaManutencao] = useState(false);
   const [mostrarModalImagem, setMostrarModalImagem] = useState(false);
 
   const tiposManutencao = [
@@ -522,76 +521,24 @@ export default function CadastroManutencaoScreen({ route, navigation }) {
           )}
 
           {/* Tipo de Manutenção */}
-          <Text style={commonStyles.label}>Tipo de Manutenção *</Text>
-          <View style={styles.pickerContainer}>
-            <TouchableOpacity 
-              style={[commonStyles.inputContainer, styles.pickerButton]}
-              onPress={() => setMostrarTipoManutencao(!mostrarTipoManutencao)}
-            >
-              <Ionicons name="construct-outline" size={20} color="#666" style={commonStyles.inputIcon} />
-              <Text style={styles.pickerText}>
-                {tipoManutencao 
-                  ? tiposManutencao.find(t => t.value === tipoManutencao)?.label || tipoManutencao
-                  : 'Selecione o tipo...'}
-              </Text>
-              <Ionicons name="chevron-down" size={20} color="#666" />
-            </TouchableOpacity>
-            {mostrarTipoManutencao && (
-              <View style={styles.optionsList}>
-                {tiposManutencao.map(tipo => (
-                  <TouchableOpacity
-                    key={tipo.value}
-                    style={[
-                      styles.optionItem,
-                      tipoManutencao === tipo.value && styles.optionItemSelected
-                    ]}
-                    onPress={() => {
-                      setTipoManutencao(tipo.value);
-                      setMostrarTipoManutencao(false);
-                    }}
-                  >
-                    <Text style={styles.optionText}>{tipo.label}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
-          </View>
+          <SelectInput
+            label="Tipo de Manutenção *"
+            value={tipoManutencao}
+            options={tiposManutencao}
+            onChange={setTipoManutencao}
+            placeholder="Selecione o tipo..."
+            icon="construct-outline"
+          />
 
           {/* Área de Manutenção */}
-          <Text style={commonStyles.label}>Área de Manutenção *</Text>
-          <View style={styles.pickerContainer}>
-            <TouchableOpacity 
-              style={[commonStyles.inputContainer, styles.pickerButton]}
-              onPress={() => setMostrarAreaManutencao(!mostrarAreaManutencao)}
-            >
-              <Ionicons name="settings-outline" size={20} color="#666" style={commonStyles.inputIcon} />
-              <Text style={styles.pickerText}>
-                {areaManutencao 
-                  ? areasManutencao.find(a => a.value === areaManutencao)?.label || areaManutencao
-                  : 'Selecione a área...'}
-              </Text>
-              <Ionicons name="chevron-down" size={20} color="#666" />
-            </TouchableOpacity>
-            {mostrarAreaManutencao && (
-              <View style={styles.optionsList}>
-                {areasManutencao.map(area => (
-                  <TouchableOpacity
-                    key={area.value}
-                    style={[
-                      styles.optionItem,
-                      areaManutencao === area.value && styles.optionItemSelected
-                    ]}
-                    onPress={() => {
-                      setAreaManutencao(area.value);
-                      setMostrarAreaManutencao(false);
-                    }}
-                  >
-                    <Text style={styles.optionText}>{area.label}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
-          </View>
+          <SelectInput
+            label="Área de Manutenção *"
+            value={areaManutencao}
+            options={areasManutencao}
+            onChange={setAreaManutencao}
+            placeholder="Selecione a área..."
+            icon="settings-outline"
+          />
 
           {/* Valor */}
           <Text style={commonStyles.label}>Valor *</Text>

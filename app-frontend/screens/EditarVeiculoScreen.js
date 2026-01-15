@@ -19,6 +19,7 @@ import QRCode from 'react-native-qrcode-svg';
 import ActionButton from '../components/ActionButton';
 import HeaderBar from '../components/HeaderBar';
 import DateInput from '../components/DateInput';
+import SelectInput from '../components/SelectInput';
 import { commonStyles } from '../constants/styles';
 import {
     adicionarHistoricoProprietario,
@@ -58,7 +59,6 @@ export default function EditarVeiculoScreen({ route, navigation }) {
   const [modelo, setModelo] = useState('');
   const [ano, setAno] = useState('');
   const [tipoVeiculo, setTipoVeiculo] = useState('');
-  const [mostrarTipoVeiculo, setMostrarTipoVeiculo] = useState(false);
 
   // Histórico de proprietários
   const [historico, setHistorico] = useState([]);
@@ -546,21 +546,14 @@ export default function EditarVeiculoScreen({ route, navigation }) {
               />
             </View>
 
-            <Text style={commonStyles.label}>Tipo de Veículo</Text>
-            <View style={styles.pickerContainer}>
-              <TouchableOpacity
-                style={[commonStyles.inputContainer, styles.pickerButton]}
-                onPress={() => setMostrarTipoVeiculo(true)}
-              >
-                <Ionicons name="car-sport-outline" size={20} color="#666" style={commonStyles.inputIcon} />
-                <Text style={styles.pickerText}>
-                  {tipoVeiculo
-                    ? tiposVeiculo.find((t) => t.value === tipoVeiculo)?.label || tipoVeiculo
-                    : 'Selecione o tipo (opcional)'}
-                </Text>
-                <Ionicons name="chevron-down" size={20} color="#666" />
-              </TouchableOpacity>
-            </View>
+            <SelectInput
+              label="Tipo de Veículo"
+              value={tipoVeiculo}
+              options={tiposVeiculo}
+              onChange={setTipoVeiculo}
+              placeholder="Selecione o tipo (opcional)"
+              icon="car-sport-outline"
+            />
 
             <ActionButton
               onPress={handleCompartilhar}
@@ -805,58 +798,6 @@ export default function EditarVeiculoScreen({ route, navigation }) {
         </View>
       </Modal>
 
-      {/* Modal de Seleção de Tipo de Veículo */}
-      <Modal
-        visible={mostrarTipoVeiculo}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setMostrarTipoVeiculo(false)}
-      >
-        <Pressable
-          style={styles.modalOverlay}
-          onPress={() => setMostrarTipoVeiculo(false)}
-        >
-          <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Selecione o Tipo de Veículo</Text>
-              <TouchableOpacity
-                onPress={() => setMostrarTipoVeiculo(false)}
-                style={styles.modalCloseButton}
-              >
-                <Ionicons name="close" size={24} color="#666" />
-              </TouchableOpacity>
-            </View>
-            <ScrollView
-              style={styles.modalScrollView}
-              showsVerticalScrollIndicator={true}
-            >
-              {tiposVeiculo.map((tipo) => (
-                <TouchableOpacity
-                  key={tipo.value}
-                  style={[
-                    styles.modalOptionItem,
-                    tipoVeiculo === tipo.value && styles.modalOptionItemSelected,
-                  ]}
-                  onPress={() => {
-                    setTipoVeiculo(tipo.value);
-                    setMostrarTipoVeiculo(false);
-                  }}
-                >
-                  <Text style={[
-                    styles.modalOptionText,
-                    tipoVeiculo === tipo.value && styles.modalOptionTextSelected,
-                  ]}>
-                    {tipo.label}
-                  </Text>
-                  {tipoVeiculo === tipo.value && (
-                    <Ionicons name="checkmark" size={20} color="#4CAF50" />
-                  )}
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-        </Pressable>
-      </Modal>
 
       {/* Modal de Compartilhamento */}
       <Modal
@@ -1073,17 +1014,6 @@ const styles = StyleSheet.create({
   saveButton: {
     marginTop: 20,
   },
-  pickerContainer: {
-    marginBottom: 15,
-  },
-  pickerButton: {
-    justifyContent: 'space-between',
-  },
-  pickerText: {
-    flex: 1,
-    fontSize: 16,
-    color: '#333',
-  },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
@@ -1119,25 +1049,6 @@ const styles = StyleSheet.create({
   },
   modalScrollView: {
     maxHeight: Dimensions.get('window').height * 0.5,
-  },
-  modalOptionItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  modalOptionItemSelected: {
-    backgroundColor: '#e8f5e9',
-  },
-  modalOptionText: {
-    fontSize: 16,
-    color: '#333',
-  },
-  modalOptionTextSelected: {
-    color: '#4CAF50',
-    fontWeight: '600',
   },
   loadingContainer: {
     padding: 20,

@@ -5,6 +5,7 @@ import { ActivityIndicator, Alert, Dimensions, Image, Modal, Platform, Pressable
 import HeaderBar from '../components/HeaderBar';
 import CameraButton from '../components/CameraButton';
 import DateInput from '../components/DateInput';
+import SelectInput from '../components/SelectInput';
 import { commonStyles } from '../constants/styles';
 import { cadastrarVeiculo, listarFabricantes, listarModelos, buscarAnosModelo } from '../services/api';
 import { getErrorMessage, getSuccessMessage } from '../utils/errorMessages';
@@ -31,13 +32,11 @@ export default function CadastroVeiculoScreen({ route, navigation }) {
   const [modelo, setModelo] = useState('');
   const [ano, setAno] = useState('');
   const [tipoVeiculo, setTipoVeiculo] = useState('');
-  const [mostrarTipoVeiculo, setMostrarTipoVeiculo] = useState(false);
   const [loading, setLoading] = useState(false);
   const [mostrarModalVeiculoExistente, setMostrarModalVeiculoExistente] = useState(false);
   
   // Dados da Aquisição (necessários para histórico completo)
   const [origemPosse, setOrigemPosse] = useState(''); // 'zero_km' ou 'usado'
-  const [mostrarOrigemPosse, setMostrarOrigemPosse] = useState(false);
   const [dataAquisicao, setDataAquisicao] = useState(null); // Date object | null
   const [kmInicio, setKmInicio] = useState('');
 
@@ -51,9 +50,6 @@ export default function CadastroVeiculoScreen({ route, navigation }) {
   const [carregandoFabricantes, setCarregandoFabricantes] = useState(false);
   const [carregandoModelos, setCarregandoModelos] = useState(false);
   const [carregandoAnos, setCarregandoAnos] = useState(false);
-  const [mostrarFabricantes, setMostrarFabricantes] = useState(false);
-  const [mostrarModelos, setMostrarModelos] = useState(false);
-  const [mostrarAnos, setMostrarAnos] = useState(false);
   const [modoManual, setModoManual] = useState(false); // Fallback para dados não padronizados
 
   // Carregar fabricantes quando tipo for selecionado
@@ -476,22 +472,28 @@ export default function CadastroVeiculoScreen({ route, navigation }) {
           )}
 
           {/* Tipo do Equipamento (PRIMEIRO CAMPO) */}
-          <Text style={commonStyles.label}>Tipo do Equipamento *</Text>
-          <View style={styles.pickerContainer}>
-            <TouchableOpacity 
-              style={[commonStyles.inputContainer, styles.pickerButton, (!tipoVeiculo || erros.tipoVeiculo) && styles.inputRequired]}
-              onPress={() => setMostrarTipoVeiculo(true)}
-            >
-              <Ionicons name="car-sport-outline" size={20} color="#666" style={commonStyles.inputIcon} />
-              <Text style={styles.pickerText}>
-                {tipoVeiculo 
-                  ? tiposEquipamento.find(t => t.value === tipoVeiculo)?.label || tipoVeiculo
-                  : 'Selecione o tipo do equipamento *'}
-              </Text>
-              <Ionicons name="chevron-down" size={20} color="#666" />
-            </TouchableOpacity>
-          </View>
-          {erros.tipoVeiculo && <Text style={styles.errorText}>{erros.tipoVeiculo}</Text>}
+          <SelectInput
+            label="Tipo do Equipamento *"
+            value={tipoVeiculo}
+            options={tiposEquipamento}
+            onChange={(value) => {
+              const novoTipo = value;
+              // Se tipo mudar, limpar seleções dependentes
+              if (tipoVeiculo !== novoTipo) {
+                setFabricanteSelecionado(null);
+                setModeloSelecionado(null);
+                setAnoSelecionado(null);
+                setFabricantes([]);
+                setModelos([]);
+                setAnos([]);
+                setErros({ ...erros, tipoVeiculo: null, fabricante: null, modelo: null, ano: null });
+              }
+              setTipoVeiculo(novoTipo);
+            }}
+            placeholder="Selecione o tipo do equipamento *"
+            error={erros.tipoVeiculo}
+            icon="car-sport-outline"
+          />
           {!tipoVeiculo && (
             <Text style={styles.helperText}>
               Selecione o tipo do equipamento primeiro para continuar
@@ -534,87 +536,61 @@ export default function CadastroVeiculoScreen({ route, navigation }) {
           {/* Modo Guiado (Padrão) */}
           {!modoManual ? (
             <>
-              <Text style={commonStyles.label}>Fabricante *</Text>
-              <TouchableOpacity
-                style={[
-                  commonStyles.inputContainer, 
-                  styles.pickerButton, 
-                  erros.fabricante && styles.inputError,
-                  !tipoVeiculo && styles.inputDisabled
-                ]}
-                onPress={() => tipoVeiculo && setMostrarFabricantes(true)}
+              <SelectInput
+                label="Fabricante *"
+                value={fabricanteSelecionado?.id || null}
+                options={fabricantes.map(f => ({ label: f.nome, value: f.id }))}
+                onChange={(fabricanteId) => {
+                  const fabricante = fabricantes.find(f => f.id === fabricanteId);
+                  setFabricanteSelecionado(fabricante || null);
+                  setErros({ ...erros, fabricante: null });
+                }}
+                placeholder={!tipoVeiculo ? 'Selecione o tipo do equipamento primeiro' : 'Selecione o fabricante *'}
+                error={erros.fabricante}
                 disabled={!tipoVeiculo}
-              >
-                <Ionicons name="car-sport-outline" size={20} color="#666" style={commonStyles.inputIcon} />
-                <Text style={[
-                  styles.pickerText, 
-                  (!fabricanteSelecionado || !tipoVeiculo) && styles.pickerTextPlaceholder
-                ]}>
-                  {!tipoVeiculo 
-                    ? 'Selecione o tipo do equipamento primeiro'
-                    : fabricanteSelecionado 
-                      ? fabricanteSelecionado.nome 
-                      : 'Selecione o fabricante *'}
-                </Text>
-                {carregandoFabricantes ? (
-                  <ActivityIndicator size="small" color="#666" />
-                ) : (
-                  <Ionicons name="chevron-down" size={20} color="#666" />
-                )}
-              </TouchableOpacity>
-              {erros.fabricante && <Text style={styles.errorText}>{erros.fabricante}</Text>}
+                loading={carregandoFabricantes}
+                icon="car-sport-outline"
+                emptyMessage="Nenhum fabricante disponível"
+              />
 
               {fabricanteSelecionado && tipoVeiculo && (
                 <>
-                  <Text style={commonStyles.label}>Modelo *</Text>
-                  <TouchableOpacity
-                    style={[
-                      commonStyles.inputContainer, 
-                      styles.pickerButton, 
-                      erros.modelo && styles.inputError,
-                      (!fabricanteSelecionado || !tipoVeiculo) && styles.inputDisabled
-                    ]}
-                    onPress={() => (fabricanteSelecionado && tipoVeiculo) && setMostrarModelos(true)}
-                    disabled={!fabricanteSelecionado || !tipoVeiculo || carregandoModelos}
-                  >
-                    <Ionicons name="car-outline" size={20} color="#666" style={commonStyles.inputIcon} />
-                    <Text style={[styles.pickerText, !modeloSelecionado && styles.pickerTextPlaceholder]}>
-                      {modeloSelecionado ? modeloSelecionado.nome : 'Selecione o modelo *'}
-                    </Text>
-                    {carregandoModelos ? (
-                      <ActivityIndicator size="small" color="#666" />
-                    ) : (
-                      <Ionicons name="chevron-down" size={20} color="#666" />
-                    )}
-                  </TouchableOpacity>
-                  {erros.modelo && <Text style={styles.errorText}>{erros.modelo}</Text>}
+                  <SelectInput
+                    label="Modelo *"
+                    value={modeloSelecionado?.id || null}
+                    options={modelos.map(m => ({ label: m.nome, value: m.id }))}
+                    onChange={(modeloId) => {
+                      const modelo = modelos.find(m => m.id === modeloId);
+                      setModeloSelecionado(modelo || null);
+                      setErros({ ...erros, modelo: null });
+                    }}
+                    placeholder="Selecione o modelo *"
+                    error={erros.modelo}
+                    disabled={!fabricanteSelecionado || !tipoVeiculo}
+                    loading={carregandoModelos}
+                    icon="car-outline"
+                    emptyMessage="Nenhum modelo disponível"
+                  />
                 </>
               )}
 
               {modeloSelecionado && tipoVeiculo && (
                 <>
-                  <Text style={commonStyles.label}>Ano do Modelo *</Text>
-                  <TouchableOpacity
-                    style={[
-                      commonStyles.inputContainer, 
-                      styles.pickerButton, 
-                      erros.ano && styles.inputError,
-                      (!modeloSelecionado || !tipoVeiculo) && styles.inputDisabled
-                    ]}
-                    onPress={() => (modeloSelecionado && tipoVeiculo) && setMostrarAnos(true)}
-                    disabled={!modeloSelecionado || !tipoVeiculo || carregandoAnos}
-                  >
-                    <Ionicons name="calendar-outline" size={20} color="#666" style={commonStyles.inputIcon} />
-                    <Text style={[styles.pickerText, !anoSelecionado && styles.pickerTextPlaceholder]}>
-                      {anoSelecionado ? anoSelecionado.toString() : 'Selecione o ano *'}
-                    </Text>
-                    {carregandoAnos ? (
-                      <ActivityIndicator size="small" color="#666" />
-                    ) : (
-                      <Ionicons name="chevron-down" size={20} color="#666" />
-                    )}
-                  </TouchableOpacity>
-                  {erros.ano && <Text style={styles.errorText}>{erros.ano}</Text>}
+                  <SelectInput
+                    label="Ano do Modelo *"
+                    value={anoSelecionado || null}
+                    options={anos.map(ano => ({ label: ano.toString(), value: ano }))}
+                    onChange={(ano) => {
+                      setAnoSelecionado(ano);
+                      setErros({ ...erros, ano: null });
+                    }}
+                    placeholder="Selecione o ano *"
+                    error={erros.ano}
+                    disabled={!modeloSelecionado || !tipoVeiculo}
+                    loading={carregandoAnos}
+                    icon="calendar-outline"
+                    emptyMessage="Nenhum ano disponível"
+                  />
                 </>
               )}
 
@@ -780,19 +756,26 @@ export default function CadastroVeiculoScreen({ route, navigation }) {
           <Text style={[commonStyles.label, styles.sectionTitle]}>Dados da Aquisição *</Text>
           
           <Text style={commonStyles.label}>Tipo de Aquisição *</Text>
-          <View style={styles.pickerContainer}>
-            <TouchableOpacity 
-              style={[commonStyles.inputContainer, styles.pickerButton, (!origemPosse || erros.origemPosse) && styles.inputRequired]}
-              onPress={() => setMostrarOrigemPosse(true)}
-            >
-              <Ionicons name="document-text-outline" size={20} color="#666" style={commonStyles.inputIcon} />
-              <Text style={styles.pickerText}>
-                {origemPosse === 'zero_km' ? 'Zero KM' : origemPosse === 'usado' ? 'Usado' : 'Selecione o tipo *'}
-              </Text>
-              <Ionicons name="chevron-down" size={20} color="#666" />
-            </TouchableOpacity>
-          </View>
-          {erros.origemPosse && <Text style={styles.errorText}>{erros.origemPosse}</Text>}
+          <SelectInput
+            label="Tipo de Aquisição *"
+            value={origemPosse}
+            options={[
+              { label: 'Zero KM', value: 'zero_km' },
+              { label: 'Usado', value: 'usado' }
+            ]}
+            onChange={(value) => {
+              setOrigemPosse(value);
+              if (value === 'zero_km') {
+                setKmInicio('0');
+              } else {
+                setKmInicio('');
+              }
+              setErros({ ...erros, origemPosse: null });
+            }}
+            placeholder="Selecione o tipo *"
+            error={erros.origemPosse}
+            icon="document-text-outline"
+          />
 
           <DateInput
             label="Data de Aquisição *"
@@ -885,338 +868,6 @@ export default function CadastroVeiculoScreen({ route, navigation }) {
         </View>
       </ScrollView>
 
-      {/* Modal de Seleção de Tipo de Veículo */}
-      <Modal
-        visible={mostrarTipoVeiculo}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setMostrarTipoVeiculo(false)}
-      >
-        <Pressable
-          style={styles.modalOverlay}
-          onPress={() => setMostrarTipoVeiculo(false)}
-        >
-          <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Selecione o Tipo de Veículo</Text>
-              <TouchableOpacity
-                onPress={() => setMostrarTipoVeiculo(false)}
-                style={styles.modalCloseButton}
-              >
-                <Ionicons name="close" size={24} color="#666" />
-              </TouchableOpacity>
-            </View>
-            <ScrollView
-              style={styles.modalScrollView}
-              showsVerticalScrollIndicator={true}
-            >
-              {tiposEquipamento.map(tipo => (
-                <TouchableOpacity
-                  key={tipo.value}
-                  style={[
-                    styles.modalOptionItem,
-                    tipoVeiculo === tipo.value && styles.modalOptionItemSelected
-                  ]}
-                onPress={() => {
-                  const novoTipo = tipo.value;
-                  // Se tipo mudar, limpar seleções dependentes
-                  if (tipoVeiculo !== novoTipo) {
-                    setFabricanteSelecionado(null);
-                    setModeloSelecionado(null);
-                    setAnoSelecionado(null);
-                    setFabricantes([]);
-                    setModelos([]);
-                    setAnos([]);
-                    setErros({ ...erros, tipoVeiculo: null, fabricante: null, modelo: null, ano: null });
-                  }
-                  setTipoVeiculo(novoTipo);
-                  setMostrarTipoVeiculo(false);
-                }}
-                >
-                  <Text style={[
-                    styles.modalOptionText,
-                    tipoVeiculo === tipo.value && styles.modalOptionTextSelected
-                  ]}>
-                    {tipo.label}
-                  </Text>
-                  {tipoVeiculo === tipo.value && (
-                    <Ionicons name="checkmark" size={20} color="#4CAF50" />
-                  )}
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-        </Pressable>
-        </Modal>
-
-      {/* Modal de Seleção de Tipo de Aquisição */}
-      <Modal
-        visible={mostrarOrigemPosse}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setMostrarOrigemPosse(false)}
-      >
-        <Pressable
-          style={styles.modalOverlay}
-          onPress={() => setMostrarOrigemPosse(false)}
-        >
-          <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Tipo de Aquisição</Text>
-              <TouchableOpacity
-                onPress={() => setMostrarOrigemPosse(false)}
-                style={styles.modalCloseButton}
-              >
-                <Ionicons name="close" size={24} color="#666" />
-              </TouchableOpacity>
-            </View>
-            <ScrollView
-              style={styles.modalScrollView}
-              showsVerticalScrollIndicator={true}
-            >
-              <TouchableOpacity
-                style={[
-                  styles.modalOptionItem,
-                  origemPosse === 'zero_km' && styles.modalOptionItemSelected
-                ]}
-                onPress={() => {
-                  setOrigemPosse('zero_km');
-                  setKmInicio('0'); // Auto-preencher KM inicial como 0
-                  setErros({ ...erros, origemPosse: null });
-                  setMostrarOrigemPosse(false);
-                }}
-              >
-                <Text style={[
-                  styles.modalOptionText,
-                  origemPosse === 'zero_km' && styles.modalOptionTextSelected
-                ]}>
-                  Zero KM
-                </Text>
-                {origemPosse === 'zero_km' && (
-                  <Ionicons name="checkmark" size={20} color="#4CAF50" />
-                )}
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.modalOptionItem,
-                  origemPosse === 'usado' && styles.modalOptionItemSelected
-                ]}
-                onPress={() => {
-                  setOrigemPosse('usado');
-                  setKmInicio(''); // Limpar KM inicial para o usuário preencher
-                  setErros({ ...erros, origemPosse: null, kmInicio: null });
-                  setMostrarOrigemPosse(false);
-                }}
-              >
-                <Text style={[
-                  styles.modalOptionText,
-                  origemPosse === 'usado' && styles.modalOptionTextSelected
-                ]}>
-                  Usado
-                </Text>
-                {origemPosse === 'usado' && (
-                  <Ionicons name="checkmark" size={20} color="#4CAF50" />
-                )}
-              </TouchableOpacity>
-            </ScrollView>
-          </View>
-        </Pressable>
-      </Modal>
-
-      {/* Modal de Seleção de Fabricante */}
-      <Modal
-        visible={mostrarFabricantes}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setMostrarFabricantes(false)}
-      >
-        <Pressable
-          style={styles.modalOverlay}
-          onPress={() => setMostrarFabricantes(false)}
-        >
-          <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Selecione o Fabricante</Text>
-              <TouchableOpacity
-                onPress={() => setMostrarFabricantes(false)}
-                style={styles.modalCloseButton}
-              >
-                <Ionicons name="close" size={24} color="#666" />
-              </TouchableOpacity>
-            </View>
-            <ScrollView
-              style={styles.modalScrollView}
-              showsVerticalScrollIndicator={true}
-            >
-              {carregandoFabricantes ? (
-                <View style={styles.modalLoading}>
-                  <ActivityIndicator size="large" color="#4CAF50" />
-                  <Text style={styles.modalLoadingText}>Carregando fabricantes...</Text>
-                </View>
-              ) : fabricantes.length === 0 ? (
-                <View style={styles.modalEmpty}>
-                  <Text style={styles.modalEmptyText}>Nenhum fabricante disponível</Text>
-                </View>
-              ) : (
-                fabricantes.map(fabricante => (
-                  <TouchableOpacity
-                    key={fabricante.id}
-                    style={[
-                      styles.modalOptionItem,
-                      fabricanteSelecionado?.id === fabricante.id && styles.modalOptionItemSelected
-                    ]}
-                    onPress={() => {
-                      setFabricanteSelecionado(fabricante);
-                      setMostrarFabricantes(false);
-                      setErros({ ...erros, fabricante: null });
-                    }}
-                  >
-                    <Text style={[
-                      styles.modalOptionText,
-                      fabricanteSelecionado?.id === fabricante.id && styles.modalOptionTextSelected
-                    ]}>
-                      {fabricante.nome}
-                    </Text>
-                    {fabricanteSelecionado?.id === fabricante.id && (
-                      <Ionicons name="checkmark" size={20} color="#4CAF50" />
-                    )}
-                  </TouchableOpacity>
-                ))
-              )}
-            </ScrollView>
-          </View>
-        </Pressable>
-      </Modal>
-
-      {/* Modal de Seleção de Modelo */}
-      <Modal
-        visible={mostrarModelos}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setMostrarModelos(false)}
-      >
-        <Pressable
-          style={styles.modalOverlay}
-          onPress={() => setMostrarModelos(false)}
-        >
-          <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Selecione o Modelo</Text>
-              <TouchableOpacity
-                onPress={() => setMostrarModelos(false)}
-                style={styles.modalCloseButton}
-              >
-                <Ionicons name="close" size={24} color="#666" />
-              </TouchableOpacity>
-            </View>
-            <ScrollView
-              style={styles.modalScrollView}
-              showsVerticalScrollIndicator={true}
-            >
-              {carregandoModelos ? (
-                <View style={styles.modalLoading}>
-                  <ActivityIndicator size="large" color="#4CAF50" />
-                  <Text style={styles.modalLoadingText}>Carregando modelos...</Text>
-                </View>
-              ) : modelos.length === 0 ? (
-                <View style={styles.modalEmpty}>
-                  <Text style={styles.modalEmptyText}>Nenhum modelo disponível</Text>
-                </View>
-              ) : (
-                modelos.map(modelo => (
-                  <TouchableOpacity
-                    key={modelo.id}
-                    style={[
-                      styles.modalOptionItem,
-                      modeloSelecionado?.id === modelo.id && styles.modalOptionItemSelected
-                    ]}
-                    onPress={() => {
-                      setModeloSelecionado(modelo);
-                      setMostrarModelos(false);
-                      setErros({ ...erros, modelo: null });
-                    }}
-                  >
-                    <Text style={[
-                      styles.modalOptionText,
-                      modeloSelecionado?.id === modelo.id && styles.modalOptionTextSelected
-                    ]}>
-                      {modelo.nome}
-                    </Text>
-                    {modeloSelecionado?.id === modelo.id && (
-                      <Ionicons name="checkmark" size={20} color="#4CAF50" />
-                    )}
-                  </TouchableOpacity>
-                ))
-              )}
-            </ScrollView>
-          </View>
-        </Pressable>
-      </Modal>
-
-      {/* Modal de Seleção de Ano */}
-      <Modal
-        visible={mostrarAnos}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setMostrarAnos(false)}
-      >
-        <Pressable
-          style={styles.modalOverlay}
-          onPress={() => setMostrarAnos(false)}
-        >
-          <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Selecione o Ano</Text>
-              <TouchableOpacity
-                onPress={() => setMostrarAnos(false)}
-                style={styles.modalCloseButton}
-              >
-                <Ionicons name="close" size={24} color="#666" />
-              </TouchableOpacity>
-            </View>
-            <ScrollView
-              style={styles.modalScrollView}
-              showsVerticalScrollIndicator={true}
-            >
-              {carregandoAnos ? (
-                <View style={styles.modalLoading}>
-                  <ActivityIndicator size="large" color="#4CAF50" />
-                  <Text style={styles.modalLoadingText}>Carregando anos...</Text>
-                </View>
-              ) : anos.length === 0 ? (
-                <View style={styles.modalEmpty}>
-                  <Text style={styles.modalEmptyText}>Nenhum ano disponível</Text>
-                </View>
-              ) : (
-                anos.map(ano => (
-                  <TouchableOpacity
-                    key={ano}
-                    style={[
-                      styles.modalOptionItem,
-                      anoSelecionado === ano && styles.modalOptionItemSelected
-                    ]}
-                    onPress={() => {
-                      setAnoSelecionado(ano);
-                      setMostrarAnos(false);
-                      setErros({ ...erros, ano: null });
-                    }}
-                  >
-                    <Text style={[
-                      styles.modalOptionText,
-                      anoSelecionado === ano && styles.modalOptionTextSelected
-                    ]}>
-                      {ano.toString()}
-                    </Text>
-                    {anoSelecionado === ano && (
-                      <Ionicons name="checkmark" size={20} color="#4CAF50" />
-                    )}
-                  </TouchableOpacity>
-                ))
-              )}
-            </ScrollView>
-          </View>
-        </Pressable>
-      </Modal>
 
       {/* Modal: Preview de Dados OCR */}
       {/* Modal de Preview de OCR removido - OCR local desabilitado */}
@@ -1267,20 +918,6 @@ export default function CadastroVeiculoScreen({ route, navigation }) {
 }
 
 const styles = StyleSheet.create({
-  pickerContainer: {
-    marginBottom: 15,
-  },
-  pickerButton: {
-    justifyContent: 'space-between',
-  },
-  pickerText: {
-    flex: 1,
-    fontSize: 16,
-    color: '#333',
-  },
-  pickerTextPlaceholder: {
-    color: '#999',
-  },
   modoManualButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1392,25 +1029,6 @@ const styles = StyleSheet.create({
   },
   modalScrollView: {
     maxHeight: Dimensions.get('window').height * 0.5,
-  },
-  modalOptionItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  modalOptionItemSelected: {
-    backgroundColor: '#e8f5e9',
-  },
-  modalOptionText: {
-    fontSize: 16,
-    color: '#333',
-  },
-  modalOptionTextSelected: {
-    color: '#4CAF50',
-    fontWeight: '600',
   },
   infoBox: {
     flexDirection: 'row',
