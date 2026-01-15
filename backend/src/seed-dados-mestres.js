@@ -107,10 +107,20 @@ export const seedDadosMestres = async () => {
     const fabricantesMap = {};
 
     // Popular fabricantes associados aos tipos corretos
+    // Como há constraint UNIQUE no nome, atualizamos tipo_equipamento do registro existente
+    // Se fabricante aparecer em múltiplos tipos, priorizamos o primeiro tipo encontrado
+    const fabricantesProcessados = new Set();
+    
     for (const [tipo, fabricantes] of Object.entries(fabricantesPorTipo)) {
       for (const nomeFabricante of fabricantes) {
+        const key = `${nomeFabricante}_${tipo}`;
+        
+        // Se já processamos este fabricante neste tipo, pular
+        if (fabricantesProcessados.has(key)) continue;
+        fabricantesProcessados.add(key);
+        
         try {
-          // Verificar se fabricante já existe (pode existir para outro tipo)
+          // Verificar se fabricante já existe
           const existente = await queryOne(
             isPostgres() 
               ? 'SELECT id, tipo_equipamento FROM fabricantes WHERE nome = $1'
@@ -119,32 +129,24 @@ export const seedDadosMestres = async () => {
           );
 
           if (existente) {
-            // Se já existe mas sem tipo ou tipo diferente, atualizar ou criar novo registro
-            if (!existente.tipo_equipamento || existente.tipo_equipamento !== tipo) {
-              // Criar novo registro para este tipo (permite mesmo fabricante em múltiplos tipos)
-              const result = await query(
+            // Se já existe mas sem tipo ou tipo diferente, atualizar tipo_equipamento
+            // Nota: Como há UNIQUE no nome, não podemos ter múltiplos registros
+            // Atualizamos para o primeiro tipo encontrado (prioridade: carro > moto > outros)
+            if (!existente.tipo_equipamento) {
+              // Atualizar tipo_equipamento se estiver vazio
+              await query(
                 isPostgres() 
-                  ? 'INSERT INTO fabricantes (nome, tipo_equipamento, ativo) VALUES ($1, $2, true) RETURNING id'
-                  : 'INSERT INTO fabricantes (nome, tipo_equipamento, ativo) VALUES (?, ?, true)',
-                [nomeFabricante, tipo]
+                  ? 'UPDATE fabricantes SET tipo_equipamento = $1 WHERE id = $2'
+                  : 'UPDATE fabricantes SET tipo_equipamento = ? WHERE id = ?',
+                [tipo, existente.id]
               );
-              
-              let fabricanteId;
-              if (isPostgres()) {
-                fabricanteId = result.rows?.[0]?.id;
-              } else {
-                fabricanteId = result.insertId;
-              }
-              
-              const key = `${nomeFabricante}_${tipo}`;
-              fabricantesMap[key] = fabricanteId;
-              console.log(`[SEED]     ✓ ${nomeFabricante} (${tipo}) - ID: ${fabricanteId}`);
+              console.log(`[SEED]     ✓ ${nomeFabricante} atualizado para tipo ${tipo} - ID: ${existente.id}`);
             } else {
-              // Já existe com tipo correto
-              const key = `${nomeFabricante}_${tipo}`;
-              fabricantesMap[key] = existente.id;
-              console.log(`[SEED]     ✓ ${nomeFabricante} (${tipo}) já existe - ID: ${existente.id}`);
+              // Já tem tipo, apenas logar
+              console.log(`[SEED]     ✓ ${nomeFabricante} já existe com tipo ${existente.tipo_equipamento} - ID: ${existente.id}`);
             }
+            
+            fabricantesMap[key] = existente.id;
           } else {
             // Criar novo fabricante com tipo
             const result = await query(
@@ -161,7 +163,6 @@ export const seedDadosMestres = async () => {
               fabricanteId = result.insertId;
             }
             
-            const key = `${nomeFabricante}_${tipo}`;
             fabricantesMap[key] = fabricanteId;
             console.log(`[SEED]     ✓ ${nomeFabricante} (${tipo}) - ID: ${fabricanteId}`);
           }
@@ -171,12 +172,11 @@ export const seedDadosMestres = async () => {
             // Buscar ID existente
             const existente = await queryOne(
               isPostgres() 
-                ? 'SELECT id FROM fabricantes WHERE nome = $1 AND tipo_equipamento = $2'
-                : 'SELECT id FROM fabricantes WHERE nome = ? AND tipo_equipamento = ?',
-              [nomeFabricante, tipo]
+                ? 'SELECT id FROM fabricantes WHERE nome = $1'
+                : 'SELECT id FROM fabricantes WHERE nome = ?',
+              [nomeFabricante]
             );
             if (existente) {
-              const key = `${nomeFabricante}_${tipo}`;
               fabricantesMap[key] = existente.id;
             }
           } else {
