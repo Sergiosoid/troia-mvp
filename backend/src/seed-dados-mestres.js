@@ -5,12 +5,43 @@
 
 import { query, queryOne, queryAll, isPostgres } from './database/db-adapter.js';
 
-const fabricantesComuns = [
-  'Fiat', 'Volkswagen', 'Chevrolet', 'Ford', 'Toyota', 'Honda',
-  'Hyundai', 'Renault', 'Nissan', 'Peugeot', 'Citroën', 'Jeep',
-  'Mitsubishi', 'Suzuki', 'Kia', 'Audi', 'BMW', 'Mercedes-Benz',
-  'Volvo', 'Land Rover', 'Jaguar', 'Porsche', 'Lexus', 'Infiniti'
-];
+// Fabricantes por tipo de equipamento
+const fabricantesPorTipo = {
+  carro: [
+    'Fiat', 'Volkswagen', 'Chevrolet', 'Ford', 'Toyota', 'Honda',
+    'Hyundai', 'Renault', 'Nissan', 'Peugeot', 'Citroën', 'Jeep',
+    'Mitsubishi', 'Suzuki', 'Kia', 'Audi', 'BMW', 'Mercedes-Benz',
+    'Volvo', 'Land Rover', 'Jaguar', 'Porsche', 'Lexus', 'Infiniti'
+  ],
+  moto: [
+    'Honda', 'Yamaha', 'Suzuki', 'Kawasaki', 'Harley-Davidson',
+    'Ducati', 'Triumph', 'BMW', 'KTM', 'Bajaj', 'Royal Enfield',
+    'Kymco', 'Vespa', 'Piaggio', 'Dafra', 'Shineray'
+  ],
+  caminhao: [
+    'Mercedes-Benz', 'Volvo', 'Scania', 'MAN', 'Iveco',
+    'DAF', 'Ford', 'Volkswagen', 'Fiat', 'Agrale', 'International'
+  ],
+  onibus: [
+    'Mercedes-Benz', 'Volvo', 'Scania', 'MAN', 'Iveco',
+    'Marcopolo', 'Caio', 'Busscar', 'Neobus', 'Comil'
+  ],
+  barco: [
+    'Yamaha', 'Mercury', 'Suzuki', 'Honda', 'Evinrude',
+    'Volvo Penta', 'Caterpillar', 'Cummins', 'Perkins'
+  ],
+  jetski: [
+    'Yamaha', 'Sea-Doo', 'Kawasaki', 'Honda', 'Polaris'
+  ],
+  maquina_agricola: [
+    'John Deere', 'Case IH', 'New Holland', 'Massey Ferguson',
+    'Valtra', 'Fendt', 'Claas', 'Kubota', 'Agrale', 'Landini'
+  ],
+  maquina_industrial: [
+    'Caterpillar', 'Komatsu', 'Volvo', 'Liebherr', 'Hitachi',
+    'JCB', 'Bobcat', 'Case', 'Deere', 'Kubota'
+  ]
+};
 
 const modelosPorFabricante = {
   'Fiat': ['Uno', 'Palio', 'Siena', 'Strada', 'Toro', 'Mobi', 'Argo', 'Cronos', 'Fiorino', 'Doblo'],
@@ -72,45 +103,85 @@ export const seedDadosMestres = async () => {
       return;
     }
 
-    console.log('[SEED] 📦 Populando fabricantes...');
+    console.log('[SEED] 📦 Populando fabricantes por tipo...');
     const fabricantesMap = {};
 
-    for (const nomeFabricante of fabricantesComuns) {
-      try {
-        // Usar query do db-adapter que já trata PostgreSQL vs SQLite
-        const result = await query(
-          isPostgres() 
-            ? 'INSERT INTO fabricantes (nome, ativo) VALUES ($1, true) RETURNING id'
-            : 'INSERT INTO fabricantes (nome, ativo) VALUES (?, true)',
-          [nomeFabricante]
-        );
-        
-        // Extrair ID conforme o tipo de banco
-        let fabricanteId;
-        if (isPostgres()) {
-          fabricanteId = result.rows?.[0]?.id;
-        } else {
-          fabricanteId = result.insertId;
-        }
-        
-        fabricantesMap[nomeFabricante] = fabricanteId;
-                    console.log(`[SEED]     ✓ ${nomeFabricante} (ID: ${fabricanteId})`);
-      } catch (error) {
-        // Ignorar duplicatas
-        if (error.message?.includes('UNIQUE') || error.message?.includes('duplicate')) {
-          // Buscar ID existente
+    // Popular fabricantes associados aos tipos corretos
+    for (const [tipo, fabricantes] of Object.entries(fabricantesPorTipo)) {
+      for (const nomeFabricante of fabricantes) {
+        try {
+          // Verificar se fabricante já existe (pode existir para outro tipo)
           const existente = await queryOne(
             isPostgres() 
-              ? 'SELECT id FROM fabricantes WHERE nome = $1'
-              : 'SELECT id FROM fabricantes WHERE nome = ?',
+              ? 'SELECT id, tipo_equipamento FROM fabricantes WHERE nome = $1'
+              : 'SELECT id, tipo_equipamento FROM fabricantes WHERE nome = ?',
             [nomeFabricante]
           );
+
           if (existente) {
-            fabricantesMap[nomeFabricante] = existente.id;
-            console.log(`[SEED]     ✓ ${nomeFabricante} já existe (ID: ${existente.id})`);
+            // Se já existe mas sem tipo ou tipo diferente, atualizar ou criar novo registro
+            if (!existente.tipo_equipamento || existente.tipo_equipamento !== tipo) {
+              // Criar novo registro para este tipo (permite mesmo fabricante em múltiplos tipos)
+              const result = await query(
+                isPostgres() 
+                  ? 'INSERT INTO fabricantes (nome, tipo_equipamento, ativo) VALUES ($1, $2, true) RETURNING id'
+                  : 'INSERT INTO fabricantes (nome, tipo_equipamento, ativo) VALUES (?, ?, true)',
+                [nomeFabricante, tipo]
+              );
+              
+              let fabricanteId;
+              if (isPostgres()) {
+                fabricanteId = result.rows?.[0]?.id;
+              } else {
+                fabricanteId = result.insertId;
+              }
+              
+              const key = `${nomeFabricante}_${tipo}`;
+              fabricantesMap[key] = fabricanteId;
+              console.log(`[SEED]     ✓ ${nomeFabricante} (${tipo}) - ID: ${fabricanteId}`);
+            } else {
+              // Já existe com tipo correto
+              const key = `${nomeFabricante}_${tipo}`;
+              fabricantesMap[key] = existente.id;
+              console.log(`[SEED]     ✓ ${nomeFabricante} (${tipo}) já existe - ID: ${existente.id}`);
+            }
+          } else {
+            // Criar novo fabricante com tipo
+            const result = await query(
+              isPostgres() 
+                ? 'INSERT INTO fabricantes (nome, tipo_equipamento, ativo) VALUES ($1, $2, true) RETURNING id'
+                : 'INSERT INTO fabricantes (nome, tipo_equipamento, ativo) VALUES (?, ?, true)',
+              [nomeFabricante, tipo]
+            );
+            
+            let fabricanteId;
+            if (isPostgres()) {
+              fabricanteId = result.rows?.[0]?.id;
+            } else {
+              fabricanteId = result.insertId;
+            }
+            
+            const key = `${nomeFabricante}_${tipo}`;
+            fabricantesMap[key] = fabricanteId;
+            console.log(`[SEED]     ✓ ${nomeFabricante} (${tipo}) - ID: ${fabricanteId}`);
           }
-        } else {
-          console.error(`    ✗ Erro ao inserir ${nomeFabricante}:`, error.message);
+        } catch (error) {
+          // Ignorar duplicatas
+          if (error.message?.includes('UNIQUE') || error.message?.includes('duplicate')) {
+            // Buscar ID existente
+            const existente = await queryOne(
+              isPostgres() 
+                ? 'SELECT id FROM fabricantes WHERE nome = $1 AND tipo_equipamento = $2'
+                : 'SELECT id FROM fabricantes WHERE nome = ? AND tipo_equipamento = ?',
+              [nomeFabricante, tipo]
+            );
+            if (existente) {
+              const key = `${nomeFabricante}_${tipo}`;
+              fabricantesMap[key] = existente.id;
+            }
+          } else {
+            console.error(`    ✗ Erro ao inserir ${nomeFabricante} (${tipo}):`, error.message);
+          }
         }
       }
     }
@@ -118,8 +189,13 @@ export const seedDadosMestres = async () => {
     console.log('[SEED] 📦 Populando modelos...');
     let totalModelos = 0;
 
+    // Modelos são principalmente para carros (tipo padrão)
+    const tipoModelos = 'carro';
+
     for (const [fabricanteNome, modelos] of Object.entries(modelosPorFabricante)) {
-      const fabricanteId = fabricantesMap[fabricanteNome];
+      // Buscar fabricante do tipo 'carro' (modelos são principalmente de carros)
+      const key = `${fabricanteNome}_${tipoModelos}`;
+      const fabricanteId = fabricantesMap[key];
       if (!fabricanteId) continue;
 
       for (const nomeModelo of modelos) {

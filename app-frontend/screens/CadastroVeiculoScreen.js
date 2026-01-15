@@ -89,15 +89,17 @@ export default function CadastroVeiculoScreen({ route, navigation }) {
     }
   }, [fabricanteSelecionado, tipoVeiculo, modoManual]);
 
-  // Carregar anos quando modelo for selecionado
+  // Carregar anos quando modelo ou tipo for selecionado
   useEffect(() => {
-    if (modeloSelecionado && !modoManual) {
-      carregarAnos(modeloSelecionado.id);
-    } else {
+    if (tipoVeiculo && !modoManual) {
+      // Gerar anos dinamicamente por tipo (não depende mais do modelo)
+      const anosGerados = gerarAnosPorTipo(tipoVeiculo);
+      setAnos(anosGerados);
+    } else if (!tipoVeiculo) {
       setAnos([]);
       setAnoSelecionado(null);
     }
-  }, [modeloSelecionado, modoManual]);
+  }, [tipoVeiculo, modoManual]);
 
   const carregarFabricantes = async (tipo) => {
     if (!tipo) return;
@@ -135,14 +137,63 @@ export default function CadastroVeiculoScreen({ route, navigation }) {
     }
   };
 
-  const carregarAnos = async (modeloId) => {
+  // Gerar lista de anos dinamicamente conforme tipo de equipamento
+  const gerarAnosPorTipo = (tipo) => {
+    if (!tipo) return [];
+    
+    const anoAtual = new Date().getFullYear();
+    const anoFim = anoAtual + 1; // Permitir até ano futuro
+    
+    let anoInicio;
+    switch (tipo) {
+      case 'carro':
+      case 'moto':
+        anoInicio = 1990;
+        break;
+      case 'caminhao':
+      case 'onibus':
+      case 'maquina_agricola':
+      case 'maquina_industrial':
+        anoInicio = 1980;
+        break;
+      case 'barco':
+      case 'jetski':
+        anoInicio = 2000;
+        break;
+      default:
+        anoInicio = 1990; // Padrão
+    }
+    
+    const anos = [];
+    for (let ano = anoFim; ano >= anoInicio; ano--) {
+      anos.push(ano);
+    }
+    
+    return anos;
+  };
+
+  const carregarAnos = async (modeloId, tipo) => {
+    // Se tiver tipo, gerar anos dinamicamente
+    if (tipo && !modoManual) {
+      const anosGerados = gerarAnosPorTipo(tipo);
+      setAnos(anosGerados);
+      return;
+    }
+    
+    // Caso contrário, buscar do backend (fallback)
     try {
       setCarregandoAnos(true);
       const dados = await buscarAnosModelo(modeloId);
       setAnos(dados || []);
     } catch (error) {
       console.error('Erro ao carregar anos:', error);
-      setAnos([]);
+      // Fallback: gerar anos por tipo se disponível
+      if (tipo) {
+        const anosGerados = gerarAnosPorTipo(tipo);
+        setAnos(anosGerados);
+      } else {
+        setAnos([]);
+      }
     } finally {
       setCarregandoAnos(false);
     }
@@ -286,7 +337,8 @@ export default function CadastroVeiculoScreen({ route, navigation }) {
       if (tipoVeiculo && fabricanteSelecionado && !modeloSelecionado) {
         novosErros.modelo = 'Selecione o modelo';
       }
-      if (tipoVeiculo && modeloSelecionado && !anoSelecionado) {
+      // Ano agora é gerado por tipo, não depende mais do modelo
+      if (tipoVeiculo && !anoSelecionado) {
         novosErros.ano = 'Selecione o ano';
       }
     } else {
@@ -574,7 +626,7 @@ export default function CadastroVeiculoScreen({ route, navigation }) {
                 </>
               )}
 
-              {modeloSelecionado && tipoVeiculo && (
+              {tipoVeiculo && anos.length > 0 && (
                 <>
                   <SelectInput
                     label="Ano do Modelo *"
@@ -586,7 +638,7 @@ export default function CadastroVeiculoScreen({ route, navigation }) {
                     }}
                     placeholder="Selecione o ano *"
                     error={erros.ano}
-                    disabled={!modeloSelecionado || !tipoVeiculo}
+                    disabled={!tipoVeiculo}
                     loading={carregandoAnos}
                     icon="calendar-outline"
                     emptyMessage="Nenhum ano disponível"

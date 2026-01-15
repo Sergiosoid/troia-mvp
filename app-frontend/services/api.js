@@ -1276,11 +1276,15 @@ export const buscarDiagnosticoVeiculo = async (veiculoId) => {
 
 /**
  * Lista todos os fabricantes ativos
+ * @param {string|null} tipo - Tipo de equipamento para filtrar (opcional)
  */
 export const listarFabricantes = async (tipo = null) => {
   try {
     const headers = await getHeaders();
-    const res = await fetchWithTimeout(`${API_URL}/fabricantes`, {
+    const url = tipo
+      ? `${API_URL}/fabricantes?tipo=${encodeURIComponent(tipo)}`
+      : `${API_URL}/fabricantes`;
+    const res = await fetchWithTimeout(url, {
       headers,
     });
     return Array.isArray(res) ? res : [];
